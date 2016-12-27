@@ -6,6 +6,9 @@
     using System.Linq;
     using System.Collections.Generic;
     using System.Threading.Tasks;
+    using Microsoft.CodeAnalysis.Scripting;
+    using Microsoft.CodeAnalysis.CSharp.Scripting;
+    using System.Reflection;
 
     public class DiscordCommands
     {
@@ -97,8 +100,7 @@
                 await message.Channel.SendMessageAsync(((char)1).ToString(), false, embedBuilder);
             });
 
-            // TODO: I guess csharp.scripting isn't supported yet :(
-            /*
+
             Commands.Add("eval", async (message) =>
             {
                 if (BotConfig.Instance.Discord.OwnerId == message.Author.Id)
@@ -106,7 +108,7 @@
                     var script = message.Content.Split(new[] { ' ' }, 2)[1];
                     var scriptOptions = ScriptOptions.Default.
                         AddImports("System", "System.Linq", "System.Text").
-                        AddReferences(typeof(Enumerable).GetTypeInfo().Assembly);
+                        AddReferences(typeof(Enumerable).GetTypeInfo().Assembly, typeof(SocketMessage).GetTypeInfo().Assembly);
 
                     string result = "no result";
                     try
@@ -118,10 +120,15 @@
                     {
                         result = ex.ToString().Substring(0, Math.Min(ex.ToString().Length, 800));
                     }
-                    e.Channel.SendMessage(string.Format("``{0}``", result));
+
+                    await message.Channel.SendMessageAsync($"``{result}``");
                 }
             });
-            */
         }
+    }
+
+    public class ScriptHost
+    {
+        public SocketMessage message { get; set; }
     }
 }

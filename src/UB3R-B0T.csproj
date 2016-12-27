@@ -2,6 +2,7 @@
   <PropertyGroup Label="Configuration">
     <AssemblyName>UB3RB0T</AssemblyName>
     <RootNamespace>UB3RB0T</RootNamespace>
+    <PackageTargetFallback Condition=" '$(TargetFramework)' == 'netcoreapp1.0' ">$(PackageTargetFallback);dnxcore50;dotnet5.4;portable-net45+win8</PackageTargetFallback>
   </PropertyGroup>
   <PropertyGroup>
     <OutputType>exe</OutputType>
@@ -28,6 +29,7 @@
   <ItemGroup>
     <PackageReference Include="Discord.Net.WebSocket" Version="1.0.0-beta2-00523" />
     <PackageReference Include="Flurl.Http" Version="1.1.1" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="2.0.0-rc2" />
     <PackageReference Include="Microsoft.NETCore.App" Version="1.0.1" />
     <PackageReference Include="UB3RIRC" Version="1.0.1" />
   </ItemGroup>
