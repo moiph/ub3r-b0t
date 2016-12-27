@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "UB3R-B0T": {
+      "commandName": "Project",
+      "commandLineArgs": "/c:\"s:\\\\uberconfig\\\\\""
+    }
+  }
+}

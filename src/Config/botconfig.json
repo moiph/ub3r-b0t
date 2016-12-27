@@ -1,0 +1,17 @@
+﻿{
+  "name": "uberbot",
+  "discord": {
+    "token": "",
+    "status": "version 4"
+  },
+  "irc": {
+    "servers": [
+      {
+        "id": "",
+        "host": "",
+        "channels": [ "#foobar" ],
+        "enabled": false
+      }
+    ]
+  }
+}

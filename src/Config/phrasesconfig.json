@@ -1,0 +1,17 @@
+﻿{
+  "phrases": {
+    "thx %me%": "thanks",
+    "bad bot!":  "badbot"
+  },
+  "responses": {
+    "thanks": [
+      "lol np %from%",
+      "anytime, %from% xD",
+      "YEAH SURE NP, KISSASS"
+    ],
+    "badbot": [
+      ":(((((",
+      "T_T"
+    ]
+  }
+}
