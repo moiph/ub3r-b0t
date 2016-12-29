@@ -10,6 +10,9 @@
     {
         protected override string FileName => "settingsconfig.json";
 
+        public Uri ManagementEndpoint { get; set; }
+        public Uri CreateEndpoint { get; set; }
+
         public Dictionary<string, Settings> Settings { get; set; } = new Dictionary<string, Settings>();
 
         public static Settings GetSettings(ulong serverId)
@@ -56,7 +59,7 @@
         public ulong FarewellId { get; set; }
         public ulong UpdateId { get; set; }
 
-        public HashSet<string> WordCensors { get; set; }
+        public HashSet<string> WordCensors { get; set; } = new HashSet<string>();
 
         public HashSet<string> Channels { get; set; } = new HashSet<string>();
         public bool IsChannelListBlock { get; set; } = true;
@@ -74,6 +77,16 @@
         public bool HasFlag(ModOptions flag)
         {
             return (this.Mod_LogOptions & flag) == flag;
+        }
+
+        public bool IsCommandDisabled(CommandsConfig commandsConfig, string command)
+        {
+            if (string.IsNullOrEmpty(command))
+            {
+                return false;
+            }
+
+            return commandsConfig.Commands.ContainsKey(command) && this.DisabledCommands.Contains(commandsConfig.Commands[command]);
         }
     }
 }

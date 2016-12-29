@@ -20,14 +20,18 @@
         public string Channel { get; set; }
         public string Server { get; set; }
         public string Content { get; set; }
+        public string Command { get; set; } // the parse command out of the message
+        public string Query { get; set; }
 
         public BotMessageData(BotType botType)
         {
             this.BotType = botType;
         }
 
-        public static BotMessageData Create(MessageData ircMessageData, IrcClient ircClient)
+        public static BotMessageData Create(MessageData ircMessageData, string query, IrcClient ircClient)
         {
+            string command = query.Split(new[] { ' ' }, 2)?[0];
+
             return new BotMessageData(BotType.Irc)
             {
                 IrcMessageData = ircMessageData,
@@ -36,11 +40,15 @@
                 Channel = ircMessageData.Target,
                 Server = ircClient.Host,
                 Content = ircMessageData.Text,
+                Command = command,
+                Query = query,
             };
         }
 
-        public static BotMessageData Create(SocketUserMessage discordMessageData)
+        public static BotMessageData Create(SocketUserMessage discordMessageData, string query)
         {
+            string command = query.Split(new[] { ' ' }, 2)?[0];
+
             return new BotMessageData(BotType.Discord)
             {
                 DiscordMessageData = discordMessageData,
@@ -49,6 +57,8 @@
                 Channel = discordMessageData.Channel.Id.ToString(),
                 Server = (discordMessageData.Channel as IGuildChannel)?.GuildId.ToString() ?? "private",
                 Content = discordMessageData.Content,
+                Command = command,
+                Query = query,
             };
         }
     }

@@ -2,10 +2,8 @@
 namespace UB3RB0T
 {
     using System;
-    using System.IO;
     using System.Net;
     using System.Threading.Tasks;
-    using Newtonsoft.Json;
 
     /// <summary>
     /// Internal, private API for UB3R-B0T.
@@ -28,63 +26,34 @@ namespace UB3RB0T
         {
             string[] responses = new string[] { };
 
-            string requestUrl = string.Format("{0}?apikey={1}&nick={2}&host={3}&server={4}&channel={5}&query={6}",
+            string requestUrl = string.Format("{0}?apikey={1}&nick={2}&host={3}&server={4}&channel={5}&bottype={6}&query={7}",
                 this.apiEndpoint,
                 this.apiKey,
                 WebUtility.UrlEncode(messageData.UserName),
-                WebUtility.UrlEncode(messageData.UserHost),
+                WebUtility.UrlEncode(messageData.UserHost ?? messageData.UserId),
                 messageData.Server,
                 WebUtility.UrlEncode(messageData.Channel),
+                this.botType.ToString().ToLowerInvariant(),
                 WebUtility.UrlEncode(query));
 
-            var req = WebRequest.Create(requestUrl);
+            var botResponse = await Utilities.GetApiResponseAsync<BotApiResponse>(new Uri(requestUrl));
 
-            WebResponse webResponse = null;
-            try
+            if (botResponse != null)
             {
-                webResponse = await req.GetResponseAsync();
-            }
-            catch (WebException)
-            {
-                //
-            }
+                responses = botResponse.Msgs.Length > 0 ? botResponse.Msgs : new string[] { botResponse.Msg };
 
-            if (webResponse != null)
-            {
-                Stream responseStream = webResponse.GetResponseStream();
-                string responseData;
-                using (StreamReader reader = new StreamReader(responseStream))
+                if (this.botType == BotType.Discord)
                 {
-                    responseData = await reader.ReadToEndAsync();
-                }
+                    string response = string.Join("\n", responses);
 
-                BotApiResponse botResponse = null;
-
-                try
-                {
-                    botResponse = JsonConvert.DeserializeObject<BotApiResponse>(responseData);
-                }
-                catch (Exception)
-                {
-                }
-
-                if (botResponse != null)
-                {
-                    responses = botResponse.Msgs.Length > 0 ? botResponse.Msgs : new string[] { botResponse.Msg };
-
-                    if (this.botType == BotType.Discord)
+                    // Extra processing for figlet/cowsay on Discord
+                    if (query.StartsWith("cowsay", StringComparison.OrdinalIgnoreCase) || query.StartsWith("figlet", StringComparison.OrdinalIgnoreCase))
                     {
-                        string response = string.Join("\n", responses);
-
-                        // Extra processing for figlet/cowsay on Discord
-                        if (query.StartsWith("cowsay", StringComparison.OrdinalIgnoreCase) || query.StartsWith("figlet", StringComparison.OrdinalIgnoreCase))
-                        {
-                            // use a non printable character to force preceeding whitespace to display correctly
-                            response = "```" + (char)1 + response + "```";
-                        }
-
-                        responses = new string[] { response };
+                        // use a non printable character to force preceeding whitespace to display correctly
+                        response = "```" + (char)1 + response + "```";
                     }
+
+                    responses = new string[] { response };
                 }
             }
 

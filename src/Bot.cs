@@ -6,16 +6,12 @@
     using System.Threading;
     using System.Threading.Tasks;
     using Discord;
-    using Discord.Audio;
     using Discord.WebSocket;
     using UB3RIRC;
-    using Flurl;
-    using Flurl.Http;
     using System.Collections.Concurrent;
     using System.Text.RegularExpressions;
-    using System.Net;
 
-    public class Bot
+    public partial class Bot
     {
         private int shard = 0;
         private BotType botType;
@@ -27,8 +23,11 @@
         private Dictionary<string, IrcClient> ircClients;
 
         private ConcurrentDictionary<string, int> commandsIssued = new ConcurrentDictionary<string, int>();
+
         private static Regex channelRegex = new Regex("#([a-zA-Z0-9\\-]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static Regex httpRegex = new Regex("https?://([^\\s]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        public static Regex TimerRegex = new Regex(".*?remind (?<target>.+?) in (?<years>[0-9]+ year)?s? ?(?<weeks>[0-9]+ week)?s? ?(?<days>[0-9]+ day)?s? ?(?<hours>[0-9]+ hour)?s? ?(?<minutes>[0-9]+ minute)?s? ?(?<seconds>[0-9]+ seconds)?.*?(?<prep>[^ ]+) (?<reason>.+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        public static Regex Timer2Regex = new Regex(".*?remind (?<target>.+?) (?<prep>[^ ]+) (?<reason>.+?) in (?<years>[0-9]+ year)?s? ?(?<weeks>[0-9]+ week)?s? ?(?<days>[0-9]+ day)?s? ?(?<hours>[0-9]+ hour)?s? ?(?<minutes>[0-9]+ minute)?s? ?(?<seconds>[0-9]+ seconds)?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         private Timer notificationsTimer;
         private Timer settingsUpdateTimer;
@@ -54,9 +53,8 @@
         /// <summary>
         public async Task RunAsync()
         {
-            notificationsTimer = new Timer(CheckNotifications, null, 10000, 10000);
-            remindersTimer = new Timer(CheckReminders, null, 10000, 10000);
-
+            notificationsTimer = new Timer(CheckNotificationsAsync, null, 10000, 10000);
+            remindersTimer = new Timer(CheckRemindersAsync, null, 10000, 10000);
             oneMinuteTimer = new Timer(OneMinuteTimer, null, 60000, 60000);
 
             if (botType == BotType.Discord)
@@ -66,36 +64,7 @@
                     throw new InvalidConfigException("Discord auth token is missing.");
                 }
 
-                client = new DiscordSocketClient(new DiscordSocketConfig
-                {
-                    ShardId = this.shard,
-                    TotalShards = this.Config.Discord.ShardCount,
-                    AudioMode = AudioMode.Outgoing,
-                    LogLevel = LogSeverity.Verbose,
-                });
-
-                client.MessageReceived += OnMessageReceivedAsync;
-                client.Log += Client_Log;
-                client.UserJoined += Client_UserJoined;
-                client.UserLeft += Client_UserLeft;
-                client.LeftGuild += Client_LeftGuild;
-
-                // If user customizeable server settings are supported...support them
-                // Currently discord only.
-                if (this.Config.SettingsEndpoint != null)
-                {
-                    await this.UpdateSettingsAsync();
-
-                    // set a recurring timer to refresh settings
-                    settingsUpdateTimer = new Timer(async (object state) =>
-                    {
-                        await this.UpdateSettingsAsync();
-                    }, null, 30000, 30000);
-                }
-
-                await client.LoginAsync(TokenType.Bot, this.Config.Discord.Token);
-                await client.ConnectAsync();
-                await this.client.SetGame(this.Config.Discord.Status);
+                await this.CreateDiscordBotAsync();
             }
             else
             {
@@ -109,55 +78,7 @@
                     throw new InvalidConfigException("Invalid channel specified; all channels should start with #.");
                 }
 
-                ircClients = new Dictionary<string, IrcClient>();
-
-                foreach (IrcServer server in this.Config.Irc.Servers)
-                {
-                    var ircClient = new IrcClient(server.Id, this.Config.Name, server.Host, server.Port, /* useSsl -- pending support */false);
-                    ircClients.Add(server.Id, ircClient);
-                    ircClient.OnIrcEvent += this.OnIrcEventAsync;
-
-                    await ircClient.ConnectAsync();
-                }
-            }
-
-            if (this.botType == BotType.Discord &&
-                (!string.IsNullOrEmpty(this.Config.Discord.DiscordBotsKey) || !string.IsNullOrEmpty(this.Config.Discord.CarbonStatsKey)))
-            {
-                statsTimer = new Timer(async (object state) =>
-                {
-                    if (!string.IsNullOrEmpty(this.Config.Discord.DiscordBotsKey))
-                    {
-                        try
-                        {
-                            var result = await "https://bots.discord.pw"
-                                .AppendPathSegment($"api/bots/{client.CurrentUser.Id}/stats")
-                                .WithHeader("Authorization", this.Config.Discord.DiscordBotsKey)
-                                .PostJsonAsync(new { shard_id = client.ShardId, shard_count = this.Config.Discord.ShardCount, server_count = client.Guilds.Count() });
-                        }
-                        catch (Exception ex)
-                        {
-                            // TODO: Update to using one of the logging classes (Discord/IRC)
-                            Console.WriteLine($"Failed to update bots.discord.pw stats: {ex}");
-                        }
-                    }
-
-                    if (!string.IsNullOrEmpty(this.Config.Discord.CarbonStatsKey))
-                    {
-                        try
-                        {
-                            var result = await "https://www.carbonitex.net"
-                                .AppendPathSegment("/discord/data/botdata.php")
-                                .PostJsonAsync(new { key = this.Config.Discord.CarbonStatsKey, shard_id = client.ShardId, shard_count = this.Config.Discord.ShardCount, servercount = client.Guilds.Count() });
-                        }
-                        catch (Exception ex)
-                        {
-                            // TODO: Update to using one of the logging classes (Discord/IRC)
-                            Console.WriteLine($"Failed to update carbon stats: {ex}");
-                        }
-                    }
-
-                }, null, 3600000, 3600000);
+                await this.CreateIrcBotsAsync();
             }
 
             // If a custom API endpoint is supported...support it
@@ -189,67 +110,6 @@
             Console.WriteLine("Exited.");
         }
 
-        private async Task Client_LeftGuild(SocketGuild arg)
-        {
-            if (this.Config.PruneEndpoint != null)
-            {
-                var req = WebRequest.Create($"{this.Config.PruneEndpoint}?id={arg.Id}");
-                await req.GetResponseAsync();
-            }
-        }
-
-        private async Task Client_UserLeft(SocketGuildUser arg)
-        {
-            var settings = SettingsConfig.GetSettings(arg.Guild.Id);
-
-            if (!string.IsNullOrEmpty(settings.Farewell))
-            {
-                var farewell = settings.Farewell.Replace("%user%", arg.Mention);
-
-                farewell = channelRegex.Replace(farewell, new MatchEvaluator((Match chanMatch) =>
-                {   
-                    string channelName = chanMatch.Captures[0].Value;
-                    var channel = arg.Guild.Channels.Where(c => c.Name == channelName).FirstOrDefault();
-
-                    if (channel != null)
-                    {
-                        return ((ITextChannel)channel).Mention;
-                    }
-
-                    return channelName;
-                }));
-
-                var farewellChannel = this.client.GetChannel(settings.FarewellId) as ITextChannel ?? await arg.Guild.GetDefaultChannelAsync();
-                await farewellChannel.SendMessageAsync(farewell);
-            }
-        }
-
-        private async Task Client_UserJoined(SocketGuildUser arg)
-        {
-            var settings = SettingsConfig.GetSettings(arg.Guild.Id);
-
-            if (!string.IsNullOrEmpty(settings.Greeting))
-            {
-                var greeting = settings.Greeting.Replace("%user%", arg.Mention);
-
-                greeting = channelRegex.Replace(greeting, new MatchEvaluator((Match chanMatch) =>
-                {
-                    string channelName = chanMatch.Captures[0].Value;
-                    var channel = arg.Guild.Channels.Where(c => c.Name == channelName).FirstOrDefault();
-
-                    if (channel != null)
-                    {
-                        return ((ITextChannel)channel).Mention;
-                    }
-
-                    return channelName;
-                }));
-
-                var greetingChannel = this.client.GetChannel(settings.GreetingId) as ITextChannel ?? await arg.Guild.GetDefaultChannelAsync();
-                await greetingChannel.SendMessageAsync(greeting);
-            }
-        }
-
         private static void Heartbeat()
         {
 
@@ -259,7 +119,9 @@
         {
             try
             {
+                Console.WriteLine("Fetching server settings...");
                 await SettingsConfig.Instance.OverrideAsync(this.Config.SettingsEndpoint);
+                Console.WriteLine("Server settings updated.");
             }
             catch (Exception ex)
             {
@@ -268,9 +130,58 @@
             }
         }
 
-        private void CheckReminders(object state)
+        private bool processingtimers = false;
+        private async void CheckRemindersAsync(object state)
         {
+            if (processingtimers) { return; }
+            processingtimers = true;
+            if (CommandsConfig.Instance.RemindersEndpoint != null)
+            {
+                var reminders = await Utilities.GetApiResponseAsync<ReminderData[]>(CommandsConfig.Instance.RemindersEndpoint);
+                if (reminders != null)
+                {
+                    var remindersToDelete = new List<string>();
+                    foreach (var timer in reminders.Where(t => t.BotType == this.botType))
+                    {
+                        string requestedBy = string.IsNullOrEmpty(timer.Requestor) ? string.Empty : "[Requested by " + timer.Requestor + "]";
 
+
+                        if (this.botType == BotType.Irc)
+                        {
+                            string msg = string.Format("{0}: {1} ({2} ago) {3}", timer.Nick, timer.Reason, timer.Duration, requestedBy);
+                            this.ircClients.Values.FirstOrDefault(c => c.Host == timer.Server)?.Command("PRIVMSG", timer.Channel, msg);
+                            remindersToDelete.Add(timer.Id);
+                        }
+                        else
+                        {
+                            if (this.client.GetChannel(Convert.ToUInt64(timer.Channel)) is ISocketMessageChannel channel)
+                            {
+                                try
+                                {
+                                    string nick = timer.Nick;
+                                    if (channel is IGuildChannel guildChan)
+                                    {
+                                        nick = (await guildChan.GetUserAsync(Convert.ToUInt64(timer.UserId)))?.Mention ?? nick;
+                                    }
+
+                                    string msg = string.Format("{0}: {1} ({2} ago) {3}", nick, timer.Reason, timer.Duration, requestedBy);
+                                    await channel.SendMessageAsync(msg);
+                                    remindersToDelete.Add(timer.Id);
+                                }
+                                catch (Exception ex)
+                                {
+                                    // TODO: logging
+                                    Console.WriteLine(ex);
+                                }
+                            }
+                        }
+                    }
+
+                    await Utilities.GetApiResponseAsync<object>(new Uri(CommandsConfig.Instance.RemindersEndpoint.ToString() + "?ids=" + string.Join(",", remindersToDelete)));
+                }
+            }
+
+            processingtimers = false;
         }
 
         private void OneMinuteTimer(object state)
@@ -278,148 +189,95 @@
             this.commandsIssued.Clear();
         }
 
-        private void CheckNotifications(object state)
+        private bool processingnotifications = false;
+        private async void CheckNotificationsAsync(object state)
         {
-            // ((ISocketMessageChannel)this.client.GetChannel(209556044123340801)).SendMessageAsync("notification");
-        }
-
-        public async Task OnMessageReceivedAsync(SocketMessage socketMessage)
-        {
-            // Ignore system and our own messages.
-            var message = socketMessage as SocketUserMessage;
-            bool isOutbound = false;
-            if (message == null || (isOutbound = message.Author.Id == client.CurrentUser.Id))
+            if (processingnotifications) { return; }
+            processingnotifications = true;
+            if (CommandsConfig.Instance.NotificationsEndpoint != null)
             {
-                if (isOutbound)
+                var notifications = await Utilities.GetApiResponseAsync<NotificationData[]>(CommandsConfig.Instance.NotificationsEndpoint);
+                if (notifications != null)
                 {
-                    consoleLogger.Log(LogType.Outgoing, $"\tSending to {message.Channel.Name}: {message.Content}");
-                }
-
-                return;
-            }
-
-            // grab the settings for this server
-            var guildId = (message.Author as IGuildUser)?.GuildId;
-            var settings = SettingsConfig.GetSettings(guildId?.ToString());
-
-            // if it's a blocked server, ignore it unless it's the owner
-            if (message.Author.Id != this.Config.Discord.OwnerId && guildId != null && this.Config.Discord.BlockedServers.Contains(guildId.Value))
-            {
-                return;
-            }
-
-            // if the user is blocked based on role, return
-            var botlessRoleId = (message.Author as IGuildUser).Guild.Roles.FirstOrDefault(r => r.Name.ToLowerInvariant() == "botless")?.Id;
-            if ((message.Author as IGuildUser)?.RoleIds.Any(r => botlessRoleId != null && r == botlessRoleId.Value) ?? false)
-            {
-                return;
-            }
-
-            // Bail out with help info if it's a PM
-            if (message.Channel is IDMChannel && (message.Content.Contains("help") || message.Content.Contains("info") || message.Content.Contains("commands")))
-            {
-                await message.Channel.SendMessageAsync("Info and commands can be found at: https://ub3r-b0t.com");
-                return;
-            }
-
-            // If it's a command, match that before anything else.
-            string query = string.Empty;
-            bool hasBotMention = message.MentionedUsers.Any(u => u.Id == client.CurrentUser.Id);
-
-            int argPos = 0;
-            if (message.HasMentionPrefix(client.CurrentUser, ref argPos))
-            {
-                query = message.Content.Substring(argPos);
-            }
-            else if (message.Content.StartsWith(settings.Prefix))
-            {
-                query = message.Content.Substring(settings.Prefix.Length);
-            }
-
-            string command = query.Split(new[] { ' ' }, 2)?[0];
-
-            // Check discord specific commands prior to general ones.
-            if (!string.IsNullOrEmpty(command) && new DiscordCommands().Commands.ContainsKey(command))
-            {
-                await new DiscordCommands().Commands[command].Invoke(message);
-            }
-            else
-            {
-                IDisposable typingState = null;
-                if (CommandsConfig.Instance.Commands.Contains(command))
-                {
-                    typingState = message.Channel.EnterTypingState();
-                }
-
-                string[] responses = await this.ProcessMessageAsync(BotMessageData.Create(message), settings);
-
-                if (responses != null && responses.Length > 0)
-                {
-                    foreach (string response in responses)
+                    var notificationsToDelete = new List<string>();
+                    foreach (var notification in notifications.Where(t => t.BotType == this.botType))
                     {
-                        if (!string.IsNullOrEmpty(response))
+                        if (this.botType == BotType.Irc)
                         {
-                            await message.Channel.SendMessageAsync(response);
+                            // Pending support
+                        }
+                        else
+                        {
+                            if (this.client.GetChannel(Convert.ToUInt64(notification.Channel)) is ISocketMessageChannel channel)
+                            {
+                                await channel.SendMessageAsync(notification.Text);
+                                notificationsToDelete.Add(notification.Id);
+                            }
+                            else if (this.client.GetGuild(Convert.ToUInt64(notification.Server)) is IGuild guild)
+                            {
+                                notificationsToDelete.Add(notification.Id);
+                                (await guild.GetDefaultChannelAsync())?.SendMessageAsync($"(Configured notification channel no longer exists, please fix it in the settings!) {notification.Text}");
+                            }
                         }
                     }
-                }
 
-                typingState?.Dispose();
-            }
-        }
-
-        // TODO: IRC library needs... some improvements.
-        public async void OnIrcEventAsync(MessageData data, IrcClient client)
-        {
-            if (data.Verb == ReplyCode.RPL_ENDOFMOTD || data.Verb == ReplyCode.RPL_NOMOTD) //  motd end or motd missing
-            {
-                foreach (string channel in this.Config.Irc.Servers.Where(s => s.Id == client.Id).First().Channels)
-                {
-                    client.Command("JOIN", channel, string.Empty);
+                    await Utilities.GetApiResponseAsync<object>(new Uri(CommandsConfig.Instance.NotificationsEndpoint.ToString() + "?ids=" + string.Join(",", notificationsToDelete)));
                 }
             }
 
-            if (data.Verb == "PRIVMSG")
-            {
-                string[] responses = await this.ProcessMessageAsync(BotMessageData.Create(data, client));
-                if (responses != null && responses.Length > 0)
-                {
-                    foreach (string response in responses)
-                    {
-                        client.Command("PRIVMSG", data.Target, response);
-                    }
-                }
-            }
+            processingnotifications = false;
         }
 
-        private async Task<string[]> ProcessMessageAsync(BotMessageData messageData)
+        private async Task<List<string>> ProcessMessageAsync(BotMessageData messageData) => await ProcessMessageAsync(messageData, new Settings());
+
+        private async Task<List<string>> ProcessMessageAsync(BotMessageData messageData, Settings settings)
         {
-            return await ProcessMessageAsync(messageData, new Settings());
-        }
-
-        private async Task<string[]> ProcessMessageAsync(BotMessageData messageData, Settings settings)
-        {
-            string[] responses = new string[] { };
-            string prefix = settings.Prefix;
-
-            string query = messageData.Content;
-            if (messageData.Content.StartsWith(prefix))
-            {
-                query = messageData.Content.Substring(prefix.Length, messageData.Content.Length - prefix.Length);
-            }
-
-            string[] queryParts = query.Split(new[] { ' ' });
-            string command = queryParts[0];
-
-            // Ignore if the command is disabled on this server
-            if (settings.DisabledCommands.Contains(command))
-            {
-                return responses;
-            }
+            var responses = new List<string>();
 
             if (this.BotApi != null)
             {
-                if (CommandsConfig.Instance.Commands.Contains(command))
+                // if an explicit command is being used, it wins out over any implicitly parsed command
+                string query = messageData.Query;
+                string command = messageData.Command;
+                string[] queryParts = query.Split(new[] { ' ' });
+
+                if (string.IsNullOrEmpty(command))
+                {
+                    // check for reminders
+                    Match timerMatch = TimerRegex.Match(messageData.Content);
+                    Match timer2Match = Timer2Regex.Match(messageData.Content);
+
+                    if (timerMatch.Success || timer2Match.Success)
+                    {
+                        Match matchToUse = timerMatch.Success && !timerMatch.Groups["prep"].Value.All(char.IsDigit) ? timerMatch : timer2Match;
+                        if (Utilities.TryParseReminder(matchToUse, messageData, out query))
+                        {
+                            command = "timer";
+                        }
+                    }
+                    else if (settings.AutoTitlesEnabled && CommandsConfig.Instance.AutoTitleMatches.Any(t => messageData.Content.Contains(t)))
+                    {
+                        Match match = httpRegex.Match(messageData.Content);
+                        if (match != null)
+                        {
+                            command = "title";
+                            query = $"{command} {match.Value}";
+                        }
+                    }
+                    else if (settings.FunResponsesEnabled && queryParts.Length > 1 && queryParts[1] == "face")
+                    {
+                        command = "face";
+                        query = $"{command} {queryParts[0]}";
+                    }
+                }
+
+                // Ignore if the command is disabled on this server
+                if (settings.IsCommandDisabled(CommandsConfig.Instance, command))
+                {
+                    return responses;
+                }
+
+                if (!string.IsNullOrEmpty(command) && CommandsConfig.Instance.Commands.ContainsKey(command))
                 {
                     // make sure we're not rate limited
                     var commandKey = command + messageData.Server;
@@ -430,51 +288,21 @@
 
                     if (commandCount > 10)
                     {
-                        responses = new string[] { "rate limited try later" };
+                        responses.Add("rate limited try later");
                     }
                     else
                     {
-                        responses = await this.BotApi.IssueRequestAsync(messageData, query);
-                    }
-                }
-                else
-                {
-                    bool sendRequest = false;
-                    if (settings.AutoTitlesEnabled && CommandsConfig.Instance.AutoTitleMatches.Any(t => messageData.Content.Contains(t)))
-                    {
-                        Match match = httpRegex.Match(messageData.Content);
-                        if (match != null)
-                        {
-                            query = "title " + match.Value;
-                            sendRequest = true;
-                        }
-                    }
-                    else if (settings.FunResponsesEnabled && queryParts.Length > 1 && queryParts[1] == "face")
-                    {
-                        query = "face " + queryParts[0];
-                        sendRequest = true;
-                    }
-
-                    if (sendRequest)
-                    {
-                        responses = await this.BotApi.IssueRequestAsync(messageData, query);
+                        responses.AddRange(await this.BotApi.IssueRequestAsync(messageData, query));
                     }
                 }
             }
 
-            if (PhrasesConfig.Instance.Phrases.ContainsKey(messageData.Content))
+            if (settings.FunResponsesEnabled && responses.Count == 0 && PhrasesConfig.Instance.Phrases.ContainsKey(messageData.Content))
             {
-                responses = new string[] { PhrasesConfig.Instance.Responses[PhrasesConfig.Instance.Phrases[messageData.Content]][0] };
+                responses.Add(PhrasesConfig.Instance.Responses[PhrasesConfig.Instance.Phrases[messageData.Content]][0]);
             }
 
             return responses;
-        }
-
-        private Task Client_Log(LogMessage arg)
-        {
-            Console.WriteLine(arg.ToString());
-
-            return Task.CompletedTask;
         }
     }
 }

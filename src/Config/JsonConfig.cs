@@ -47,23 +47,16 @@
 
         public async Task OverrideAsync(Uri uri)
         {
-            string content = string.Empty;
-            var req = WebRequest.Create(uri);
-            WebResponse webResponse = null;
-            webResponse = await req.GetResponseAsync();
-
-            if (webResponse != null)
+            var config = await Utilities.GetApiResponseAsync<T>(uri);
+            if (config != null)
             {
-                Stream responseStream = webResponse.GetResponseStream();
-                using (StreamReader reader = new StreamReader(responseStream))
-                {
-                    content = await reader.ReadToEndAsync();
-                }
-
+                JsonConfig.AddOrUpdateInstance<T>(instanceKey, config, (x, y) => config);
             }
-
-            var config = JsonConvert.DeserializeObject<T>(content);
-            JsonConfig.AddOrUpdateInstance<T>(instanceKey, config, (x, y) => config);
+            else
+            {
+                // TODO: proper logging
+                Console.WriteLine($"Config overide for {uri} was null");
+            }
         }
 
         private static T Parse()
