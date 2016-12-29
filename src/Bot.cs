@@ -164,7 +164,7 @@
                                     string nick = timer.Nick;
                                     if (channel is IGuildChannel guildChan)
                                     {
-                                        nick = (await guildChan.GetUserAsync(Convert.ToUInt64(timer.UserId)))?.Mention ?? nick;
+                                        nick = (await guildChan.Guild.GetUsersAsync().ConfigureAwait(false)).Find(nick).FirstOrDefault()?.Mention ?? nick;
                                     }
 
                                     string msg = string.Format("{0}: {1} ({2} ago) {3}", nick, timer.Reason, timer.Duration, requestedBy);

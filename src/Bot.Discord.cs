@@ -270,7 +270,7 @@
             }
 
             // grab the settings for this server
-            var botGuildUser = await (message.Channel as IGuildChannel).GetUserAsync(client.CurrentUser.Id);
+            var botGuildUser = (message.Channel is IGuildChannel guildChannel) ? await guildChannel.GetUserAsync(client.CurrentUser.Id) : null;
             var guildUser = message.Author as IGuildUser;
             var guildId = guildUser?.GuildId;
             var settings = SettingsConfig.GetSettings(guildId?.ToString());
@@ -303,6 +303,12 @@
             if (message.Channel is IDMChannel && (message.Content.Contains("help") || message.Content.Contains("info") || message.Content.Contains("commands")))
             {
                 await message.Channel.SendMessageAsync("Info and commands can be found at: https://ub3r-b0t.com");
+                return;
+            }
+
+            var textChannel = message.Channel as ITextChannel;
+            if (botGuildUser != null && !botGuildUser.GetPermissions(textChannel).SendMessages)
+            {
                 return;
             }
 
