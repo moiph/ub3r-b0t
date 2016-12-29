@@ -54,12 +54,6 @@
         /// <summary>
         public async Task RunAsync()
         {
-            // TODO: I see a pattern here.  Clean this up.
-            notificationsTimer = new Timer(CheckNotificationsAsync, null, 10000, 10000);
-            remindersTimer = new Timer(CheckRemindersAsync, null, 10000, 10000);
-            oneMinuteTimer = new Timer(OneMinuteTimer, null, 60000, 60000);
-            packagesTimer = new Timer(CheckPackagesAsync, null, 1800000, 1800000);
-
             if (botType == BotType.Discord)
             {
                 if (string.IsNullOrEmpty(this.Config.Discord.Token))
@@ -89,6 +83,12 @@
             {
                 this.BotApi = new BotApi(this.Config.ApiEndpoint, this.Config.ApiKey, this.botType);
             }
+
+            // TODO: I see a pattern here.  Clean this up.
+            notificationsTimer = new Timer(CheckNotificationsAsync, null, 10000, 10000);
+            remindersTimer = new Timer(CheckRemindersAsync, null, 10000, 10000);
+            oneMinuteTimer = new Timer(OneMinuteTimer, null, 60000, 60000);
+            packagesTimer = new Timer(CheckPackagesAsync, null, 1800000, 1800000);
 
             string read = string.Empty;
             while (read != "exit")
@@ -211,15 +211,25 @@
                         }
                         else
                         {
-                            if (this.client.GetChannel(Convert.ToUInt64(notification.Channel)) is ISocketMessageChannel channel)
+                            if (this.client.GetChannel(Convert.ToUInt64(notification.Channel)) is ITextChannel channel)
                             {
-                                await channel.SendMessageAsync(notification.Text);
                                 notificationsToDelete.Add(notification.Id);
+
+                                if ((channel.Guild as SocketGuild).CurrentUser.GetPermissions(channel).SendMessages)
+                                {
+                                    await channel.SendMessageAsync(notification.Text);
+                                }
                             }
                             else if (this.client.GetGuild(Convert.ToUInt64(notification.Server)) is IGuild guild)
                             {
                                 notificationsToDelete.Add(notification.Id);
-                                (await guild.GetDefaultChannelAsync())?.SendMessageAsync($"(Configured notification channel no longer exists, please fix it in the settings!) {notification.Text}");
+
+                                var defaultChannel = await guild.GetDefaultChannelAsync();
+                                var botGuildUser = await defaultChannel.GetUserAsync(this.client.CurrentUser.Id);
+                                if ((defaultChannel.Guild as SocketGuild).CurrentUser.GetPermissions(defaultChannel).SendMessages)
+                                {
+                                    defaultChannel?.SendMessageAsync($"(Configured notification channel no longer exists, please fix it in the settings!) {notification.Text}");
+                                }
                             }
                         }
                     }
@@ -260,13 +270,29 @@
                         }
                         else
                         {
-                            if (this.client.GetChannel(Convert.ToUInt64(package.Channel)) is ISocketMessageChannel channel)
+                            if (this.client.GetChannel(Convert.ToUInt64(package.Channel)) is ITextChannel channel)
                             {
-                                foreach (var response in responses)
+                                if ((channel.Guild as SocketGuild).CurrentUser.GetPermissions(channel).SendMessages)
                                 {
-                                    if (!string.IsNullOrEmpty(response))
+                                    if (responses.Length > 0 && !string.IsNullOrEmpty(responses[0]))
                                     {
-                                        await channel.SendMessageAsync(response);
+                                        string senderNick = package.Nick;
+                                        var user = (await channel.Guild.GetUsersAsync().ConfigureAwait(false)).Find(package.Nick).FirstOrDefault();
+                                        if (user != null)
+                                        {
+                                            senderNick = user.Mention;
+                                        }
+
+                                        await channel.SendMessageAsync($"{senderNick} oshi- an upsdate!");
+
+                                        foreach (var response in responses)
+                                        {
+                                            if (!string.IsNullOrEmpty(response))
+                                            {
+
+                                                await channel.SendMessageAsync(response);
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -287,7 +313,7 @@
                 // if an explicit command is being used, it wins out over any implicitly parsed command
                 string query = messageData.Query;
                 string command = messageData.Command;
-                string[] queryParts = query.Split(new[] { ' ' });
+                string[] contentParts = messageData.Content.Split(new[] { ' ' });
 
                 if (string.IsNullOrEmpty(command))
                 {
@@ -312,10 +338,10 @@
                             query = $"{command} {match.Value}";
                         }
                     }
-                    else if (settings.FunResponsesEnabled && queryParts.Length > 1 && queryParts[1] == "face")
+                    else if (settings.FunResponsesEnabled && contentParts.Length > 1 && contentParts[1] == "face")
                     {
                         command = "face";
-                        query = $"{command} {queryParts[0]}";
+                        query = $"{command} {contentParts[0]}";
                     }
                 }
 

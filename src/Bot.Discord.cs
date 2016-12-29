@@ -177,7 +177,13 @@
             {
                 string banText = $"{arg1.Username}#{arg1.Discriminator} was banned.";
                 var modLogChannel = this.client.GetChannel(settings.Mod_LogId) as ITextChannel;
-                await modLogChannel?.SendMessageAsync(banText);
+
+                var botUser = (modLogChannel.Guild as SocketGuild).CurrentUser;
+
+                if (botUser != null && botUser.GetPermissions(modLogChannel).SendMessages)
+                {
+                    await modLogChannel?.SendMessageAsync(banText);
+                }
             }
         }
 
@@ -193,7 +199,13 @@
                     if (arg1.IsSpecified && arg1.Value.Content != arg2.Content && !string.IsNullOrEmpty(arg1.Value.Content))
                     {
                         string editText = $"**{arg2.Author.Username}** modified in {textChannel.Mention}: `{arg1.Value.Content}` to `{arg2.Content}`";
-                        await (await guildChannel.Guild.GetTextChannelAsync(settings.Mod_LogId)).SendMessageAsync(editText.Substring(0, Math.Min(editText.Length, Discord.DiscordConfig.MaxMessageSize)));
+                        var modLogChannel = this.client.GetChannel(settings.Mod_LogId) as ITextChannel;
+                        var botUser = (modLogChannel.Guild as SocketGuild).CurrentUser;
+
+                        if (botUser != null && botUser.GetPermissions(modLogChannel).SendMessages)
+                        {
+                            await modLogChannel.SendMessageAsync(editText.Substring(0, Math.Min(editText.Length, Discord.DiscordConfig.MaxMessageSize)));
+                        }
                     }
                 }
             }
@@ -232,7 +244,12 @@
                     delText += $"**{message.Author.Username}#{message.Author.Discriminator}** deleted in {textChannel.Mention}: {message.Content}";
 
                     var modLogChannel = this.client.GetChannel(settings.Mod_LogId) as ITextChannel;
-                    await modLogChannel?.SendMessageAsync(delText.Substring(0, Math.Min(delText.Length, Discord.DiscordConfig.MaxMessageSize)));
+                    var botUser = (modLogChannel.Guild as SocketGuild).CurrentUser;
+
+                    if (botUser != null && botUser.GetPermissions(modLogChannel).SendMessages)
+                    {
+                        await modLogChannel?.SendMessageAsync(delText.Substring(0, Math.Min(delText.Length, Discord.DiscordConfig.MaxMessageSize)));
+                    }
                 }
             }
         }
@@ -386,10 +403,9 @@
                 }));
 
                 var farewellChannel = this.client.GetChannel(settings.FarewellId) as ITextChannel ?? await arg.Guild.GetDefaultChannelAsync();
+                var botUser = (farewellChannel.Guild as SocketGuild).CurrentUser;
 
-                var botGuildUser = await farewellChannel.GetUserAsync(arg.Discord.CurrentUser.Id);
-
-                if (botGuildUser.GetPermissions(farewellChannel).SendMessages)
+                if (botUser != null && botUser.GetPermissions(farewellChannel).SendMessages)
                 {
                     await farewellChannel.SendMessageAsync(farewell);
                 }
@@ -430,10 +446,8 @@
                 }));
 
                 var greetingChannel = this.client.GetChannel(settings.GreetingId) as ITextChannel ?? await arg.Guild.GetDefaultChannelAsync();
-
-                var botGuildUser = await greetingChannel.GetUserAsync(arg.Discord.CurrentUser.Id);
-
-                if (botGuildUser.GetPermissions(greetingChannel).SendMessages)
+                var botUser = (greetingChannel.Guild as SocketGuild).CurrentUser;
+                if (botUser != null && botUser.GetPermissions(greetingChannel).SendMessages)
                 {
                     await greetingChannel.SendMessageAsync(greeting);
                 }
