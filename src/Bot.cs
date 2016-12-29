@@ -32,6 +32,7 @@
         private Timer notificationsTimer;
         private Timer settingsUpdateTimer;
         private Timer remindersTimer;
+        private Timer packagesTimer;
         private Timer statsTimer;
         private Timer oneMinuteTimer;
 
@@ -53,9 +54,11 @@
         /// <summary>
         public async Task RunAsync()
         {
+            // TODO: I see a pattern here.  Clean this up.
             notificationsTimer = new Timer(CheckNotificationsAsync, null, 10000, 10000);
             remindersTimer = new Timer(CheckRemindersAsync, null, 10000, 10000);
             oneMinuteTimer = new Timer(OneMinuteTimer, null, 60000, 60000);
+            packagesTimer = new Timer(CheckPackagesAsync, null, 1800000, 1800000);
 
             if (botType == BotType.Discord)
             {
@@ -228,6 +231,51 @@
             processingnotifications = false;
         }
 
+        private async void CheckPackagesAsync(object state)
+        {
+            if (CommandsConfig.Instance.PackagesEndpoint != null)
+            {
+                var packages = await Utilities.GetApiResponseAsync<PackageData[]>(CommandsConfig.Instance.PackagesEndpoint);
+                if (packages != null)
+                {
+                    foreach (var package in packages.Where(t => t.BotType == this.botType))
+                    {
+                        string query = $"ups bot {package.Tracking}";
+                        var messageData = new BotMessageData(this.botType)
+                        {
+                            UserName = package.Nick,
+                            Channel = package.Channel,
+                            Server = package.Server,
+                            UserId = string.Empty,
+                        };
+
+                        var responses = await this.BotApi.IssueRequestAsync(messageData, query);
+
+                        if (this.botType == BotType.Irc)
+                        {
+                            foreach (var response in responses)
+                            {
+                                this.ircClients.Values.FirstOrDefault(c => c.Host == package.Server)?.Command("PRIVMSG", package.Channel, response);
+                            }
+                        }
+                        else
+                        {
+                            if (this.client.GetChannel(Convert.ToUInt64(package.Channel)) is ISocketMessageChannel channel)
+                            {
+                                foreach (var response in responses)
+                                {
+                                    if (!string.IsNullOrEmpty(response))
+                                    {
+                                        await channel.SendMessageAsync(response);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         private async Task<List<string>> ProcessMessageAsync(BotMessageData messageData) => await ProcessMessageAsync(messageData, new Settings());
 
         private async Task<List<string>> ProcessMessageAsync(BotMessageData messageData, Settings settings)
@@ -297,9 +345,32 @@
                 }
             }
 
-            if (settings.FunResponsesEnabled && responses.Count == 0 && PhrasesConfig.Instance.Phrases.ContainsKey(messageData.Content))
+            if (responses.Count == 0)
             {
-                responses.Add(PhrasesConfig.Instance.Responses[PhrasesConfig.Instance.Phrases[messageData.Content]][0]);
+                bool mentionsBot = messageData.BotType == BotType.Discord ? messageData.DiscordMessageData.MentionedUsers.Count == 1 && messageData.DiscordMessageData.MentionedUsers.First().Id == client.CurrentUser.Id :
+                    (messageData.IrcMessageData.Text.Contains(this.Config.Name));
+
+                string response = null;
+                if (mentionsBot)
+                {
+                    var responseValue = PhrasesConfig.Instance.PartialMentionPhrases.Where(kvp => messageData.Content.Contains(kvp.Key)).FirstOrDefault().Value;
+                    if (!string.IsNullOrEmpty(responseValue))
+                    { 
+                        response = PhrasesConfig.Instance.Responses[responseValue].Random();
+                    }
+                }
+                
+                if (response == null && settings.FunResponsesEnabled && PhrasesConfig.Instance.ExactPhrases.ContainsKey(messageData.Content))
+                {
+                    response = PhrasesConfig.Instance.Responses[PhrasesConfig.Instance.ExactPhrases[messageData.Content]].Random();
+                }
+
+                if (response != null)
+                {
+                    response = response.Replace("%from%", messageData.UserName);
+                    string[] resps = response.Split(new char[] { '|' });
+                    responses.AddRange(resps);
+                }
             }
 
             return responses;

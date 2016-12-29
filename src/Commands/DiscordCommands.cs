@@ -196,7 +196,7 @@
 
                 embedBuilder.AddField((field) =>
                 {
-                    field.IsInline = true;
+                    field.IsInline = false;
                     field.Name = "roles";
                     field.Value = string.Join(", ", roles);
                 });

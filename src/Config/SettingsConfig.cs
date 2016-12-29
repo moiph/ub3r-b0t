@@ -71,8 +71,8 @@
         public ulong Mod_LogId { get; set; }
         public ModOptions Mod_LogOptions { get; set; }
 
-        public bool FunResponsesEnabled { get; set; } = true;
-        public bool AutoTitlesEnabled { get; set; } = true;
+        public bool FunResponsesEnabled { get; set; }
+        public bool AutoTitlesEnabled { get; set; }
 
         public bool HasFlag(ModOptions flag)
         {

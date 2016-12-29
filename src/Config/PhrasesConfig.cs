@@ -8,7 +8,11 @@
         protected override string FileName => "phrasesconfig.json";
 
         [JsonRequired]
-        public Dictionary<string, string> Phrases { get; set; }
+        // These must be exact matches to trigger
+        public Dictionary<string, string> ExactPhrases { get; set; }
+
+        // These will do partial matches, provided the bot is mentioned.
+        public Dictionary<string, string> PartialMentionPhrases { get; set; }
 
         [JsonRequired]
         public Dictionary<string, string[]> Responses { get; set; }

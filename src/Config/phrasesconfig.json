@@ -1,7 +1,9 @@
 ﻿{
-  "phrases": {
-    "thx %me%": "thanks",
-    "bad bot!":  "badbot"
+  "exactPhrases": {
+    "bad bot!": "badbot"
+  },
+  "partialMentionPhrases": {
+    "thx": "thanks"
   },
   "responses": {
     "thanks": [
