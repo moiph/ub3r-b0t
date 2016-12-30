@@ -245,7 +245,15 @@
 
                                 if ((channel.Guild as SocketGuild).CurrentUser.GetPermissions(channel).SendMessages)
                                 {
-                                    await channel.SendMessageAsync(notification.Text);
+                                    try
+                                    {
+                                        await channel.SendMessageAsync(notification.Text);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        // somehow seeing 403s even if sendmessages is true?
+                                        Console.WriteLine(ex);
+                                    }
                                 }
                             }
                             else if (this.client.GetGuild(Convert.ToUInt64(notification.Server)) is IGuild guild)
@@ -256,7 +264,16 @@
                                 var botGuildUser = await defaultChannel.GetUserAsync(this.client.CurrentUser.Id);
                                 if ((defaultChannel.Guild as SocketGuild).CurrentUser.GetPermissions(defaultChannel).SendMessages)
                                 {
-                                    defaultChannel?.SendMessageAsync($"(Configured notification channel no longer exists, please fix it in the settings!) {notification.Text}");
+                                    try
+                                    {
+                                        defaultChannel?.SendMessageAsync($"(Configured notification channel no longer exists, please fix it in the settings!) {notification.Text}");
+                                    }
+
+                                    catch (Exception ex)
+                                    {
+                                        // somehow seeing 403s even if sendmessages is true?
+                                        Console.WriteLine(ex);
+                                    }
                                 }
                             }
                         }
@@ -287,10 +304,10 @@
                             UserId = string.Empty,
                         };
 
-                        var responses = await this.BotApi.IssueRequestAsync(messageData, query);
-
                         if (this.botType == BotType.Irc)
                         {
+                            var responses = await this.BotApi.IssueRequestAsync(messageData, query);
+
                             foreach (var response in responses)
                             {
                                 this.ircClients.Values.FirstOrDefault(c => c.Host == package.Server)?.Command("PRIVMSG", package.Channel, response);
@@ -300,6 +317,8 @@
                         {
                             if (this.client.GetChannel(Convert.ToUInt64(package.Channel)) is ITextChannel channel)
                             {
+                                var responses = await this.BotApi.IssueRequestAsync(messageData, query);
+
                                 if ((channel.Guild as SocketGuild).CurrentUser.GetPermissions(channel).SendMessages)
                                 {
                                     if (responses.Length > 0 && !string.IsNullOrEmpty(responses[0]))
