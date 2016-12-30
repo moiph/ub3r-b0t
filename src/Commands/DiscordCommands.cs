@@ -11,10 +11,14 @@
     using System.Reflection;
     using System.Net;
     using System.Text.RegularExpressions;
+    using System.Collections.Concurrent;
+    using Discord.Audio;
 
     public class DiscordCommands
     {
         public Dictionary<string, Func<SocketMessage, Task>> Commands { get; private set; }
+
+        public static ConcurrentDictionary<ulong, IAudioClient> audioClients = new ConcurrentDictionary<ulong, IAudioClient>();
 
         // TODO:
         // this is icky
@@ -32,13 +36,55 @@
             Commands.Add("voice", async (message) =>
             {
                 await message.Channel.SendMessageAsync("voice support returning to an UB3R-B0T near you soon™  (no really it will just pending support from new code)");
-                // TODO: audio
-                // var channel = (message.Author as IGuildUser)?.VoiceChannel;
-                // if (channel == null) { await message.Channel.SendMessageAsync("User must be in a voice channel, or a voice channel must be passed as an argument."); return; }
-                // Get the IAudioClient by calling the JoinAsync method
-                // this._audio = await channel.ConnectAsync();
+
+                if (message.Author.Id == BotConfig.Instance.Discord.OwnerId)
+                {
+                    // TODO: audio
+                    var channel = (message.Author as IGuildUser)?.VoiceChannel;
+                    if (channel == null)
+                    {
+                        await message.Channel.SendMessageAsync("Join a voice channel first");
+                        return;
+                    }
+
+                    if (!audioClients.TryGetValue(channel.GuildId, out IAudioClient audioClient))
+                    {
+                        audioClients.TryAdd(channel.GuildId, audioClient);
+                        audioClient = await channel.ConnectAsync();
+                        audioClients.TryUpdate(channel.GuildId, audioClient, null);
+                        if (audioClient.ConnectionState == ConnectionState.Connected)
+                        {
+                            await AudioUtilities.SendAudio(audioClient, "sweetroll.mp3");
+                        }
+                        else
+                        {
+                            audioClient.Connected += async () =>
+                            {
+                                await AudioUtilities.SendAudio(audioClient, "sweetroll.mp3");
+                            };
+                        }
+                    }
+                }
 
                 return;
+            });
+
+            Commands.Add("talk", async (message) =>
+            {
+                var channel = message.Channel as IGuildChannel;
+                if (audioClients.TryGetValue(channel.GuildId, out IAudioClient audioClient))
+                {
+                    await AudioUtilities.SendAudio(audioClient, "sweetroll.mp3");
+                }
+            });
+
+            Commands.Add("dvoice", async (message) =>
+            {
+                var channel = message.Channel as IGuildChannel;
+                if (audioClients.TryRemove(channel.GuildId, out IAudioClient audioClient))
+                {
+                    await audioClient.DisconnectAsync();
+                }
             });
 
             Commands.Add("clear", async (message) =>

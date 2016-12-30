@@ -206,7 +206,10 @@
                         }
                     }
 
-                    await Utilities.GetApiResponseAsync<object>(new Uri(CommandsConfig.Instance.RemindersEndpoint.ToString() + "?ids=" + string.Join(",", remindersToDelete)));
+                    if (remindersToDelete.Count > 0)
+                    {
+                        await Utilities.GetApiResponseAsync<object>(new Uri(CommandsConfig.Instance.RemindersEndpoint.ToString() + "?ids=" + string.Join(",", remindersToDelete)));
+                    }
                 }
             }
 
@@ -243,7 +246,7 @@
                             {
                                 notificationsToDelete.Add(notification.Id);
 
-                                if ((channel.Guild as SocketGuild).CurrentUser.GetPermissions(channel).SendMessages)
+                                if (!string.IsNullOrEmpty(notification.Text) && (channel.Guild as SocketGuild).CurrentUser.GetPermissions(channel).SendMessages)
                                 {
                                     try
                                     {
@@ -260,26 +263,31 @@
                             {
                                 notificationsToDelete.Add(notification.Id);
 
-                                var defaultChannel = await guild.GetDefaultChannelAsync();
-                                var botGuildUser = await defaultChannel.GetUserAsync(this.client.CurrentUser.Id);
-                                if ((defaultChannel.Guild as SocketGuild).CurrentUser.GetPermissions(defaultChannel).SendMessages)
+                                if (!string.IsNullOrEmpty(notification.Text))
                                 {
-                                    try
+                                    var defaultChannel = await guild.GetDefaultChannelAsync();
+                                    var botGuildUser = await defaultChannel.GetUserAsync(this.client.CurrentUser.Id);
+                                    if ((defaultChannel.Guild as SocketGuild).CurrentUser.GetPermissions(defaultChannel).SendMessages)
                                     {
-                                        defaultChannel?.SendMessageAsync($"(Configured notification channel no longer exists, please fix it in the settings!) {notification.Text}");
-                                    }
-
-                                    catch (Exception ex)
-                                    {
-                                        // somehow seeing 403s even if sendmessages is true?
-                                        Console.WriteLine(ex);
+                                        try
+                                        {
+                                            defaultChannel?.SendMessageAsync($"(Configured notification channel no longer exists, please fix it in the settings!) {notification.Text}");
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            // somehow seeing 403s even if sendmessages is true?
+                                            Console.WriteLine(ex);
+                                        } 
                                     }
                                 }
                             }
                         }
                     }
 
-                    await Utilities.GetApiResponseAsync<object>(new Uri(CommandsConfig.Instance.NotificationsEndpoint.ToString() + "?ids=" + string.Join(",", notificationsToDelete)));
+                    if (notificationsToDelete.Count > 0)
+                    {
+                        await Utilities.GetApiResponseAsync<object>(new Uri(CommandsConfig.Instance.NotificationsEndpoint.ToString() + "?ids=" + string.Join(",", notificationsToDelete)));
+                    }
                 }
             }
 
