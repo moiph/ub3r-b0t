@@ -10,6 +10,9 @@
 
         [JsonRequired]
         public string Name { get; set; }
+
+        // Set to true if this is a local dev instance
+        public bool IsDevMode { get; set; }
         
         // Bot api endpoint, if applicable.
         public Uri ApiEndpoint { get; set; }
@@ -24,6 +27,9 @@
 
         public DiscordConfig Discord { get; set; }
         public Irc Irc { get; set; }
+
+        // Instrumentation key for application insights
+        public string InstrumentationKey { get; set; }
     }
 
     public class DiscordConfig

@@ -3,6 +3,7 @@
     <AssemblyName>UB3RB0T</AssemblyName>
     <RootNamespace>UB3RB0T</RootNamespace>
     <PackageTargetFallback Condition=" '$(TargetFramework)' == 'netcoreapp1.0' ">$(PackageTargetFallback);dnxcore50;dotnet5.4;portable-net45+win8</PackageTargetFallback>
+    <ApplicationIcon>ub3rb0t.ico</ApplicationIcon>
   </PropertyGroup>
   <PropertyGroup>
     <OutputType>exe</OutputType>
@@ -25,10 +26,12 @@
     <Content Include="Config\settingsconfig.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="ub3rb0t.ico" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Discord.Net.WebSocket" Version="1.0.0-beta2-00527" />
     <PackageReference Include="Flurl.Http" Version="1.1.1" />
+    <PackageReference Include="Microsoft.ApplicationInsights" Version="2.3.0-beta1" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="2.0.0-rc2" />
     <PackageReference Include="Microsoft.NETCore.App" Version="1.0.1" />
     <PackageReference Include="UB3RIRC" Version="1.0.1" />

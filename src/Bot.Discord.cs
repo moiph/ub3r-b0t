@@ -18,6 +18,8 @@
     {
         private MessageCache BotResponsesCache = new MessageCache();
 
+        private bool isReady;
+
         public async Task CreateDiscordBotAsync()
         {
             client = new DiscordSocketClient(new DiscordSocketConfig
@@ -33,12 +35,14 @@
             client.Log += Discord_Log;
             client.UserJoined += Discord_UserJoinedAsync;
             client.UserLeft += Discord_UserLeftAsync;
+            client.JoinedGuild += Client_JoinedGuildAsync;
             client.LeftGuild += Discord_LeftGuildAsync;
             client.MessageDeleted += Client_MessageDeletedAsync;
             client.MessageUpdated += Client_MessageUpdatedAsync;
             client.UserBanned += Client_UserBannedAsync;
             client.UserUpdated += Client_UserUpdatedAsync;
             client.GuildMemberUpdated += Client_GuildMemberUpdatedAsync;
+            client.Ready += () => { this.isReady = true; return Task.CompletedTask; };
 
             // If user customizeable server settings are supported...support them
             // Currently discord only.
@@ -93,6 +97,22 @@
                     }
 
                 }, null, 3600000, 3600000);
+            }
+        }
+
+        private async Task Client_JoinedGuildAsync(SocketGuild arg)
+        {
+            if (this.isReady)
+            {
+                this.AppInsights.TrackEvent("serverJoin");
+
+                var defaultChannel = await arg.GetDefaultChannelAsync();
+
+                if (arg.CurrentUser != null && arg.CurrentUser.GetPermissions(defaultChannel).SendMessages)
+                {
+                    var owner = await arg.GetOwnerAsync();
+                    await defaultChannel.SendMessageAsync($"(HELLO, I AM UB3R-B0T! .halp for info. {owner.Mention} you're the kickass owner-- you can use .admin to configure some stuff.)");
+                }
             }
         }
 
@@ -189,7 +209,7 @@
 
         private async Task Client_MessageUpdatedAsync(Optional<SocketMessage> arg1, SocketMessage arg2)
         {
-            if (arg2.Channel is IGuildChannel guildChannel)
+            if (arg2 != null && arg2.Channel != null && arg2.Channel is IGuildChannel guildChannel)
             {
                 var textChannel = guildChannel as ITextChannel;
                 var settings = SettingsConfig.GetSettings(guildChannel.Guild.Id);
@@ -380,6 +400,8 @@
 
         private async Task Discord_LeftGuildAsync(SocketGuild arg)
         {
+            this.AppInsights.TrackEvent("serverLeave");
+
             if (this.Config.PruneEndpoint != null)
             {
                 var req = WebRequest.Create($"{this.Config.PruneEndpoint}?id={arg.Id}");
@@ -490,6 +512,11 @@
                 case LogSeverity.Info:
                     logType = LogType.Info;
                     break;
+            }
+
+            if (arg.Exception != null)
+            {
+                this.AppInsights.TrackException(arg.Exception);
             }
 
             logger.Log(logType, arg.ToString());

@@ -10,6 +10,9 @@
     using UB3RIRC;
     using System.Collections.Concurrent;
     using System.Text.RegularExpressions;
+    using Microsoft.ApplicationInsights;
+    using Microsoft.ApplicationInsights.Extensibility;
+    using Microsoft.ApplicationInsights.DataContracts;
 
     public partial class Bot
     {
@@ -48,12 +51,26 @@
         }
 
         public BotConfig Config => BotConfig.Instance;
+        public TelemetryClient AppInsights { get; private set; }
 
         /// Initialize and connect to the desired clients, hook up event handlers.
         /// </summary>
         /// <summary>
         public async Task RunAsync()
         {
+            this.AppInsights = new TelemetryClient(new TelemetryConfiguration
+            {
+                InstrumentationKey = Config.InstrumentationKey,
+            });
+
+            if (this.Config.IsDevMode)
+            {
+                TelemetryConfiguration.Active.TelemetryChannel.DeveloperMode = true;
+            }
+
+            this.AppInsights.Context.Properties.Add("Shard", this.shard.ToString());
+            this.AppInsights.Context.Properties.Add("BotType", this.botType.ToString());
+
             if (botType == BotType.Discord)
             {
                 if (string.IsNullOrEmpty(this.Config.Discord.Token))
@@ -113,9 +130,18 @@
             Console.WriteLine("Exited.");
         }
 
-        private static void Heartbeat()
+        private void Heartbeat()
         {
+            if (this.botType == BotType.Discord)
+            {
+                var metric = new MetricTelemetry
+                {
+                    Name = "Guilds",
+                    Sum = this.client.Guilds.Count(),
+                };
 
+                this.AppInsights.TrackMetric(metric);
+            }
         }
 
         private async Task UpdateSettingsAsync()
@@ -190,6 +216,8 @@
         private void OneMinuteTimer(object state)
         {
             this.commandsIssued.Clear();
+
+            this.Heartbeat();
         }
 
         private bool processingnotifications = false;
@@ -366,6 +394,10 @@
                     }
                     else
                     {
+                        var props = new Dictionary<string, string> {
+                            { "serverId", messageData.Server },
+                        };
+                        this.AppInsights.TrackEvent(command.ToLowerInvariant(), props);
                         responses.AddRange(await this.BotApi.IssueRequestAsync(messageData, query));
                     }
                 }
