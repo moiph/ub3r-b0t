@@ -25,7 +25,7 @@
             Commands.Add("debug", async (message) =>
             {
                 var serverId = (message.Channel as IGuildChannel)?.GuildId.ToString() ?? "n/a";
-                await message.Channel.SendMessageAsync($"```Server ID: {serverId} | Channel ID: {message.Channel.Id} | Your ID: {message.Author.Id} | Shard ID: {0}```");
+                await message.Channel.SendMessageAsync($"```Server ID: {serverId} | Channel ID: {message.Channel.Id} | Your ID: {message.Author.Id} | Shard ID: {message.Discord.ShardId}```");
                 return;
             });
 
