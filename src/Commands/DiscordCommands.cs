@@ -13,13 +13,14 @@
     using System.Text.RegularExpressions;
     using System.Collections.Concurrent;
     using Discord.Audio;
-
+    using System.IO;
+    
     public class DiscordCommands
     {
         public Dictionary<string, Func<SocketMessage, Task>> Commands { get; private set; }
 
-        public static ConcurrentDictionary<ulong, IAudioClient> audioClients = new ConcurrentDictionary<ulong, IAudioClient>();
-
+        private object joinlock = new object();
+        
         // TODO:
         // this is icky
         public DiscordCommands()
@@ -35,55 +36,25 @@
 
             Commands.Add("voice", async (message) =>
             {
-                await message.Channel.SendMessageAsync("voice support returning to an UB3R-B0T near you soon™  (no really it will just pending support from new code)");
-
-                if (message.Author.Id == BotConfig.Instance.Discord.OwnerId)
+                var channel = (message.Author as IGuildUser)?.VoiceChannel;
+                if (channel == null)
                 {
-                    // TODO: audio
-                    var channel = (message.Author as IGuildUser)?.VoiceChannel;
-                    if (channel == null)
-                    {
-                        await message.Channel.SendMessageAsync("Join a voice channel first");
-                        return;
-                    }
-
-                    if (!audioClients.TryGetValue(channel.GuildId, out IAudioClient audioClient))
-                    {
-                        audioClients.TryAdd(channel.GuildId, audioClient);
-                        audioClient = await channel.ConnectAsync();
-                        audioClients.TryUpdate(channel.GuildId, audioClient, null);
-                        if (audioClient.ConnectionState == ConnectionState.Connected)
-                        {
-                            await AudioUtilities.SendAudio(audioClient, "sweetroll.mp3");
-                        }
-                        else
-                        {
-                            audioClient.Connected += async () =>
-                            {
-                                await AudioUtilities.SendAudio(audioClient, "sweetroll.mp3");
-                            };
-                        }
-                    }
+                    await message.Channel.SendMessageAsync("Join a voice channel first");
                 }
+
+                Task.Run(async () =>
+                {
+                    await AudioUtilities.JoinAudio(channel);
+                }).Forget();
 
                 return;
             });
 
-            Commands.Add("talk", async (message) =>
-            {
-                var channel = message.Channel as IGuildChannel;
-                if (audioClients.TryGetValue(channel.GuildId, out IAudioClient audioClient))
-                {
-                    await AudioUtilities.SendAudio(audioClient, "sweetroll.mp3");
-                }
-            });
-
             Commands.Add("dvoice", async (message) =>
             {
-                var channel = message.Channel as IGuildChannel;
-                if (audioClients.TryRemove(channel.GuildId, out IAudioClient audioClient))
+                if (message.Channel is IGuildChannel channel)
                 {
-                    await audioClient.DisconnectAsync();
+                    await AudioUtilities.LeaveAudioAsync(channel);
                 }
             });
 

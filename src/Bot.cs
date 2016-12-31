@@ -58,18 +58,23 @@
         /// <summary>
         public async Task RunAsync()
         {
-            this.AppInsights = new TelemetryClient(new TelemetryConfiguration
-            {
-                InstrumentationKey = Config.InstrumentationKey,
-            });
+            Console.Title = $"{this.Config.Name} - {this.botType} {this.shard}";
 
-            if (this.Config.IsDevMode)
+            if (!string.IsNullOrEmpty(Config.InstrumentationKey))
             {
-                TelemetryConfiguration.Active.TelemetryChannel.DeveloperMode = true;
+                this.AppInsights = new TelemetryClient(new TelemetryConfiguration
+                {
+                    InstrumentationKey = Config.InstrumentationKey,
+                });
+
+                if (this.Config.IsDevMode)
+                {
+                    TelemetryConfiguration.Active.TelemetryChannel.DeveloperMode = true;
+                }
+
+                this.AppInsights.Context.Properties.Add("Shard", this.shard.ToString());
+                this.AppInsights.Context.Properties.Add("BotType", this.botType.ToString());
             }
-
-            this.AppInsights.Context.Properties.Add("Shard", this.shard.ToString());
-            this.AppInsights.Context.Properties.Add("BotType", this.botType.ToString());
 
             if (botType == BotType.Discord)
             {
@@ -140,7 +145,7 @@
                     Sum = this.client.Guilds.Count(),
                 };
 
-                this.AppInsights.TrackMetric(metric);
+                this.AppInsights?.TrackMetric(metric);
             }
         }
 
@@ -188,13 +193,26 @@
                                 try
                                 {
                                     string nick = timer.Nick;
+                                    bool canSendMessages = true;
                                     if (channel is IGuildChannel guildChan)
                                     {
-                                        nick = (await guildChan.Guild.GetUsersAsync().ConfigureAwait(false)).Find(nick).FirstOrDefault()?.Mention ?? nick;
+                                        if (!(guildChan.Guild as SocketGuild).CurrentUser.GetPermissions(guildChan).SendMessages)
+                                        {
+                                            canSendMessages = false;
+                                        }
+                                        else
+                                        {
+                                            nick = (await guildChan.Guild.GetUsersAsync().ConfigureAwait(false)).Find(nick).FirstOrDefault()?.Mention ?? nick;
+                                        }
                                     }
 
-                                    string msg = string.Format("{0}: {1} ({2} ago) {3}", nick, timer.Reason, timer.Duration, requestedBy);
-                                    await channel.SendMessageAsync(msg);
+                                    // TODO: Try to DM the user if we can't send to the original channel
+                                    if (canSendMessages)
+                                    {
+                                        string msg = string.Format("{0}: {1} ({2} ago) {3}", nick, timer.Reason, timer.Duration, requestedBy);
+                                        await channel.SendMessageAsync(msg);
+                                    }
+
                                     remindersToDelete.Add(timer.Id);
                                 }
                                 catch (Exception ex)
@@ -424,7 +442,7 @@
                         var props = new Dictionary<string, string> {
                             { "serverId", messageData.Server },
                         };
-                        this.AppInsights.TrackEvent(command.ToLowerInvariant(), props);
+                        this.AppInsights?.TrackEvent(command.ToLowerInvariant(), props);
                         responses.AddRange(await this.BotApi.IssueRequestAsync(messageData, query));
                     }
                 }

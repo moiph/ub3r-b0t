@@ -20,6 +20,8 @@
 
         private bool isReady;
 
+        private DiscordCommands discordCommands;
+
         public async Task CreateDiscordBotAsync()
         {
             client = new DiscordSocketClient(new DiscordSocketConfig
@@ -42,7 +44,10 @@
             client.UserBanned += Client_UserBannedAsync;
             client.UserUpdated += Client_UserUpdatedAsync;
             client.GuildMemberUpdated += Client_GuildMemberUpdatedAsync;
+            client.UserVoiceStateUpdated += Client_UserVoiceStateUpdatedAsync;
             client.Ready += () => { this.isReady = true; return Task.CompletedTask; };
+
+            discordCommands = new DiscordCommands();
 
             // If user customizeable server settings are supported...support them
             // Currently discord only.
@@ -100,11 +105,26 @@
             }
         }
 
+        private async Task Client_UserVoiceStateUpdatedAsync(SocketUser arg1, SocketVoiceState arg2, SocketVoiceState arg3)
+        {
+            // voice state detection
+            var botGuildUser = await (arg1 as IGuildUser).Guild.GetCurrentUserAsync();
+            if (arg2.VoiceChannel != arg3.VoiceChannel && arg3.VoiceChannel == botGuildUser.VoiceChannel)
+            {
+                await Task.Delay(1000);
+                await AudioUtilities.SendAudioAsync(arg3.VoiceChannel, PhrasesConfig.Instance.VoiceGreetingFileNames.Random());
+            }
+            else if (arg2.VoiceChannel != arg3.VoiceChannel && arg2.VoiceChannel == botGuildUser.VoiceChannel)
+            {
+                await AudioUtilities.SendAudioAsync(arg2.VoiceChannel, PhrasesConfig.Instance.VoiceFarewellFileNames.Random());
+            }
+        }
+
         private async Task Client_JoinedGuildAsync(SocketGuild arg)
         {
             if (this.isReady)
             {
-                this.AppInsights.TrackEvent("serverJoin");
+                this.AppInsights?.TrackEvent("serverJoin");
 
                 var defaultChannel = await arg.GetDefaultChannelAsync();
 
@@ -120,6 +140,7 @@
         {
             if (arg1 is IGuildUser guildUserBefore && arg2 is IGuildUser guildUserAfter)
             {
+                // Mod log
                 var settings = SettingsConfig.GetSettings(guildUserBefore.GuildId);
                 if (settings.Mod_LogId != 0)
                 {
@@ -165,6 +186,7 @@
         {
             if (arg1 is IGuildUser guildUserBefore && arg2 is IGuildUser guildUserAfter)
             {
+                // mod log
                 var settings = SettingsConfig.GetSettings(guildUserBefore.GuildId);
                 if (settings.Mod_LogId != 0 && settings.HasFlag(ModOptions.Mod_LogUserNick))
                 {
@@ -369,18 +391,19 @@
             {
                 return;
             }
-
             // Check discord specific commands prior to general ones.
-            if (!string.IsNullOrEmpty(command) && new DiscordCommands().Commands.ContainsKey(command))
+            if (!string.IsNullOrEmpty(command) && discordCommands.Commands.ContainsKey(command))
             {
-                await new DiscordCommands().Commands[command].Invoke(message);
+                await discordCommands.Commands[command].Invoke(message).ConfigureAwait(false);
             }
             else
             {
                 IDisposable typingState = null;
                 if (CommandsConfig.Instance.Commands.ContainsKey(command))
                 {
-                    typingState = message.Channel.EnterTypingState();
+                    // possible bug with typing state
+                    Console.WriteLine("typing triggered by {0}" + command);
+                    // typingState = message.Channel.EnterTypingState();
                 }
 
                 List<string> responses = await this.ProcessMessageAsync(BotMessageData.Create(message, query), settings);
@@ -516,10 +539,13 @@
 
             if (arg.Exception != null)
             {
-                this.AppInsights.TrackException(arg.Exception);
+                this.AppInsights?.TrackException(arg.Exception);
             }
 
-            logger.Log(logType, arg.ToString());
+            if (arg.Severity != LogSeverity.Verbose)
+            {
+                logger.Log(logType, arg.ToString());
+            }
 
             return Task.CompletedTask;
         }

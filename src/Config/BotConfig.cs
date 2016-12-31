@@ -48,7 +48,6 @@
         // Useful for things liek large test servers.
         public HashSet<ulong> BlockedServers { get; set; }
 
-
         /// <summary>
         /// Key for statistics on https://www.carbonitex.net
         /// </summary>
