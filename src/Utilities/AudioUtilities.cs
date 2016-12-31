@@ -1,128 +1,122 @@
-﻿using Discord.Audio;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
-
-namespace UB3RB0T
+﻿namespace UB3RB0T
 {
+    using Discord;
+    using Discord.Audio;
+    using System;
+    using System.Collections.Concurrent;
+    using System.Diagnostics;
+    using System.IO;
+    using System.Threading.Tasks;
+
     public class AudioUtilities
     {
         private static object lockObject = new object();
-        private static Dictionary<string, byte[]> voiceClips = new Dictionary<string, byte[]>();
 
-        public static async Task SendAudio(IAudioClient audioClient, string filename)
+        // UB3R-B0T just broadcasts voice clips; memory footprint is low so keep them stored.  TODO: change this assumption if need be :)
+        private static ConcurrentDictionary<string, Stream> voiceClips = new ConcurrentDictionary<string, Stream>();
+
+        public static ConcurrentDictionary<ulong, IAudioClient> audioClients = new ConcurrentDictionary<ulong, IAudioClient>();
+        public static ConcurrentDictionary<ulong, Stream> streams = new ConcurrentDictionary<ulong, Stream>();
+
+        public static async Task JoinAudio(IVoiceChannel voiceChannel)
         {
-            if (filename.Contains(","))
+            if (!audioClients.TryGetValue(voiceChannel.GuildId, out IAudioClient audioClient))
             {
-                var files = filename.Split(new[] { ',' });
-                filename = files[new Random().Next() % files.Count()];
-            }
-
-            try
-            {
-                int blockSize = 4000;
-
-                if (!voiceClips.ContainsKey(filename))
-                {
-                    voiceClips.Add(filename, ReadAudioFile(filename));
-                }
-
-                byte[] fullbuffer = voiceClips[filename];
-                int fullbufferLength = fullbuffer.Length;
-
-                int writepos = 0;
-                int count = 0;
-
-                var stream = audioClient.CreateOpusStream(100);
-
                 lock (lockObject)
                 {
-                    while (true)
+                    if (!audioClients.TryGetValue(voiceChannel.GuildId, out audioClient))
                     {
-                        byte[] tempBuffer = new byte[blockSize];
-                        count = (fullbufferLength - writepos - blockSize) > 0 ? blockSize : (fullbufferLength - writepos);
-                        Buffer.BlockCopy(fullbuffer, writepos, tempBuffer, 0, count);
-                        stream.Write(tempBuffer, writepos, count);
-
-                        writepos += count;
-
-                        if (writepos >= fullbufferLength)
-                        {
-                            break;
-                        }
+                        audioClient = voiceChannel.ConnectAsync().Result;
+                        var audioStream = audioClient.CreatePCMStream(2880, bitrate: voiceChannel.Bitrate);
+                        audioClients.TryAdd(voiceChannel.GuildId, audioClient);
+                        streams.TryAdd(voiceChannel.GuildId, audioStream);
                     }
                 }
             }
-            catch (Exception ex)
-            {
-                try
-                {
-                    await audioClient.DisconnectAsync();
-                }
-                catch
-                {
-                    // ignore 
-                }
 
-                Console.Write(ex);
+            streams.TryGetValue(voiceChannel.GuildId, out Stream stream);
+
+            if (audioClient.ConnectionState == ConnectionState.Connected)
+            {
+                await AudioUtilities.SendAudioAsync(stream, "hello.mp3");
+            }
+            else
+            {
+                audioClient.Connected += async () =>
+                {
+                    await AudioUtilities.SendAudioAsync(stream, "hello.mp3");
+                };
+                audioClient.Disconnected += (Exception ex) =>
+                {
+                    Console.WriteLine(ex);
+                    return Task.CompletedTask;
+                };
             }
         }
 
-        private static byte[] ReadAudioFile(string filename)
+        public static async Task LeaveAudioAsync(IGuildChannel guildChannel)
         {
-            var p = Process.Start(new ProcessStartInfo
+            if (streams.TryRemove(guildChannel.GuildId, out Stream stream))
             {
-                FileName = "s:\\uberconfig\\ffmpeg",
-                Arguments = "-i S:\\uberconfig\\obv\\" + filename + " -f s16le -ar 48000 -ac 2 pipe:1 -loglevel warning",
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-            });
+                stream.Dispose();
+                stream = null;
+            }
 
-            return AdjustVolume(ReadAllBytes(p.StandardOutput.BaseStream), .9f);
+            if (audioClients.TryRemove(guildChannel.GuildId, out IAudioClient audioClient))
+            {
+                await audioClient.DisconnectAsync();
+                audioClient.Dispose();
+                audioClient = null;
+            }
         }
 
-        private static byte[] ReadAllBytes(Stream source)
+        public static async Task SendAudioAsync(IVoiceChannel voiceChannel, string filename)
         {
-            var buffer = new byte[1024 * 16];
-            using (var memStream = new MemoryStream())
+            var guildChannel = voiceChannel as IGuildChannel;
+            if (guildChannel != null)
             {
-                int read;
-                while ((read = source.Read(buffer, 0, buffer.Length)) > 0)
+                var botGuildUser = await guildChannel?.Guild.GetCurrentUserAsync();
+
+                if (voiceChannel != null && botGuildUser.VoiceChannel == voiceChannel)
                 {
-                    memStream.Write(buffer, 0, read);
+                    if (streams.TryGetValue(voiceChannel.GuildId, out Stream stream))
+                    {
+                        await AudioUtilities.SendAudioAsync(stream, filename);
+                    }
                 }
-
-                return memStream.ToArray();
             }
         }
 
-        private static byte[] AdjustVolume(byte[] audioSamples, float volume)
+        public static async Task SendAudioAsync(Stream stream, string filename)
         {
-            if (Math.Abs(volume - 1.0f) < 0.01f)
-                return audioSamples;
-            var array = new byte[audioSamples.Length];
-            for (var i = 0; i < array.Length; i += 2)
+            if (!voiceClips.ContainsKey(filename))
             {
+                Console.WriteLine("reading new stream data");
 
-                // convert byte pair to int
-                short buf1 = audioSamples[i + 1];
-                short buf2 = audioSamples[i];
+                var filePath = PhrasesConfig.Instance.VoiceFilePath;
+                var p = Process.Start(new ProcessStartInfo
+                {
+                    FileName = "c:\\audio\\ffmpeg",
+                    Arguments = $"-i {filePath}{filename} -f s16le -ar 48000 -ac 2 pipe:1 -loglevel warning",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                });
 
-                buf1 = (short)((buf1 & 0xff) << 8);
-                buf2 = (short)(buf2 & 0xff);
-
-                var res = (short)(buf1 | buf2);
-                res = (short)(res * volume);
-
-                // convert back
-                array[i] = (byte)res;
-                array[i + 1] = (byte)(res >> 8);
-
+                var memstream = new MemoryStream();
+                await p.StandardOutput.BaseStream.CopyToAsync(memstream);
+                voiceClips.TryAdd(filename, memstream);
+                p.WaitForExit();
             }
-            return array;
+            else
+            {
+                Console.WriteLine("using cached stream data");
+            }
+
+            voiceClips[filename].Seek(0, SeekOrigin.Begin);
+            await voiceClips[filename].CopyToAsync(stream);
+            await stream.FlushAsync();
+            Console.WriteLine("flushing audio stream");
         }
     }
 }

@@ -16,5 +16,10 @@
 
         [JsonRequired]
         public Dictionary<string, string[]> Responses { get; set; }
+
+        /// Settings for voice support
+        public string VoiceFilePath { get; set; }
+        public string[] VoiceGreetingFileNames { get; set; }
+        public string[] VoiceFarewellFileNames { get; set; }
     }
 }

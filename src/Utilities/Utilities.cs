@@ -21,6 +21,8 @@ namespace UB3RB0T
         const int ONEYEAR = ONEDAY * 365;
         const long TOOLONG = 473040000;
 
+        public static void Forget(this Task task) { }
+
         public static bool HasMentionPrefix(this IUserMessage msg, IUser user, ref int argPos)
         {
             var text = msg.Content;
