@@ -11,11 +11,16 @@
     using System.Reflection;
     using System.Net;
     using System.Text.RegularExpressions;
-
+    using System.Collections.Concurrent;
+    using Discord.Audio;
+    using System.IO;
+    
     public class DiscordCommands
     {
         public Dictionary<string, Func<SocketMessage, Task>> Commands { get; private set; }
 
+        private object joinlock = new object();
+        
         // TODO:
         // this is icky
         public DiscordCommands()
@@ -31,14 +36,26 @@
 
             Commands.Add("voice", async (message) =>
             {
-                await message.Channel.SendMessageAsync("voice support returning to an UB3R-B0T near you soon™  (no really it will just pending support from new code)");
-                // TODO: audio
-                // var channel = (message.Author as IGuildUser)?.VoiceChannel;
-                // if (channel == null) { await message.Channel.SendMessageAsync("User must be in a voice channel, or a voice channel must be passed as an argument."); return; }
-                // Get the IAudioClient by calling the JoinAsync method
-                // this._audio = await channel.ConnectAsync();
+                var channel = (message.Author as IGuildUser)?.VoiceChannel;
+                if (channel == null)
+                {
+                    await message.Channel.SendMessageAsync("Join a voice channel first");
+                }
+
+                Task.Run(async () =>
+                {
+                    await AudioUtilities.JoinAudio(channel);
+                }).Forget();
 
                 return;
+            });
+
+            Commands.Add("dvoice", async (message) =>
+            {
+                if (message.Channel is IGuildChannel channel)
+                {
+                    await AudioUtilities.LeaveAudioAsync(channel);
+                }
             });
 
             Commands.Add("clear", async (message) =>

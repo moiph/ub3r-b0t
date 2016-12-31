@@ -2,7 +2,7 @@
   "profiles": {
     "UB3R-B0T": {
       "commandName": "Project",
-      "commandLineArgs": "/s:3 /c:\"s:\\\\uberconfig\\\\\""
+      "commandLineArgs": "/c:\"s:\\\\uberconfig\\\\\""
     }
   }
 }
