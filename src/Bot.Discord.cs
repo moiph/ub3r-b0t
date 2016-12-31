@@ -402,7 +402,7 @@
                 if (CommandsConfig.Instance.Commands.ContainsKey(command))
                 {
                     // possible bug with typing state
-                    Console.WriteLine("typing triggered by {0}" + command);
+                    Console.WriteLine($"typing triggered by {command}");
                     // typingState = message.Channel.EnterTypingState();
                 }
 

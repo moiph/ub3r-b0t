@@ -190,10 +190,11 @@
                         {
                             if (this.client.GetChannel(Convert.ToUInt64(timer.Channel)) is ISocketMessageChannel channel)
                             {
+                                string nick = timer.Nick;
+                                bool canSendMessages = true;
+
                                 try
                                 {
-                                    string nick = timer.Nick;
-                                    bool canSendMessages = true;
                                     if (channel is IGuildChannel guildChan)
                                     {
                                         if (!(guildChan.Guild as SocketGuild).CurrentUser.GetPermissions(guildChan).SendMessages)
@@ -202,7 +203,16 @@
                                         }
                                         else
                                         {
-                                            nick = (await guildChan.Guild.GetUsersAsync().ConfigureAwait(false)).Find(nick).FirstOrDefault()?.Mention ?? nick;
+                                            // try to find an exact match for the user, failing that perform a nick search
+                                            var guildUser = await guildChan.GetUserAsync(Convert.ToUInt64(timer.UserId));
+                                            if (guildUser != null)
+                                            {
+                                                nick = guildUser.Mention;
+                                            }
+                                            else
+                                            {
+                                                nick = (await guildChan.Guild.GetUsersAsync().ConfigureAwait(false)).Find(nick).FirstOrDefault()?.Mention ?? nick;
+                                            }
                                         }
                                     }
 
