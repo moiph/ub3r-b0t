@@ -174,6 +174,7 @@
             else if (this.botType == BotType.Irc)
             {
                 heartbeatData.ServerCount = this.ircClients.Count;
+                heartbeatData.UserCount = this.GetIrcUserCount();
             }
 
             if (this.Config.HeartbeatEndpoint != null && !this.Config.IsDevMode)
