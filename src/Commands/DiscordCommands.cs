@@ -167,7 +167,32 @@
 
             Commands.Add("userinfo", async (message) =>
             {
-                SocketUser targetUser = message.MentionedUsers?.FirstOrDefault() ?? message.Author;
+                SocketUser targetUser = message.MentionedUsers?.FirstOrDefault();
+
+                if (targetUser == null)
+                {
+                    var messageParts = message.Content.Split(new[] { ' ' }, 2);
+
+                    if (messageParts.Length == 2)
+                    {
+                        var guildChannel = message.Channel as IGuildChannel;
+                        if (guildChannel != null)
+                        {
+                            targetUser = (await guildChannel.Guild.GetUsersAsync()).Find(messageParts[1]).FirstOrDefault() as SocketUser;
+                        }
+
+                        if (targetUser == null)
+                        {
+                            await message.Channel.SendMessageAsync("User not found. Try a direct mention.");
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        targetUser = message.Author;
+                    }
+                }
+                
                 var guildUser = targetUser as IGuildUser;
 
                 if (guildUser == null)

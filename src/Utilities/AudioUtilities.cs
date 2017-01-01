@@ -96,8 +96,7 @@
 
         public static async Task SendAudioAsync(IVoiceChannel voiceChannel, string filename)
         {
-            var guildChannel = voiceChannel as IGuildChannel;
-            if (guildChannel != null)
+            if (voiceChannel is IGuildChannel guildChannel)
             {
                 var botGuildUser = await guildChannel?.Guild.GetCurrentUserAsync();
 
