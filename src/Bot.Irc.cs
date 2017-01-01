@@ -1,5 +1,6 @@
 ﻿namespace UB3RB0T
 {
+    using System;
     using System.Collections.Generic;
     using System.Linq;
     using System.Text.RegularExpressions;
@@ -8,7 +9,7 @@
 
     public partial class Bot
     {
-        private Dictionary<string, ServerData> serverData = new Dictionary<string, ServerData>();
+        private Dictionary<string, ServerData> serverData = new Dictionary<string, ServerData>(StringComparer.OrdinalIgnoreCase);
         private Regex namesRegex = new Regex(".*(#[^ ]+) :(.*)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         public async Task CreateIrcBotsAsync()
@@ -35,7 +36,7 @@
             {
                 foreach (string channel in this.Config.Irc.Servers.Where(s => s.Host == client.Id).First().Channels)
                 {
-                    serverData[client.Host].Channels.Add(channel, new ChannelData());
+                    serverData[client.Host].Channels.Add(channel.ToLowerInvariant(), new ChannelData());
                     client.Command("JOIN", channel, string.Empty);
                 }
             }
@@ -61,7 +62,7 @@
             else if (data.Verb == "353")
             {
                 var namesMatch = namesRegex.Match(data.Text);
-                var channel = namesMatch.Groups[1].ToString();
+                var channel = namesMatch.Groups[1].ToString().ToLowerInvariant();
                 var userList = namesMatch.Groups[2].ToString();
                 var users = userList.Split(new[] { ' ' });
 
