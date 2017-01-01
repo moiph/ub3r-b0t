@@ -74,6 +74,8 @@
         public bool FunResponsesEnabled { get; set; }
         public bool AutoTitlesEnabled { get; set; }
 
+        public bool DisableLinkParsing { get; set; }
+
         public bool HasFlag(ModOptions flag)
         {
             return (this.Mod_LogOptions & flag) == flag;

@@ -519,7 +519,12 @@
 
         private Task Discord_Log(LogMessage arg)
         {
-            var logger = Logger.GetConsoleLogger();
+            // TODO: Temporary filter for audio warnings; remove with future Discord.NET update
+            if (arg.Message.Contains("Unknown OpCode (Speaking)"))
+            {
+                return Task.CompletedTask;
+            }
+
             LogType logType = LogType.Debug;
             switch (arg.Severity)
             {
@@ -544,7 +549,7 @@
 
             if (arg.Severity != LogSeverity.Verbose)
             {
-                logger.Log(logType, arg.ToString());
+                this.consoleLogger.Log(logType, arg.ToString());
             }
 
             return Task.CompletedTask;

@@ -27,6 +27,7 @@
 
         private ConcurrentDictionary<string, int> commandsIssued = new ConcurrentDictionary<string, int>();
 
+        private static Regex UrlRegex = new Regex("(https?://[^ ]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static Regex channelRegex = new Regex("#([a-zA-Z0-9\\-]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static Regex httpRegex = new Regex("https?://([^\\s]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         public static Regex TimerRegex = new Regex(".*?remind (?<target>.+?) in (?<years>[0-9]+ year)?s? ?(?<weeks>[0-9]+ week)?s? ?(?<days>[0-9]+ day)?s? ?(?<hours>[0-9]+ hour)?s? ?(?<minutes>[0-9]+ minute)?s? ?(?<seconds>[0-9]+ seconds)?.*?(?<prep>[^ ]+) (?<reason>.+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -125,7 +126,6 @@
                         JsonConfig.ConfigInstances.Clear();
                         Console.WriteLine("Config reloaded.");
                         break;
-
                     default:
                         break;
                 }
@@ -276,6 +276,15 @@
 
                                 if (!string.IsNullOrEmpty(notification.Text) && (channel.Guild as SocketGuild).CurrentUser.GetPermissions(channel).SendMessages)
                                 {
+                                    // adjust the notification text to disable discord link parsing, if configured to do so
+                                    if (SettingsConfig.GetSettings(channel.GuildId).DisableLinkParsing)
+                                    {
+                                        notification.Text = UrlRegex.Replace(notification.Text, new MatchEvaluator((Match urlMatch) =>
+                                        {
+                                            return $"<{urlMatch.Captures[0]}>";
+                                        }));
+                                    }
+
                                     try
                                     {
                                         await channel.SendMessageAsync(notification.Text);
