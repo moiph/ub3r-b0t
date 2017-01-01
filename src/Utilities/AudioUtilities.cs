@@ -100,7 +100,6 @@
                     Arguments = $"-i {filePath}{filename} -f s16le -ar 48000 -ac 2 pipe:1 -loglevel warning",
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
-                    RedirectStandardError = true,
                 });
 
                 var memstream = new MemoryStream();
