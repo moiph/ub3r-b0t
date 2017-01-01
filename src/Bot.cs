@@ -18,11 +18,8 @@
     {
         private int shard = 0;
         private BotType botType;
+
         private DiscordSocketClient client;
-
-        // TODO: Wire up audio support once Discord.NET supports it.
-        // private IAudioClient _audio;
-
         private Dictionary<string, IrcClient> ircClients;
 
         private ConcurrentDictionary<string, int> commandsIssued = new ConcurrentDictionary<string, int>();
@@ -126,12 +123,14 @@
                         JsonConfig.ConfigInstances.Clear();
                         Console.WriteLine("Config reloaded.");
                         break;
+                    case "exit":
+                        await this.ShutdownAsync();
+                        break;
                     default:
                         break;
                 }
             }
 
-            await this.client.DisconnectAsync();
             Console.WriteLine("Exited.");
         }
 
@@ -390,6 +389,27 @@
                             }
                         }
                     }
+                }
+            }
+        }
+
+        /// <summary>
+        ///  Handles shutdown tasks
+        /// </summary>
+        private async Task ShutdownAsync()
+        {
+            if (this.botType == BotType.Discord)
+            {
+                // explicitly leave all audio channels so that we can say goodbye
+                await AudioUtilities.LeaveAllAudioAsync();
+
+                await this.client.DisconnectAsync();
+            }
+            else if (this.botType == BotType.Irc)
+            {
+                foreach (var client in this.ircClients.Values)
+                {
+                    client.Disconnect("Shutting down.");
                 }
             }
         }

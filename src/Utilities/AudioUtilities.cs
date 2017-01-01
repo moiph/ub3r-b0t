@@ -12,6 +12,8 @@
     {
         private static object lockObject = new object();
 
+        private static bool isShuttingDown = false;
+
         // UB3R-B0T just broadcasts voice clips; memory footprint is low so keep them stored.  TODO: change this assumption if need be :)
         private static ConcurrentDictionary<string, Stream> voiceClips = new ConcurrentDictionary<string, Stream>();
 
@@ -20,6 +22,11 @@
 
         public static async Task JoinAudio(IVoiceChannel voiceChannel)
         {
+            if (isShuttingDown)
+            {
+                return;
+            }
+
             if (!audioClients.TryGetValue(voiceChannel.GuildId, out IAudioClient audioClient))
             {
                 lock (lockObject)
@@ -54,15 +61,32 @@
             }
         }
 
+        public static async Task LeaveAllAudioAsync()
+        {
+            isShuttingDown = true;
+            foreach (var key in audioClients.Keys)
+            {
+                await LeaveAudioAsync(key);
+            }
+        }
+
         public static async Task LeaveAudioAsync(IGuildChannel guildChannel)
         {
-            if (streams.TryRemove(guildChannel.GuildId, out Stream stream))
+            await LeaveAudioAsync(guildChannel.GuildId);
+        }
+
+        public static async Task LeaveAudioAsync(ulong guildId)
+        {
+            if (streams.TryRemove(guildId, out Stream stream))
             {
+                // say our goodbyes
+                await AudioUtilities.SendAudioAsync(stream, "goodbye.mp3");
+
                 stream.Dispose();
                 stream = null;
             }
 
-            if (audioClients.TryRemove(guildChannel.GuildId, out IAudioClient audioClient))
+            if (audioClients.TryRemove(guildId, out IAudioClient audioClient))
             {
                 await audioClient.DisconnectAsync();
                 audioClient.Dispose();
