@@ -183,7 +183,7 @@
                         if (this.botType == BotType.Irc)
                         {
                             string msg = string.Format("{0}: {1} ({2} ago) {3}", timer.Nick, timer.Reason, timer.Duration, requestedBy);
-                            this.ircClients.Values.FirstOrDefault(c => c.Host == timer.Server)?.Command("PRIVMSG", timer.Channel, msg);
+                            this.ircClients[timer.Server]?.Command("PRIVMSG", timer.Channel, msg);
                             remindersToDelete.Add(timer.Id);
                         }
                         else
@@ -355,7 +355,7 @@
 
                             foreach (var response in responses)
                             {
-                                this.ircClients.Values.FirstOrDefault(c => c.Host == package.Server)?.Command("PRIVMSG", package.Channel, response);
+                                this.ircClients[package.Server]?.Command("PRIVMSG", package.Channel, response);
                             }
                         }
                         else

@@ -13,8 +13,8 @@
 
             foreach (IrcServer server in this.Config.Irc.Servers.Where(s => s.Enabled))
             {
-                var ircClient = new IrcClient(server.Id, this.Config.Name, server.Host, server.Port, /* useSsl -- pending support */false);
-                ircClients.Add(server.Id, ircClient);
+                var ircClient = new IrcClient(server.Host, this.Config.Name, server.Host, server.Port, /* useSsl -- pending support */false);
+                ircClients.Add(server.Host, ircClient);
                 ircClient.OnIrcEvent += this.OnIrcEventAsync;
 
                 await ircClient.ConnectAsync();
@@ -28,7 +28,7 @@
 
             if (data.Verb == ReplyCode.RPL_ENDOFMOTD || data.Verb == ReplyCode.RPL_NOMOTD) //  motd end or motd missing
             {
-                foreach (string channel in this.Config.Irc.Servers.Where(s => s.Id == client.Id).First().Channels)
+                foreach (string channel in this.Config.Irc.Servers.Where(s => s.Host == client.Id).First().Channels)
                 {
                     client.Command("JOIN", channel, string.Empty);
                 }

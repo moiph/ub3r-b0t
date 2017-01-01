@@ -68,12 +68,6 @@
     public class IrcServer
     {
         /// <summary>
-        /// Unique identifier for internal use.
-        /// </summary>
-        [JsonRequired]
-        public string Id { get; set; }
-
-        /// <summary>
         /// The host for this server (e.g. irc.freenode.net)
         /// </summary>
         [JsonRequired]
