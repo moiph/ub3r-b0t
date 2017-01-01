@@ -20,7 +20,7 @@
         public static ConcurrentDictionary<ulong, IAudioClient> audioClients = new ConcurrentDictionary<ulong, IAudioClient>();
         public static ConcurrentDictionary<ulong, Stream> streams = new ConcurrentDictionary<ulong, Stream>();
 
-        public static async Task JoinAudio(IVoiceChannel voiceChannel)
+        public static async Task JoinAudioAsync(IVoiceChannel voiceChannel)
         {
             if (isShuttingDown)
             {

@@ -28,6 +28,9 @@
         public DiscordConfig Discord { get; set; }
         public Irc Irc { get; set; }
 
+        // endpoint to send heartbeat data to
+        public Uri HeartbeatEndpoint { get; set; }
+
         // Instrumentation key for application insights
         public string InstrumentationKey { get; set; }
     }

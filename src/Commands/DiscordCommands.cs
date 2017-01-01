@@ -11,15 +11,11 @@
     using System.Reflection;
     using System.Net;
     using System.Text.RegularExpressions;
-    using System.Collections.Concurrent;
-    using Discord.Audio;
-    using System.IO;
-    
+    using System.Text;
+
     public class DiscordCommands
     {
         public Dictionary<string, Func<SocketMessage, Task>> Commands { get; private set; }
-
-        private object joinlock = new object();
         
         // TODO:
         // this is icky
@@ -34,6 +30,29 @@
                 return;
             });
 
+            Commands.Add("status", async (message) =>
+            {
+                var serversStatus = await Utilities.GetApiResponseAsync<HeartbeatData[]>(BotConfig.Instance.HeartbeatEndpoint);
+
+                var dataSb = new StringBuilder();
+                dataSb.Append("```cs\n" +
+                   "type       shard   server count    users  \n");
+
+                foreach (HeartbeatData heartbeat in serversStatus)
+                {
+                    var botType = heartbeat.BotType.PadRight(11);
+                    var shard = heartbeat.Shard.ToString().PadLeft(4);
+                    var servers = heartbeat.ServerCount.ToString().PadLeft(13);
+                    var users = heartbeat.UserCount.ToString().PadLeft(8);
+
+                    dataSb.Append($"{botType} {shard}  {servers} {users}\n");
+                }
+
+                dataSb.Append("```");
+
+                await message.Channel.SendMessageAsync(dataSb.ToString());
+            });
+
             Commands.Add("voice", async (message) =>
             {
                 var channel = (message.Author as IGuildUser)?.VoiceChannel;
@@ -44,7 +63,7 @@
 
                 Task.Run(async () =>
                 {
-                    await AudioUtilities.JoinAudio(channel);
+                    await AudioUtilities.JoinAudioAsync(channel);
                 }).Forget();
 
                 return;
@@ -175,8 +194,7 @@
 
                     if (messageParts.Length == 2)
                     {
-                        var guildChannel = message.Channel as IGuildChannel;
-                        if (guildChannel != null)
+                        if (message.Channel is IGuildChannel guildChannel)
                         {
                             targetUser = (await guildChannel.Guild.GetUsersAsync()).Find(messageParts[1]).FirstOrDefault() as SocketUser;
                         }

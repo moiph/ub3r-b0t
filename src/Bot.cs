@@ -13,6 +13,8 @@
     using Microsoft.ApplicationInsights;
     using Microsoft.ApplicationInsights.Extensibility;
     using Microsoft.ApplicationInsights.DataContracts;
+    using Flurl;
+    using Flurl.Http;
 
     public partial class Bot
     {
@@ -21,6 +23,7 @@
 
         private DiscordSocketClient client;
         private Dictionary<string, IrcClient> ircClients;
+        private static long startTime;
 
         private ConcurrentDictionary<string, int> commandsIssued = new ConcurrentDictionary<string, int>();
 
@@ -98,6 +101,8 @@
                 await this.CreateIrcBotsAsync();
             }
 
+            Bot.startTime = Utilities.Utime;
+
             // If a custom API endpoint is supported...support it
             if (this.Config.ApiEndpoint != null)
             {
@@ -107,7 +112,7 @@
             // TODO: I see a pattern here.  Clean this up.
             notificationsTimer = new Timer(CheckNotificationsAsync, null, 10000, 10000);
             remindersTimer = new Timer(CheckRemindersAsync, null, 10000, 10000);
-            oneMinuteTimer = new Timer(OneMinuteTimer, null, 60000, 60000);
+            oneMinuteTimer = new Timer(OneMinuteTimerAsync, null, 60000, 60000);
             packagesTimer = new Timer(CheckPackagesAsync, null, 1800000, 1800000);
 
             string read = string.Empty;
@@ -134,8 +139,15 @@
             Console.WriteLine("Exited.");
         }
 
-        private void Heartbeat()
+        private async Task HeartbeatAsync()
         {
+            var heartbeatData = new HeartbeatData
+            {
+                BotType = this.botType.ToString(),
+                Shard = this.shard,
+                StartTime = Bot.startTime,
+            };
+
             if (this.botType == BotType.Discord)
             {
                 var metric = new MetricTelemetry
@@ -145,6 +157,28 @@
                 };
 
                 this.AppInsights?.TrackMetric(metric);
+
+                if (this.Config.HeartbeatEndpoint != null)
+                {
+                    heartbeatData.ServerCount = this.client.Guilds.Count();
+                    heartbeatData.VoiceChannelCount = this.client.Guilds.Select(g => g.CurrentUser.VoiceChannel).Where(v => v != null).Count();
+                    var users = 0;
+                    foreach (var guild in this.client.Guilds)
+                    {
+                        users += guild.Users.Count();
+                    }
+
+                    heartbeatData.UserCount = users;
+                }
+            }
+            else if (this.botType == BotType.Irc)
+            {
+                heartbeatData.ServerCount = this.ircClients.Count;
+            }
+
+            if (this.Config.HeartbeatEndpoint != null && !this.Config.IsDevMode)
+            {
+                var result = await this.Config.HeartbeatEndpoint.ToString().PostJsonAsync(heartbeatData);
             }
         }
 
@@ -243,11 +277,11 @@
             processingtimers = false;
         }
 
-        private void OneMinuteTimer(object state)
+        private async void OneMinuteTimerAsync(object state)
         {
             this.commandsIssued.Clear();
 
-            this.Heartbeat();
+            await this.HeartbeatAsync();
         }
 
         private bool processingnotifications = false;
