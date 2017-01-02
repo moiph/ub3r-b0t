@@ -162,13 +162,7 @@
                 {
                     heartbeatData.ServerCount = this.client.Guilds.Count();
                     heartbeatData.VoiceChannelCount = this.client.Guilds.Select(g => g.CurrentUser.VoiceChannel).Where(v => v != null).Count();
-                    var users = 0;
-                    foreach (var guild in this.client.Guilds)
-                    {
-                        users += guild.Users.Count();
-                    }
-
-                    heartbeatData.UserCount = users;
+                    heartbeatData.UserCount = this.client.Guilds.Sum(x => x.Users.Count);
                 }
             }
             else if (this.botType == BotType.Irc)

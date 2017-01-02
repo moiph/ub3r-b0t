@@ -12,16 +12,24 @@
     using System.Net;
     using System.Text.RegularExpressions;
     using System.Text;
+    using Microsoft.CodeAnalysis;
+    using System.IO;
 
     public class DiscordCommands
     {
         public Dictionary<string, Func<SocketMessage, Task>> Commands { get; private set; }
-        
+        private DiscordSocketClient client;
+
+        private ScriptOptions scriptOptions;
+
         // TODO:
         // this is icky
-        public DiscordCommands()
+        public DiscordCommands(DiscordSocketClient client)
         {
+            this.client = client;
             this.Commands = new Dictionary<string, Func<SocketMessage, Task>>();
+
+            this.CreateScriptOptions();
 
             Commands.Add("debug", async (message) =>
             {
@@ -304,14 +312,10 @@
                 if (BotConfig.Instance.Discord.OwnerId == message.Author.Id)
                 {
                     var script = message.Content.Split(new[] { ' ' }, 2)[1];
-                    var scriptOptions = ScriptOptions.Default.
-                        AddImports("System", "System.Linq", "System.Text").
-                        AddReferences(typeof(Enumerable).GetTypeInfo().Assembly, typeof(SocketMessage).GetTypeInfo().Assembly);
-
                     string result = "no result";
                     try
                     {
-                        var evalResult = await CSharpScript.EvaluateAsync<object>(script, scriptOptions, globals: new ScriptHost { Message = message });
+                        var evalResult = await CSharpScript.EvaluateAsync<object>(script, scriptOptions, globals: new ScriptHost { Message = message, Client = client });
                         result = evalResult.ToString();
                     }
                     catch (Exception ex)
@@ -386,10 +390,36 @@
             string msg = failed ? "dude at least one of those is a bogus die or you rolled more than 20 of 'em. don't fuck with me man this is serious" : $"You rolled ... {string.Join(" | ", rolls)}";
             await message.Channel.SendMessageAsync(msg);
         }
+
+        private void CreateScriptOptions()
+        {
+            // mscorlib reference issues when using codeanalysis; 
+            // see http://stackoverflow.com/questions/38943899/net-core-cs0012-object-is-defined-in-an-assembly-that-is-not-referenced
+            var dd = typeof(object).GetTypeInfo().Assembly.Location;
+            var coreDir = Directory.GetParent(dd);
+
+            var references = new List<MetadataReference>
+            {   
+                MetadataReference.CreateFromFile($"{coreDir.FullName}{Path.DirectorySeparatorChar}mscorlib.dll"),
+                MetadataReference.CreateFromFile(typeof(object).GetTypeInfo().Assembly.Location),
+            };
+
+            var referencedAssemblies = Assembly.GetEntryAssembly().GetReferencedAssemblies();
+            foreach (var referencedAssembly in referencedAssemblies)
+            {
+                var loadedAssembly = Assembly.Load(referencedAssembly);
+                references.Add(MetadataReference.CreateFromFile(loadedAssembly.Location));
+            }
+
+            this.scriptOptions = ScriptOptions.Default.
+                AddImports("System", "System.Linq", "System.Text", "Discord", "Discord.WebSocket").
+                AddReferences(references);
+        }
     }
 
     public class ScriptHost
     {
         public SocketMessage Message { get; set; }
+        public DiscordSocketClient Client { get; set; }
     }
 }

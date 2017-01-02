@@ -76,10 +76,7 @@
             var count = 0;
             foreach (var server in serverData.Values)
             {
-                foreach (var channel in server.Channels.Values)
-                {
-                    count += channel.Users.Count;
-                }
+                count += server.Channels.Sum(c => c.Value.Users.Count);
             }
 
             return count;

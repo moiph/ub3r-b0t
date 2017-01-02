@@ -47,7 +47,7 @@
             client.UserVoiceStateUpdated += Client_UserVoiceStateUpdatedAsync;
             client.Ready += () => { this.isReady = true; return Task.CompletedTask; };
 
-            discordCommands = new DiscordCommands();
+            discordCommands = new DiscordCommands(client);
 
             // If user customizeable server settings are supported...support them
             // Currently discord only.
