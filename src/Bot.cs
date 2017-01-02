@@ -233,7 +233,7 @@
                                         {
                                             // try to find an exact match for the user, failing that perform a nick search
                                             var guildUser = await guildChan.GetUserAsync(Convert.ToUInt64(timer.UserId));
-                                            if (guildUser != null)
+                                            if (string.IsNullOrEmpty(requestedBy) && guildUser != null)
                                             {
                                                 nick = guildUser.Mention;
                                             }
