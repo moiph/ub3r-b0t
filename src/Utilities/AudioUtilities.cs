@@ -53,10 +53,10 @@
                 {
                     await AudioUtilities.SendAudioAsync(stream, "hello.mp3");
                 };
-                audioClient.Disconnected += (Exception ex) =>
+                audioClient.Disconnected += async (Exception ex) =>
                 {
+                    await AudioUtilities.LeaveAudioAsync(voiceChannel.GuildId);
                     Console.WriteLine(ex);
-                    return Task.CompletedTask;
                 };
             }
         }
@@ -80,7 +80,15 @@
             if (streams.TryRemove(guildId, out Stream stream))
             {
                 // say our goodbyes
-                await AudioUtilities.SendAudioAsync(stream, "goodbye.mp3");
+                try
+                {
+                    await AudioUtilities.SendAudioAsync(stream, "goodbye.mp3");
+                }
+                catch (Exception ex)
+                {
+                    // TODO: proper logging
+                    Console.WriteLine(ex);
+                }
 
                 stream.Dispose();
                 stream = null;
@@ -88,7 +96,16 @@
 
             if (audioClients.TryRemove(guildId, out IAudioClient audioClient))
             {
-                await audioClient.DisconnectAsync();
+                try
+                {
+                    await audioClient.DisconnectAsync();
+                }
+                catch (Exception ex)
+                {
+                    // TODO: proper logging
+                    Console.WriteLine(ex);
+                }
+
                 audioClient.Dispose();
                 audioClient = null;
             }

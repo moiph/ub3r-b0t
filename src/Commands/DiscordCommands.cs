@@ -71,7 +71,15 @@
 
                 Task.Run(async () =>
                 {
-                    await AudioUtilities.JoinAudioAsync(channel);
+                    try
+                    {
+                        await AudioUtilities.JoinAudioAsync(channel);
+                    }
+                    catch (Exception ex)
+                    {
+                        // TODO: proper logging
+                        Console.WriteLine(ex);
+                    }
                 }).Forget();
 
                 return;

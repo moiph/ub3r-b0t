@@ -111,7 +111,12 @@
             var botGuildUser = await (arg1 as IGuildUser).Guild.GetCurrentUserAsync();
             if (arg2.VoiceChannel != arg3.VoiceChannel && arg3.VoiceChannel == botGuildUser.VoiceChannel)
             {
-                await Task.Delay(1000);
+                // if they are connecting for the first time, wait a moment to account for possible conncetion delay. otherwise play immediately.
+                if (arg2.VoiceChannel == null)
+                {
+                    await Task.Delay(1000);
+                }
+
                 await AudioUtilities.SendAudioAsync(arg3.VoiceChannel, PhrasesConfig.Instance.VoiceGreetingFileNames.Random());
             }
             else if (arg2.VoiceChannel != arg3.VoiceChannel && arg2.VoiceChannel == botGuildUser.VoiceChannel)
