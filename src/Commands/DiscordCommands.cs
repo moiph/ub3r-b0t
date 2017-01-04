@@ -34,8 +34,18 @@
             Commands.Add("debug", async (message) =>
             {
                 var serverId = (message.Channel as IGuildChannel)?.GuildId.ToString() ?? "n/a";
-                await message.Channel.SendMessageAsync($"```Server ID: {serverId} | Channel ID: {message.Channel.Id} | Your ID: {message.Author.Id} | Shard ID: {message.Discord.ShardId}```");
+                await message.Channel.SendMessageAsync($"```Server ID: {serverId} | Channel ID: {message.Channel.Id} | Your ID: {message.Author.Id} | Shard ID: {message.Discord.ShardId} | Version: {DiscordSocketConfig.Version}```");
                 return;
+            });
+
+            Commands.Add("die", async (message) =>
+            {
+                if (BotConfig.Instance.Discord.OwnerId == message.Author.Id)
+                {
+                    await AudioUtilities.LeaveAllAudioAsync();
+                    await message.Channel.SendMessageAsync("oh shiiii--------");
+                    client.DisconnectAsync().Forget();
+                }
             });
 
             Commands.Add("status", async (message) =>
