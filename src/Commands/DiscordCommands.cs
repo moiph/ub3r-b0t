@@ -38,6 +38,16 @@
                 return;
             });
 
+            Commands.Add("die", async (message) =>
+            {
+                if (BotConfig.Instance.Discord.OwnerId == message.Author.Id)
+                {
+                    await AudioUtilities.LeaveAllAudioAsync();
+                    await message.Channel.SendMessageAsync("oh shiiii--------");
+                    client.DisconnectAsync().Forget();
+                }
+            });
+
             Commands.Add("status", async (message) =>
             {
                 var serversStatus = await Utilities.GetApiResponseAsync<HeartbeatData[]>(BotConfig.Instance.HeartbeatEndpoint);

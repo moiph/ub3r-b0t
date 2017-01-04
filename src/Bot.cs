@@ -20,6 +20,7 @@
     {
         private int shard = 0;
         private BotType botType;
+        private bool isShuttingDown;
 
         private DiscordSocketClient client;
         private Dictionary<string, IrcClient> ircClients;
@@ -34,11 +35,9 @@
         public static Regex Timer2Regex = new Regex(".*?remind (?<target>.+?) (?<prep>[^ ]+) (?<reason>.+?) in (?<years>[0-9]+ year)?s? ?(?<weeks>[0-9]+ week)?s? ?(?<days>[0-9]+ day)?s? ?(?<hours>[0-9]+ hour)?s? ?(?<minutes>[0-9]+ minute)?s? ?(?<seconds>[0-9]+ seconds)?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         private Timer notificationsTimer;
-        private Timer settingsUpdateTimer;
         private Timer remindersTimer;
         private Timer packagesTimer;
-        private Timer statsTimer;
-        private Timer oneMinuteTimer;
+        private Timer heartbeatTimer;
 
         private Logger consoleLogger = Logger.GetConsoleLogger();
 
@@ -109,11 +108,7 @@
                 this.BotApi = new BotApi(this.Config.ApiEndpoint, this.Config.ApiKey, this.botType);
             }
 
-            // TODO: I see a pattern here.  Clean this up.
-            notificationsTimer = new Timer(CheckNotificationsAsync, null, 10000, 10000);
-            remindersTimer = new Timer(CheckRemindersAsync, null, 10000, 10000);
-            oneMinuteTimer = new Timer(OneMinuteTimerAsync, null, 60000, 60000);
-            packagesTimer = new Timer(CheckPackagesAsync, null, 1800000, 1800000);
+            this.StartTimers();
 
             string read = string.Empty;
             while (read != "exit")
@@ -129,6 +124,7 @@
                         Console.WriteLine("Config reloaded.");
                         break;
                     case "exit":
+                        this.isShuttingDown = true;
                         await this.ShutdownAsync();
                         break;
                     default:
@@ -137,6 +133,15 @@
             }
 
             Console.WriteLine("Exited.");
+        }
+
+        private void StartTimers()
+        {
+            // TODO: I see a pattern here.  Clean this up.
+            notificationsTimer = new Timer(CheckNotificationsAsync, null, 10000, 10000);
+            remindersTimer = new Timer(CheckRemindersAsync, null, 10000, 10000);
+            heartbeatTimer = new Timer(HeartbeatTimerAsync, null, 30000, 30000);
+            packagesTimer = new Timer(CheckPackagesAsync, null, 1800000, 1800000);
         }
 
         private async Task HeartbeatAsync()
@@ -148,7 +153,7 @@
                 StartTime = Bot.startTime,
             };
 
-            if (this.botType == BotType.Discord)
+            if (this.botType == BotType.Discord && this.client != null)
             {
                 var metric = new MetricTelemetry
                 {
@@ -214,7 +219,7 @@
                             this.ircClients[timer.Server]?.Command("PRIVMSG", timer.Channel, msg);
                             remindersToDelete.Add(timer.Id);
                         }
-                        else
+                        else if (this.client != null)
                         {
                             if (this.client.GetChannel(Convert.ToUInt64(timer.Channel)) is ISocketMessageChannel channel)
                             {
@@ -272,11 +277,26 @@
             processingtimers = false;
         }
 
-        private async void OneMinuteTimerAsync(object state)
+        private async void HeartbeatTimerAsync(object state)
         {
+            Console.WriteLine("Heartbeat");
             this.commandsIssued.Clear();
 
-            await this.HeartbeatAsync();
+            try
+            {
+                await this.HeartbeatAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+            }
+
+            if (this.botType == BotType.Discord && this.needsReconnect && !isShuttingDown)
+            {
+                this.needsReconnect = false;
+                Console.WriteLine("Disconnection detected in Heartbeat.  Recreating instance.");
+                await this.CreateDiscordBotAsync();
+            }
         }
 
         private bool processingnotifications = false;
@@ -296,7 +316,7 @@
                         {
                             // Pending support
                         }
-                        else
+                        else if (this.client != null)
                         {
                             if (this.client.GetChannel(Convert.ToUInt64(notification.Channel)) is ITextChannel channel)
                             {
@@ -386,7 +406,7 @@
                                 this.ircClients[package.Server]?.Command("PRIVMSG", package.Channel, response);
                             }
                         }
-                        else
+                        else if (this.client != null)
                         {
                             if (this.client.GetChannel(Convert.ToUInt64(package.Channel)) is ITextChannel channel)
                             {
@@ -431,8 +451,7 @@
             {
                 // explicitly leave all audio channels so that we can say goodbye
                 await AudioUtilities.LeaveAllAudioAsync();
-
-                await this.client.DisconnectAsync();
+                this.client.DisconnectAsync().Forget(); // awaiting this likes to hang
             }
             else if (this.botType == BotType.Irc)
             {
@@ -441,6 +460,12 @@
                     client.Disconnect("Shutting down.");
                 }
             }
+        }
+
+        // Whether or not the message author is the bot owner (will only return true in Discord scenarios).
+        private bool IsAuthorOwner(BotMessageData messageData)
+        {
+            return !string.IsNullOrEmpty(messageData.UserId) && messageData.UserId == this.Config.Discord?.OwnerId.ToString();
         }
 
         private async Task<List<string>> ProcessMessageAsync(BotMessageData messageData) => await ProcessMessageAsync(messageData, new Settings());
@@ -479,7 +504,7 @@
                             query = $"{command} {match.Value}";
                         }
                     }
-                    else if (settings.FunResponsesEnabled && contentParts.Length > 1 && contentParts[1] == "face")
+                    else if ((settings.FunResponsesEnabled || IsAuthorOwner(messageData)) && contentParts.Length > 1 && contentParts[1] == "face")
                     {
                         command = "face";
                         query = $"{command} {contentParts[0]}";
@@ -531,7 +556,7 @@
                     }
                 }
                 
-                if (response == null && settings.FunResponsesEnabled && PhrasesConfig.Instance.ExactPhrases.ContainsKey(messageData.Content))
+                if (response == null && (settings.FunResponsesEnabled || IsAuthorOwner(messageData)) && PhrasesConfig.Instance.ExactPhrases.ContainsKey(messageData.Content))
                 {
                     response = PhrasesConfig.Instance.Responses[PhrasesConfig.Instance.ExactPhrases[messageData.Content]].Random();
                 }

@@ -19,6 +19,10 @@
         private MessageCache BotResponsesCache = new MessageCache();
 
         private bool isReady;
+        private bool needsReconnect;
+
+        private Timer statsTimer;
+        private Timer settingsUpdateTimer;
 
         private DiscordCommands discordCommands;
 
@@ -45,6 +49,7 @@
             client.UserUpdated += Client_UserUpdatedAsync;
             client.GuildMemberUpdated += Client_GuildMemberUpdatedAsync;
             client.UserVoiceStateUpdated += Client_UserVoiceStateUpdatedAsync;
+            client.Disconnected += Client_DisconnectedAsync;
             client.Ready += () => { this.isReady = true; return Task.CompletedTask; };
 
             discordCommands = new DiscordCommands(client);
@@ -68,41 +73,55 @@
 
             if (!string.IsNullOrEmpty(this.Config.Discord.DiscordBotsKey) || !string.IsNullOrEmpty(this.Config.Discord.CarbonStatsKey))
             {
-                statsTimer = new Timer(async (object state) =>
-                {
-                    if (!string.IsNullOrEmpty(this.Config.Discord.DiscordBotsKey))
-                    {
-                        try
-                        {
-                            var result = await "https://bots.discord.pw"
-                                .AppendPathSegment($"api/bots/{client.CurrentUser.Id}/stats")
-                                .WithHeader("Authorization", this.Config.Discord.DiscordBotsKey)
-                                .PostJsonAsync(new { shard_id = client.ShardId, shard_count = this.Config.Discord.ShardCount, server_count = client.Guilds.Count() });
-                        }
-                        catch (Exception ex)
-                        {
-                            // TODO: Update to using one of the logging classes (Discord/IRC)
-                            Console.WriteLine($"Failed to update bots.discord.pw stats: {ex}");
-                        }
-                    }
-
-                    if (!string.IsNullOrEmpty(this.Config.Discord.CarbonStatsKey))
-                    {
-                        try
-                        {
-                            var result = await "https://www.carbonitex.net"
-                                .AppendPathSegment("/discord/data/botdata.php")
-                                .PostJsonAsync(new { key = this.Config.Discord.CarbonStatsKey, shard_id = client.ShardId, shard_count = this.Config.Discord.ShardCount, servercount = client.Guilds.Count() });
-                        }
-                        catch (Exception ex)
-                        {
-                            // TODO: Update to using one of the logging classes (Discord/IRC)
-                            Console.WriteLine($"Failed to update carbon stats: {ex}");
-                        }
-                    }
-
-                }, null, 3600000, 3600000);
+                statsTimer = new Timer(StatsTimerAsync, null, 3600000, 3600000);
             }
+        }
+
+        private async void StatsTimerAsync(object state)
+        {
+            if (!string.IsNullOrEmpty(this.Config.Discord.DiscordBotsKey) && this.client != null)
+            {
+                try
+                {
+                    var result = await "https://bots.discord.pw"
+                        .AppendPathSegment($"api/bots/{client.CurrentUser.Id}/stats")
+                        .WithHeader("Authorization", this.Config.Discord.DiscordBotsKey)
+                        .PostJsonAsync(new { shard_id = client.ShardId, shard_count = this.Config.Discord.ShardCount, server_count = client.Guilds.Count() });
+                }
+                catch (Exception ex)
+                {
+                    // TODO: Update to using one of the logging classes (Discord/IRC)
+                    Console.WriteLine($"Failed to update bots.discord.pw stats: {ex}");
+                }
+            }
+
+            if (!string.IsNullOrEmpty(this.Config.Discord.CarbonStatsKey))
+            {
+                try
+                {
+                    var result = await "https://www.carbonitex.net"
+                        .AppendPathSegment("/discord/data/botdata.php")
+                        .PostJsonAsync(new { key = this.Config.Discord.CarbonStatsKey, shard_id = client.ShardId, shard_count = this.Config.Discord.ShardCount, servercount = client.Guilds.Count() });
+                }
+                catch (Exception ex)
+                {
+                    // TODO: Update to using one of the logging classes (Discord/IRC)
+                    Console.WriteLine($"Failed to update carbon stats: {ex}");
+                }
+            }
+
+        }
+
+        public async Task Client_DisconnectedAsync(Exception arg)
+        {
+            Console.WriteLine($"Disconnect event handler called. Shutdown invoked: {this.isShuttingDown}");
+            Console.WriteLine(arg);
+
+            this.client.Dispose();
+            this.client = null;
+            this.needsReconnect = !this.isShuttingDown;
+
+            await Task.CompletedTask;
         }
 
         private async Task Client_UserVoiceStateUpdatedAsync(SocketUser arg1, SocketVoiceState arg2, SocketVoiceState arg3)
@@ -525,7 +544,7 @@
         private Task Discord_Log(LogMessage arg)
         {
             // TODO: Temporary filter for audio warnings; remove with future Discord.NET update
-            if (arg.Message.Contains("Unknown OpCode (Speaking)"))
+            if (arg.Message.Contains("Unknown OpCode (Speaking)") || (arg.Source.Contains("Audio") && arg.Message.Contains("Latency = ")))
             {
                 return Task.CompletedTask;
             }
@@ -552,10 +571,7 @@
                 this.AppInsights?.TrackException(arg.Exception);
             }
 
-            if (arg.Severity != LogSeverity.Verbose)
-            {
-                this.consoleLogger.Log(logType, arg.ToString());
-            }
+            this.consoleLogger.Log(logType, arg.ToString());
 
             return Task.CompletedTask;
         }
