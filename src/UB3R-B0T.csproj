@@ -29,7 +29,7 @@
     <Content Include="ub3rb0t.ico" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Discord.Net.WebSocket" Version="1.0.0-beta2-00537" />
+    <PackageReference Include="Discord.Net.WebSocket" Version="1.0.0-rc-00544" />
     <PackageReference Include="Flurl.Http" Version="1.1.1" />
     <PackageReference Include="Microsoft.ApplicationInsights" Version="2.3.0-beta1" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="2.0.0-rc2" />

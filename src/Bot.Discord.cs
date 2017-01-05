@@ -16,10 +16,9 @@
 
     public partial class Bot
     {
-        private MessageCache BotResponsesCache = new MessageCache();
+        private MessageCache botResponsesCache = new MessageCache();
 
         private bool isReady;
-        private bool needsReconnect;
 
         private Timer statsTimer;
         private Timer settingsUpdateTimer;
@@ -49,14 +48,13 @@
             client.UserUpdated += Client_UserUpdatedAsync;
             client.GuildMemberUpdated += Client_GuildMemberUpdatedAsync;
             client.UserVoiceStateUpdated += Client_UserVoiceStateUpdatedAsync;
-            client.Disconnected += Client_DisconnectedAsync;
-            client.Ready += () => { this.isReady = true; return Task.CompletedTask; };
+            client.Ready += Client_Ready;
 
             discordCommands = new DiscordCommands(client);
 
             // If user customizeable server settings are supported...support them
             // Currently discord only.
-            if (this.Config.SettingsEndpoint != null)
+            if (this.Config.SettingsEndpoint != null && settingsUpdateTimer == null)
             {
                 await this.UpdateSettingsAsync();
 
@@ -69,12 +67,20 @@
 
             await client.LoginAsync(TokenType.Bot, this.Config.Discord.Token);
             await client.ConnectAsync();
-            await this.client.SetGame(this.Config.Discord.Status);
+            // handle replacement tokens in status, if applicable
+            var gameStatus = this.Config.Discord.Status.Replace("{shard}", this.shard.ToString());
+            await this.client.SetGameAsync(gameStatus);
 
-            if (!string.IsNullOrEmpty(this.Config.Discord.DiscordBotsKey) || !string.IsNullOrEmpty(this.Config.Discord.CarbonStatsKey))
+            if (!string.IsNullOrEmpty(this.Config.Discord.DiscordBotsKey) || !string.IsNullOrEmpty(this.Config.Discord.CarbonStatsKey) && statsTimer == null)
             {
                 statsTimer = new Timer(StatsTimerAsync, null, 3600000, 3600000);
             }
+        }
+
+        private Task Client_Ready()
+        {
+            this.isReady = true;
+            return Task.CompletedTask;
         }
 
         private async void StatsTimerAsync(object state)
@@ -110,18 +116,6 @@
                 }
             }
 
-        }
-
-        public async Task Client_DisconnectedAsync(Exception arg)
-        {
-            Console.WriteLine($"Disconnect event handler called. Shutdown invoked: {this.isShuttingDown}");
-            Console.WriteLine(arg);
-
-            this.client.Dispose();
-            this.client = null;
-            this.needsReconnect = !this.isShuttingDown;
-
-            await Task.CompletedTask;
         }
 
         private async Task Client_UserVoiceStateUpdatedAsync(SocketUser arg1, SocketVoiceState arg2, SocketVoiceState arg3)
@@ -166,40 +160,47 @@
             {
                 // Mod log
                 var settings = SettingsConfig.GetSettings(guildUserBefore.GuildId);
-                if (settings.Mod_LogId != 0)
+                if (settings.Mod_LogId != 0 && settings.HasFlag(ModOptions.Mod_LogUserRole))
                 {
-                    var modLogChannel = this.client.GetChannel(settings.Mod_LogId) as ITextChannel;
-
-                    if (settings.HasFlag(ModOptions.Mod_LogUserRole))
+                    var rolesAdded = new List<string>();
+                    foreach (ulong roleId in guildUserAfter.RoleIds)
                     {
-                        var rolesAdded = new List<string>();
-                        foreach (ulong roleId in guildUserAfter.RoleIds)
+                        if (!guildUserBefore.RoleIds.Any(r => r == roleId))
                         {
-                            if (!guildUserBefore.RoleIds.Any(r => r == roleId))
+                            rolesAdded.Add(guildUserAfter.Guild.Roles.First(g => g.Id == roleId).Name.TrimStart('@'));
+                        }
+                    }
+
+                    var rolesRemoved = new List<string>();
+                    foreach (ulong roleId in guildUserBefore.RoleIds)
+                    {
+                        if (!guildUserAfter.RoleIds.Any(r => r == roleId))
+                        {
+                            rolesRemoved.Add(guildUserBefore.Guild.Roles.First(g => g.Id == roleId).Name.TrimStart('@'));
+                        }
+                    }
+
+                    if (rolesAdded.Count > 0 || rolesRemoved.Count > 0)
+                    {
+                        var modLogChannel = this.client.GetChannel(settings.Mod_LogId) as ITextChannel;
+                        var botUser = (modLogChannel?.Guild as SocketGuild).CurrentUser;
+                        if (botUser.GetPermissions(modLogChannel).SendMessages)
+                        {
+                            if (rolesAdded.Count > 0)
                             {
-                                rolesAdded.Add(guildUserAfter.Guild.Roles.First(g => g.Id == roleId).Name.TrimStart('@'));
+                                string roleText = $"**{guildUserAfter.Username}#{guildUserAfter.Discriminator}** had these roles added: `{string.Join(",", rolesAdded)}`";
+                                await modLogChannel?.SendMessageAsync(roleText.Substring(0, Math.Min(roleText.Length, 2000)));
+                            }
+
+                            if (rolesRemoved.Count > 0)
+                            {
+                                string roleText = $"**{guildUserAfter.Username}#{guildUserAfter.Discriminator}** had these roles removed: `{string.Join(",", rolesRemoved)}`";
+                                await modLogChannel?.SendMessageAsync(roleText.Substring(0, Math.Min(roleText.Length, 2000)));
                             }
                         }
-
-                        var rolesRemoved = new List<string>();
-                        foreach (ulong roleId in guildUserBefore.RoleIds)
+                        else
                         {
-                            if (!guildUserAfter.RoleIds.Any(r => r == roleId))
-                            {
-                                rolesRemoved.Add(guildUserBefore.Guild.Roles.First(g => g.Id == roleId).Name.TrimStart('@'));
-                            }
-                        }
-
-                        if (rolesAdded.Count > 0)
-                        {
-                            string roleText = $"**{guildUserAfter.Username}#{guildUserAfter.Discriminator}** had these roles added: `{string.Join(",", rolesAdded)}`";
-                            await modLogChannel?.SendMessageAsync(roleText.Substring(0, Math.Min(roleText.Length, 2000)));
-                        }
-
-                        if (rolesRemoved.Count > 0)
-                        {
-                            string roleText = $"**{guildUserAfter.Username}#{guildUserAfter.Discriminator}** had these roles removed: `{string.Join(",", rolesRemoved)}`";
-                            await modLogChannel?.SendMessageAsync(roleText.Substring(0, Math.Min(roleText.Length, 2000)));
+                            await (await (await guildUserBefore.Guild.GetOwnerAsync()).CreateDMChannelAsync()).SendMessageAsync($"Permissions error detected for {guildUserBefore.Guild.Name} on user role updates: Can't send messages to configured mod logging channel.");
                         }
                     }
                 }
@@ -214,21 +215,28 @@
                 var settings = SettingsConfig.GetSettings(guildUserBefore.GuildId);
                 if (settings.Mod_LogId != 0 && settings.HasFlag(ModOptions.Mod_LogUserNick))
                 {
-                    var modLogChannel = this.client.GetChannel(settings.Mod_LogId) as ITextChannel;
-
                     if (guildUserAfter.Nickname != guildUserBefore.Nickname)
                     {
-                        if (string.IsNullOrEmpty(guildUserAfter.Nickname))
+                        var modLogChannel = this.client.GetChannel(settings.Mod_LogId) as ITextChannel;
+                        var botUser = (modLogChannel?.Guild as SocketGuild).CurrentUser;
+                        if (botUser.GetPermissions(modLogChannel).SendMessages)
                         {
-                            await modLogChannel?.SendMessageAsync($"{guildUserAfter.Username}#{guildUserAfter.Discriminator} removed their nickname (was {guildUserBefore.Nickname})");
-                        }
-                        else if (string.IsNullOrEmpty(guildUserBefore.Nickname))
-                        {
-                            await modLogChannel?.SendMessageAsync($"{guildUserAfter.Username}#{guildUserAfter.Discriminator} set a new nickname to {guildUserAfter.Nickname}");
+                            if (string.IsNullOrEmpty(guildUserAfter.Nickname))
+                            {
+                                await modLogChannel.SendMessageAsync($"{guildUserAfter.Username}#{guildUserAfter.Discriminator} removed their nickname (was {guildUserBefore.Nickname})");
+                            }
+                            else if (string.IsNullOrEmpty(guildUserBefore.Nickname))
+                            {
+                                await modLogChannel.SendMessageAsync($"{guildUserAfter.Username}#{guildUserAfter.Discriminator} set a new nickname to {guildUserAfter.Nickname}");
+                            }
+                            else
+                            {
+                                await modLogChannel.SendMessageAsync($"{guildUserAfter.Username}#{guildUserAfter.Discriminator} changed their nickname from {guildUserBefore.Nickname} to {guildUserAfter.Nickname}");
+                            }
                         }
                         else
                         {
-                            await modLogChannel?.SendMessageAsync($"{guildUserAfter.Username}#{guildUserAfter.Discriminator} changed their nickname from {guildUserBefore.Nickname} to {guildUserAfter.Nickname}");
+                            await (await (await guildUserBefore.Guild.GetOwnerAsync()).CreateDMChannelAsync()).SendMessageAsync($"Permissions error detected for {guildUserBefore.Guild.Name} on user name updates: Can't send messages to configured mod logging channel.");
                         }
                     }
                 }
@@ -244,11 +252,13 @@
                 string banText = $"{arg1.Username}#{arg1.Discriminator} was banned.";
                 var modLogChannel = this.client.GetChannel(settings.Mod_LogId) as ITextChannel;
 
-                var botUser = (modLogChannel.Guild as SocketGuild).CurrentUser;
-
-                if (botUser != null && botUser.GetPermissions(modLogChannel).SendMessages)
+                if (arg2.CurrentUser.GetPermissions(modLogChannel).SendMessages)
                 {
-                    await modLogChannel?.SendMessageAsync(banText);
+                    await modLogChannel.SendMessageAsync(banText);
+                }
+                else
+                {
+                    await (await (await arg2.GetOwnerAsync()).CreateDMChannelAsync()).SendMessageAsync($"Permissions error detected for {arg2.Name} on user bans: Can't send messages to configured mod logging channel.");
                 }
             }
         }
@@ -265,12 +275,14 @@
                     if (arg1.IsSpecified && arg1.Value.Content != arg2.Content && !string.IsNullOrEmpty(arg1.Value.Content))
                     {
                         string editText = $"**{arg2.Author.Username}** modified in {textChannel.Mention}: `{arg1.Value.Content}` to `{arg2.Content}`";
-                        var modLogChannel = this.client.GetChannel(settings.Mod_LogId) as ITextChannel;
-                        var botUser = (modLogChannel.Guild as SocketGuild).CurrentUser;
-
-                        if (botUser != null && botUser.GetPermissions(modLogChannel).SendMessages)
+                        var botUser = (guildChannel.Guild as SocketGuild).CurrentUser;
+                        if (botUser != null && this.client.GetChannel(settings.Mod_LogId) is ITextChannel modLogChannel && botUser.GetPermissions(modLogChannel).SendMessages)
                         {
                             await modLogChannel.SendMessageAsync(editText.Substring(0, Math.Min(editText.Length, Discord.DiscordConfig.MaxMessageSize)));
+                        }
+                        else
+                        {
+                            await (await (await guildChannel.Guild.GetOwnerAsync()).CreateDMChannelAsync()).SendMessageAsync($"Permissions error detected for {guildChannel.Guild.Name} on message updates: Can't send messages to configured mod logging channel.");
                         }
                     }
                 }
@@ -279,10 +291,17 @@
 
         private async Task Client_MessageDeletedAsync(ulong arg1, Optional<SocketMessage> arg2)
         {
-            var msg = BotResponsesCache.Remove(arg1);
+            var msg = this.botResponsesCache.Remove(arg1);
             if (msg != null)
             {
-                await msg.DeleteAsync();
+                try
+                {
+                    await msg.DeleteAsync();
+                }
+                catch (Exception)
+                {
+                    // ignore, don't care if we can't delete our own message
+                }
             }
 
             if (arg2.IsSpecified && arg2.Value.Channel is IGuildChannel guildChannel)
@@ -309,12 +328,14 @@
 
                     delText += $"**{message.Author.Username}#{message.Author.Discriminator}** deleted in {textChannel.Mention}: {message.Content}";
 
-                    var modLogChannel = this.client.GetChannel(settings.Mod_LogId) as ITextChannel;
-                    var botUser = (modLogChannel.Guild as SocketGuild).CurrentUser;
-
-                    if (botUser != null && botUser.GetPermissions(modLogChannel).SendMessages)
+                    var botUser = (guildChannel.Guild as SocketGuild).CurrentUser;
+                    if (botUser != null && this.client.GetChannel(settings.Mod_LogId) is ITextChannel modLogChannel && botUser.GetPermissions(modLogChannel).SendMessages)
                     {
-                        await modLogChannel?.SendMessageAsync(delText.Substring(0, Math.Min(delText.Length, Discord.DiscordConfig.MaxMessageSize)));
+                        await modLogChannel.SendMessageAsync(delText.Substring(0, Math.Min(delText.Length, Discord.DiscordConfig.MaxMessageSize)));
+                    }
+                    else
+                    {
+                        await (await (await guildChannel.Guild.GetOwnerAsync()).CreateDMChannelAsync()).SendMessageAsync($"Permissions error detected for {guildChannel.Guild.Name} on message deletes: Can't send messages to configured mod logging channel.");
                     }
                 }
             }
@@ -415,10 +436,15 @@
             {
                 return;
             }
+
             // Check discord specific commands prior to general ones.
             if (!string.IsNullOrEmpty(command) && discordCommands.Commands.ContainsKey(command))
             {
-                await discordCommands.Commands[command].Invoke(message).ConfigureAwait(false);
+                var sentMessage = await discordCommands.Commands[command].Invoke(message).ConfigureAwait(false);
+                if (sentMessage != null)
+                {
+                    this.botResponsesCache.Add(message.Id, sentMessage);
+                }
             }
             else
             {
@@ -427,21 +453,26 @@
                 {
                     // possible bug with typing state
                     Console.WriteLine($"typing triggered by {command}");
-                    // typingState = message.Channel.EnterTypingState();
+                    typingState = message.Channel.EnterTypingState();
                 }
 
-                List<string> responses = await this.ProcessMessageAsync(BotMessageData.Create(message, query), settings);
-
-                foreach (string response in responses)
+                try
                 {
-                    if (!string.IsNullOrEmpty(response))
+                    List<string> responses = await this.ProcessMessageAsync(BotMessageData.Create(message, query), settings);
+
+                    foreach (string response in responses)
                     {
-                        var sentMessage = await message.Channel.SendMessageAsync(response);
-                        BotResponsesCache.Add(message.Id, sentMessage);
+                        if (!string.IsNullOrEmpty(response))
+                        {
+                            var sentMessage = await message.Channel.SendMessageAsync(response);
+                            this.botResponsesCache.Add(message.Id, sentMessage);
+                        }
                     }
                 }
-
-                typingState?.Dispose();
+                finally
+                {
+                    typingState?.Dispose();
+                }
             }
         }
 
@@ -494,8 +525,14 @@
             if (settings.Mod_LogId != 0 && settings.HasFlag(ModOptions.Mod_LogUserLeave))
             {
                 string leaveText = $"{arg.Username}#{arg.Discriminator} left.";
-                var modLogChannel = this.client.GetChannel(settings.Mod_LogId) as ITextChannel;
-                await modLogChannel?.SendMessageAsync(leaveText);
+                if (this.client.GetChannel(settings.Mod_LogId) is ITextChannel modLogChannel && arg.Guild.CurrentUser.GetPermissions(modLogChannel).SendMessages)
+                {
+                    await modLogChannel.SendMessageAsync(leaveText);
+                }
+                else
+                {
+                    await (await (await arg.Guild.GetOwnerAsync()).CreateDMChannelAsync()).SendMessageAsync($"Permissions error detected for {arg.Guild.Name} on user leave: Can't send messages to configured mod logging channel.");
+                }
             }
         }
 
@@ -536,8 +573,14 @@
             if (settings.Mod_LogId != 0 && settings.HasFlag(ModOptions.Mod_LogUserJoin))
             {
                 string joinText = $"{arg.Username}#{arg.Discriminator} joined.";
-                var modLogChannel = this.client.GetChannel(settings.Mod_LogId) as ITextChannel;
-                await modLogChannel?.SendMessageAsync(joinText);
+                if (this.client.GetChannel(settings.Mod_LogId) is ITextChannel modLogChannel && arg.Guild.CurrentUser.GetPermissions(modLogChannel).SendMessages)
+                {
+                    await modLogChannel.SendMessageAsync(joinText);
+                }
+                else
+                {
+                    await (await (await arg.Guild.GetOwnerAsync()).CreateDMChannelAsync()).SendMessageAsync($"Permissions error detected for {arg.Guild.Name} on user join: Can't send messages to configured mod logging channel.");
+                }
             }
         }
 

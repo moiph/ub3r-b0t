@@ -13,14 +13,12 @@
     using Microsoft.ApplicationInsights;
     using Microsoft.ApplicationInsights.Extensibility;
     using Microsoft.ApplicationInsights.DataContracts;
-    using Flurl;
     using Flurl.Http;
 
     public partial class Bot
     {
         private int shard = 0;
         private BotType botType;
-        private bool isShuttingDown;
 
         private DiscordSocketClient client;
         private Dictionary<string, IrcClient> ircClients;
@@ -124,7 +122,6 @@
                         Console.WriteLine("Config reloaded.");
                         break;
                     case "exit":
-                        this.isShuttingDown = true;
                         await this.ShutdownAsync();
                         break;
                     default:
@@ -289,13 +286,6 @@
             catch (Exception ex)
             {
                 Console.WriteLine(ex);
-            }
-
-            if (this.botType == BotType.Discord && this.needsReconnect && !isShuttingDown)
-            {
-                this.needsReconnect = false;
-                Console.WriteLine("Disconnection detected in Heartbeat.  Recreating instance.");
-                await this.CreateDiscordBotAsync();
             }
         }
 

@@ -17,25 +17,24 @@
 
     public class DiscordCommands
     {
-        public Dictionary<string, Func<SocketMessage, Task>> Commands { get; private set; }
+        public Dictionary<string, Func<SocketMessage, Task<IMessage>>> Commands { get; private set; }
         private DiscordSocketClient client;
 
         private ScriptOptions scriptOptions;
 
         // TODO:
         // this is icky
-        public DiscordCommands(DiscordSocketClient client)
+        internal DiscordCommands(DiscordSocketClient client)
         {
             this.client = client;
-            this.Commands = new Dictionary<string, Func<SocketMessage, Task>>();
+            this.Commands = new Dictionary<string, Func<SocketMessage, Task<IMessage>>>();
 
             this.CreateScriptOptions();
 
             Commands.Add("debug", async (message) =>
             {
                 var serverId = (message.Channel as IGuildChannel)?.GuildId.ToString() ?? "n/a";
-                await message.Channel.SendMessageAsync($"```Server ID: {serverId} | Channel ID: {message.Channel.Id} | Your ID: {message.Author.Id} | Shard ID: {message.Discord.ShardId} | Version: {DiscordSocketConfig.Version}```");
-                return;
+                return await message.Channel.SendMessageAsync($"```Server ID: {serverId} | Channel ID: {message.Channel.Id} | Your ID: {message.Author.Id} | Shard ID: {message.Discord.ShardId} | Version: {DiscordSocketConfig.Version}```");
             });
 
             Commands.Add("die", async (message) =>
@@ -46,6 +45,8 @@
                     await message.Channel.SendMessageAsync("oh shiiii--------");
                     client.DisconnectAsync().Forget();
                 }
+
+                return null;
             });
 
             Commands.Add("status", async (message) =>
@@ -68,7 +69,7 @@
 
                 dataSb.Append("```");
 
-                await message.Channel.SendMessageAsync(dataSb.ToString());
+                return await message.Channel.SendMessageAsync(dataSb.ToString());
             });
 
             Commands.Add("voice", async (message) =>
@@ -76,7 +77,7 @@
                 var channel = (message.Author as IGuildUser)?.VoiceChannel;
                 if (channel == null)
                 {
-                    await message.Channel.SendMessageAsync("Join a voice channel first");
+                    return await message.Channel.SendMessageAsync("Join a voice channel first");
                 }
 
                 Task.Run(async () =>
@@ -92,7 +93,7 @@
                     }
                 }).Forget();
 
-                return;
+                return null;
             });
 
             Commands.Add("dvoice", async (message) =>
@@ -101,27 +102,27 @@
                 {
                     await AudioUtilities.LeaveAudioAsync(channel);
                 }
+
+                return null;
             });
 
             Commands.Add("clear", async (message) =>
             {
                 if (message.Channel is IDMChannel)
                 {
-                    return;
+                    return null;
                 }
 
                 var guildUser = message.Author as IGuildUser;
                 if (!guildUser.GuildPermissions.ManageMessages)
                 {
-                    await message.Channel.SendMessageAsync("you don't have permissions to clear messages, fartface");
-                    return;
+                    return await message.Channel.SendMessageAsync("you don't have permissions to clear messages, fartface");
                 }
 
                 string[] parts = message.Content.Split(new[] { ' ' }, 3);
                 if (parts.Length != 2 && parts.Length != 3)
                 {
-                    await message.Channel.SendMessageAsync("Usage: .clear #; Usage for user specific messages: .clear # username");
-                    return;
+                    return await message.Channel.SendMessageAsync("Usage: .clear #; Usage for user specific messages: .clear # username");
                 }
 
                 IUser deletionUser = null;
@@ -139,8 +140,7 @@
 
                     if (deletionUser == null)
                     {
-                        await message.Channel.SendMessageAsync("Couldn't find the specified user. Try their ID if nick matching is struggling");
-                        return;
+                        return await message.Channel.SendMessageAsync("Couldn't find the specified user. Try their ID if nick matching is struggling");
                     }
                 }
 
@@ -149,8 +149,7 @@
 
                 if (!botOnly && !botGuildUser.GetPermissions(message.Channel as IGuildChannel).ManageMessages)
                 {
-                    await message.Channel.SendMessageAsync("yeah I don't have the permissions to delete messages, buttwad.");
-                    return;
+                    return await message.Channel.SendMessageAsync("yeah I don't have the permissions to delete messages, buttwad.");
                 }
 
                 if (int.TryParse(parts[1], out int count))
@@ -203,10 +202,11 @@
                     }
 
                     await (message.Channel as ITextChannel).DeleteMessagesAsync(msgsToDelete);
+                    return null;
                 }
                 else
                 {
-                    await message.Channel.SendMessageAsync("Usage: .clear #");
+                    return await message.Channel.SendMessageAsync("Usage: .clear #");
                 }
             });
 
@@ -227,8 +227,7 @@
 
                         if (targetUser == null)
                         {
-                            await message.Channel.SendMessageAsync("User not found. Try a direct mention.");
-                            return;
+                            return await message.Channel.SendMessageAsync("User not found. Try a direct mention.");
                         }
                     }
                     else
@@ -241,7 +240,7 @@
 
                 if (guildUser == null)
                 {
-                    return;
+                    return null;
                 }
 
                 var embedBuilder = new EmbedBuilder
@@ -294,7 +293,7 @@
                     field.Value = targetUser.Id.ToString();
                 });
 
-                await message.Channel.SendMessageAsync(((char)1).ToString(), false, embedBuilder);
+                return await message.Channel.SendMessageAsync(((char)1).ToString(), false, embedBuilder);
             });
 
             Commands.Add("roll", RollAsync);
@@ -310,7 +309,7 @@
                         try
                         {
                             await req.GetResponseAsync();
-                            await message.Channel.SendMessageAsync($"Manage from {SettingsConfig.Instance.ManagementEndpoint}");
+                            return await message.Channel.SendMessageAsync($"Manage from {SettingsConfig.Instance.ManagementEndpoint}");
                         }
                         catch (Exception ex)
                         {
@@ -320,9 +319,11 @@
                     }
                     else
                     {
-                        await message.Channel.SendMessageAsync("You must have manage server permisions to use that command. nice try, dungheap");
+                        return await message.Channel.SendMessageAsync("You must have manage server permisions to use that command. nice try, dungheap");
                     }
                 }
+
+                return null;
             });
 
             Commands.Add("eval", async (message) =>
@@ -341,13 +342,15 @@
                         result = ex.ToString().Substring(0, Math.Min(ex.ToString().Length, 800));
                     }
 
-                    await message.Channel.SendMessageAsync($"``{result}``");
+                    return await message.Channel.SendMessageAsync($"``{result}``");
                 }
+
+                return null;
             });
         }
 
         // TODO: Not discord specific, move this
-        private async Task RollAsync(SocketMessage message)
+        private async Task<IMessage> RollAsync(SocketMessage message)
         {
             string[] parts = message.Content.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
             var rolls = new List<long>();
@@ -406,7 +409,7 @@
             }
 
             string msg = failed ? "dude at least one of those is a bogus die or you rolled more than 20 of 'em. don't fuck with me man this is serious" : $"You rolled ... {string.Join(" | ", rolls)}";
-            await message.Channel.SendMessageAsync(msg);
+            return await message.Channel.SendMessageAsync(msg);
         }
 
         private void CreateScriptOptions()
