@@ -93,6 +93,7 @@ namespace UB3RB0T
             catch (Exception ex)
             {
                 // TODO: proper logger
+                Console.WriteLine($"Failed to parse {uri}: ");
                 Console.WriteLine(ex);
                 return default(T);
             }

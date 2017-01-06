@@ -26,7 +26,7 @@ namespace UB3RB0T
         {
             string[] responses = new string[] { };
 
-            string requestUrl = string.Format("{0}?apikey={1}&nick={2}&host={3}&server={4}&channel={5}&bottype={6}&query={7}",
+            string requestUrl = string.Format("{0}?apikey={1}&nick={2}&host={3}&server={4}&channel={5}&bottype={6}&userId={7}&query={8}",
                 this.apiEndpoint,
                 this.apiKey,
                 WebUtility.UrlEncode(messageData.UserName),
@@ -34,6 +34,7 @@ namespace UB3RB0T
                 messageData.Server,
                 WebUtility.UrlEncode(messageData.Channel),
                 this.botType.ToString().ToLowerInvariant(),
+                messageData.UserId,
                 WebUtility.UrlEncode(query));
 
             var botResponse = await Utilities.GetApiResponseAsync<BotApiResponse>(new Uri(requestUrl));

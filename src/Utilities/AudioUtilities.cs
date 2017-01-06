@@ -28,6 +28,7 @@
                     {
                         audioInstance = new AudioInstance
                         {
+                            GuildId = voiceChannel.GuildId,
                             AudioClient = voiceChannel.ConnectAsync().GetAwaiter().GetResult()
                         };
                         audioInstance.Stream = audioInstance.AudioClient.CreatePCMStream(2880, bitrate: voiceChannel.Bitrate);
@@ -42,13 +43,13 @@
 
             if (audioInstance.AudioClient.ConnectionState == ConnectionState.Connected)
             {
-                await AudioUtilities.SendAudioAsync(audioInstance.Stream, "hello.mp3");
+                await AudioUtilities.SendAudioAsync(audioInstance, "hello.mp3");
             }
             else
             {
                 audioInstance.AudioClient.Connected += async () =>
                 {
-                    await AudioUtilities.SendAudioAsync(audioInstance.Stream, "hello.mp3");
+                    await AudioUtilities.SendAudioAsync(audioInstance, "hello.mp3");
                     await Task.CompletedTask;
                 };
                 audioInstance.AudioClient.Disconnected += async (Exception ex) =>
@@ -79,7 +80,7 @@
                 // say our goodbyes
                 try
                 {
-                    await AudioUtilities.SendAudioAsync(audioInstance.Stream, "goodbye.mp3");
+                    await AudioUtilities.SendAudioAsync(audioInstance, "goodbye.mp3");
                     await Task.Delay(1000);
                 }
                 catch (Exception ex)
@@ -114,19 +115,19 @@
                 {
                     if (audioInstances.TryGetValue(voiceChannel.GuildId, out AudioInstance audioInstance))
                     {
-                        await AudioUtilities.SendAudioAsync(audioInstance.Stream, filename);
+                        await AudioUtilities.SendAudioAsync(audioInstance, filename);
                     }
                 }
             }
         }
 
-        public static async Task SendAudioAsync(Stream stream, string filename)
+        public static async Task SendAudioAsync(AudioInstance audioInstance, string filename)
         {
             Task.Run(async () =>
             {
                 try
                 {
-                    await AudioUtilities.SendAudioAsyncInternalAsync(stream, filename);
+                    await AudioUtilities.SendAudioAsyncInternalAsync(audioInstance, filename);
                 }
                 catch (Exception ex)
                 {
@@ -138,7 +139,7 @@
             await Task.CompletedTask;
         }
 
-        private static async Task SendAudioAsyncInternalAsync(Stream stream, string filename)
+        private static async Task SendAudioAsyncInternalAsync(AudioInstance audioInstance, string filename)
         {
             if (!voiceClips.ContainsKey(filename))
             {
@@ -178,8 +179,15 @@
             try
             { 
                 voiceClips[filename].Seek(0, SeekOrigin.Begin);
-                await voiceClips[filename].CopyToAsync(stream);
-                await stream.FlushAsync();
+                await voiceClips[filename].CopyToAsync(audioInstance.Stream);
+                await audioInstance.Stream.FlushAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                audioInstance.Stream.Dispose();
+                audioInstance.AudioClient.Dispose();
+                audioInstances.TryRemove(audioInstance.GuildId, out AudioInstance oldInstance);
             }
             finally
             {

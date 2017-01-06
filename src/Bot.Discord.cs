@@ -67,9 +67,7 @@
 
             await client.LoginAsync(TokenType.Bot, this.Config.Discord.Token);
             await client.ConnectAsync();
-            // handle replacement tokens in status, if applicable
-            var gameStatus = this.Config.Discord.Status.Replace("{shard}", this.shard.ToString());
-            await this.client.SetGameAsync(gameStatus);
+            await this.client.SetGameAsync(this.Config.Discord.Status);
 
             if (!string.IsNullOrEmpty(this.Config.Discord.DiscordBotsKey) || !string.IsNullOrEmpty(this.Config.Discord.CarbonStatsKey) && statsTimer == null)
             {

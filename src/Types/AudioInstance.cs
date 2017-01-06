@@ -5,6 +5,7 @@
 
     public class AudioInstance
     {
+        public ulong GuildId { get; set; }
         public IAudioClient AudioClient { get; set; }
         public Stream Stream { get; set; }
     }
