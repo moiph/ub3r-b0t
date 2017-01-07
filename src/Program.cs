@@ -1,9 +1,24 @@
 ﻿namespace UB3RB0T
 {
+    using Microsoft.AspNetCore.Builder;
+    using Microsoft.AspNetCore.Http;
+    using Microsoft.AspNetCore.Hosting;
+    using Microsoft.Extensions.Logging;
     using System;
 
     class Program
     {
+        public void Configure(IApplicationBuilder app, ILoggerFactory loggerFactory)
+        {
+            app.Run(async context =>
+            {
+                var response = $"Online{Environment.NewLine}";
+                context.Response.ContentLength = response.Length;
+                context.Response.ContentType = "text/plain";
+                await context.Response.WriteAsync(response);
+            });
+        }
+
         static void Main(string[] args)
         {
             var botType = BotType.Discord;

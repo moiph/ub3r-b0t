@@ -31,6 +31,9 @@
         // endpoint to send heartbeat data to
         public Uri HeartbeatEndpoint { get; set; }
 
+        /// Hostname to listen on for incoming http requests (for monitoring)
+        public string WebListenerHostName { get; set; }
+
         // Instrumentation key for application insights
         public string InstrumentationKey { get; set; }
     }

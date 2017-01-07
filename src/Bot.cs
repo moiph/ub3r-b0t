@@ -14,6 +14,7 @@
     using Microsoft.ApplicationInsights.Extensibility;
     using Microsoft.ApplicationInsights.DataContracts;
     using Flurl.Http;
+    using Microsoft.AspNetCore.Hosting;
 
     public partial class Bot
     {
@@ -107,6 +108,7 @@
             }
 
             this.StartTimers();
+            this.StartWebListener();
 
             string read = string.Empty;
             while (read != "exit")
@@ -130,6 +132,25 @@
             }
 
             Console.WriteLine("Exited.");
+        }
+
+        private void StartWebListener()
+        {
+            Task.Run(() =>
+            {
+                int port = 9100;
+                if (botType == BotType.Discord)
+                {
+                    port += 10 + shard;
+                }
+
+                var host = new WebHostBuilder()
+                    .UseKestrel()
+                    .UseUrls($"http://localhost:{port}", $"http://{this.Config.WebListenerHostName}:{port}")
+                    .UseStartup<Program>()
+                    .Build();
+                host.Run();
+            });
         }
 
         private void StartTimers()

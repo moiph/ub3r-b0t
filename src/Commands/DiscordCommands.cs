@@ -55,7 +55,7 @@
 
                 var dataSb = new StringBuilder();
                 dataSb.Append("```cs\n" +
-                   "type       shard   server count    users  \n");
+                   "type       shard   server count    users   voice count\n");
 
                 foreach (HeartbeatData heartbeat in serversStatus)
                 {
@@ -63,8 +63,9 @@
                     var shard = heartbeat.Shard.ToString().PadLeft(4);
                     var servers = heartbeat.ServerCount.ToString().PadLeft(13);
                     var users = heartbeat.UserCount.ToString().PadLeft(8);
+                    var voice = heartbeat.VoiceChannelCount.ToString().PadLeft(13);
 
-                    dataSb.Append($"{botType} {shard}  {servers} {users}\n");
+                    dataSb.Append($"{botType} {shard}  {servers} {users} {voice}\n");
                 }
 
                 dataSb.Append("```");
