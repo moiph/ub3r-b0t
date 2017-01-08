@@ -449,12 +449,12 @@
         /// <summary>
         ///  Handles shutdown tasks
         /// </summary>
-        private async Task ShutdownAsync()
+        public async Task ShutdownAsync()
         {
             if (this.botType == BotType.Discord)
             {
                 // explicitly leave all audio channels so that we can say goodbye
-                await AudioUtilities.LeaveAllAudioAsync();
+                await this.audioManager?.LeaveAllAudioAsync();
                 this.client.DisconnectAsync().Forget(); // awaiting this likes to hang
             }
             else if (this.botType == BotType.Irc)
@@ -608,6 +608,7 @@
             heartbeatTimer?.Dispose();
             statsTimer?.Dispose();
             notificationsTimer?.Dispose();
+            audioManager?.Dispose();
         }
     }
 }

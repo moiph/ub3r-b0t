@@ -19,14 +19,16 @@
     {
         public Dictionary<string, Func<SocketMessage, Task<IMessage>>> Commands { get; private set; }
         private DiscordSocketClient client;
+        private AudioManager audioManager;
 
         private ScriptOptions scriptOptions;
 
         // TODO:
         // this is icky
-        internal DiscordCommands(DiscordSocketClient client)
+        internal DiscordCommands(DiscordSocketClient client, AudioManager audioManager)
         {
             this.client = client;
+            this.audioManager = audioManager;
             this.Commands = new Dictionary<string, Func<SocketMessage, Task<IMessage>>>();
 
             this.CreateScriptOptions();
@@ -73,7 +75,7 @@
                 {
                     try
                     {
-                        await AudioUtilities.JoinAudioAsync(channel);
+                        await audioManager.JoinAudioAsync(channel);
                     }
                     catch (Exception ex)
                     {
@@ -89,7 +91,7 @@
             {
                 if (message.Channel is IGuildChannel channel)
                 {
-                    await AudioUtilities.LeaveAudioAsync(channel);
+                    await audioManager.LeaveAudioAsync(channel);
                 }
 
                 return null;

@@ -24,6 +24,7 @@
         private Timer settingsUpdateTimer;
 
         private DiscordCommands discordCommands;
+        private AudioManager audioManager;
 
         public async Task CreateDiscordBotAsync()
         {
@@ -50,7 +51,8 @@
             client.UserVoiceStateUpdated += Client_UserVoiceStateUpdatedAsync;
             client.Ready += Client_Ready;
 
-            discordCommands = new DiscordCommands(client);
+            audioManager = new AudioManager();
+            discordCommands = new DiscordCommands(client, audioManager);
 
             // If user customizeable server settings are supported...support them
             // Currently discord only.
@@ -128,11 +130,11 @@
                     await Task.Delay(1000);
                 }
 
-                await AudioUtilities.SendAudioAsync(arg3.VoiceChannel, PhrasesConfig.Instance.VoiceGreetingFileNames.Random());
+                await this.audioManager.SendAudioAsync(arg3.VoiceChannel, PhrasesConfig.Instance.VoiceGreetingFileNames.Random());
             }
             else if (arg2.VoiceChannel != arg3.VoiceChannel && arg2.VoiceChannel == botGuildUser.VoiceChannel)
             {
-                await AudioUtilities.SendAudioAsync(arg2.VoiceChannel, PhrasesConfig.Instance.VoiceFarewellFileNames.Random());
+                await this.audioManager.SendAudioAsync(arg2.VoiceChannel, PhrasesConfig.Instance.VoiceFarewellFileNames.Random());
             }
         }
 

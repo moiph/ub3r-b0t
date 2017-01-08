@@ -5,6 +5,7 @@
     using Microsoft.AspNetCore.Hosting;
     using Microsoft.Extensions.Logging;
     using System;
+    using System.Runtime.InteropServices;
 
     class Program
     {
@@ -13,6 +14,19 @@
             Success = 0,
             UnexpectedError = 1,
         }
+
+        public enum CtrlType
+        {
+            CTRL_C_EVENT = 0,
+            CTRL_BREAK_EVENT = 1,
+            CTRL_CLOSE_EVENT = 2,
+            CTRL_LOGOFF_EVENT = 5,
+            CTRL_SHUTDOWN_EVENT = 6,
+        }
+
+        [DllImport("Kernel32")]
+        private static extern bool SetConsoleCtrlHandler(HandlerRoutine Handler, bool Add);
+        private delegate bool HandlerRoutine(CtrlType CtrlType);
 
         public void Configure(IApplicationBuilder app, ILoggerFactory loggerFactory)
         {
@@ -73,6 +87,13 @@
                 {
                     using (var bot = new Bot(botType, shard, instanceCount))
                     {
+                        // Handle clean shutdown when possible
+                        SetConsoleCtrlHandler((ctrlType) =>
+                        {
+                            bot.ShutdownAsync().GetAwaiter().GetResult();
+                            return true;
+                        }, true);
+
                         exitCode = bot.RunAsync().GetAwaiter().GetResult();
                     }
 
