@@ -16,10 +16,11 @@
     using Flurl.Http;
     using Microsoft.AspNetCore.Hosting;
 
-    public partial class Bot
+    public partial class Bot : IDisposable
     {
         private int shard = 0;
         private BotType botType;
+        private int instanceCount;
 
         private DiscordSocketClient client;
         private Dictionary<string, IrcClient> ircClients;
@@ -43,21 +44,24 @@
         // TODO: Genalize this API support -- currently specific to private API
         private BotApi BotApi;
 
-        public Bot(BotType botType, int shard)
+        public Bot(BotType botType, int shard, int instanceCount)
         {
             this.botType = botType;
             this.shard = shard;
+            this.instanceCount = instanceCount;
         }
 
         public BotConfig Config => BotConfig.Instance;
         public TelemetryClient AppInsights { get; private set; }
 
+        private int exitCode = 0;
+
         /// Initialize and connect to the desired clients, hook up event handlers.
         /// </summary>
         /// <summary>
-        public async Task RunAsync()
+        public async Task<int> RunAsync()
         {
-            Console.Title = $"{this.Config.Name} - {this.botType} {this.shard}";
+            Console.Title = $"{this.Config.Name} - {this.botType} {this.shard} #{this.instanceCount}";
 
             if (!string.IsNullOrEmpty(Config.InstrumentationKey))
             {
@@ -110,28 +114,14 @@
             this.StartTimers();
             this.StartWebListener();
 
-            string read = string.Empty;
-            while (read != "exit")
+            while (this.exitCode == 0)
             {
-                read = Console.ReadLine();
-
-                string[] argv = read.Split(new char[] { ' ' }, 4);
-
-                switch (argv[0])
-                {
-                    case "reload":
-                        JsonConfig.ConfigInstances.Clear();
-                        Console.WriteLine("Config reloaded.");
-                        break;
-                    case "exit":
-                        await this.ShutdownAsync();
-                        break;
-                    default:
-                        break;
-                }
+                await Task.Delay(10000);
             }
 
-            Console.WriteLine("Exited.");
+            await this.ShutdownAsync();
+            consoleLogger.Log(LogType.Info, "Exited.");
+            return this.exitCode;
         }
 
         private void StartWebListener()
@@ -204,14 +194,14 @@
         {
             try
             {
-                Console.WriteLine("Fetching server settings...");
+                consoleLogger.Log(LogType.Debug, "Fetching server settings...");
                 await SettingsConfig.Instance.OverrideAsync(this.Config.SettingsEndpoint);
-                Console.WriteLine("Server settings updated.");
+                consoleLogger.Log(LogType.Debug, "Server settings updated.");
             }
             catch (Exception ex)
             {
                 // TODO: Update to using one of the logging classes (Discord/IRC)
-                Console.WriteLine($"Failed to update server settings: {ex}");
+                consoleLogger.Log(LogType.Warn, $"Failed to update server settings: {ex}");
             }
         }
 
@@ -297,8 +287,11 @@
 
         private async void HeartbeatTimerAsync(object state)
         {
-            Console.WriteLine("Heartbeat");
+            consoleLogger.Log(LogType.Debug, "Heartbeat");
             this.commandsIssued.Clear();
+
+            JsonConfig.ConfigInstances.Clear();
+            consoleLogger.Log(LogType.Info, "Config reloaded.");
 
             try
             {
@@ -522,6 +515,12 @@
                     }
                 }
 
+                // handle special owner internal commands
+                if (await this.TryHandleInternalCommand(messageData))
+                {
+                    return responses;
+                }
+
                 // Ignore if the command is disabled on this server
                 if (settings.IsCommandDisabled(CommandsConfig.Instance, command))
                 {
@@ -581,6 +580,34 @@
             }
 
             return responses;
+        }
+
+        // Won't work on IRC; we rely on unique ID to match the owner via Discord.
+        private async Task<bool> TryHandleInternalCommand(BotMessageData messageData)
+        {
+            if (messageData.BotType == BotType.Discord && messageData.UserId == this.Config.Discord.OwnerId.ToString())
+            {
+                switch (messageData.Command)
+                {
+                    case "restart":
+                        await this.ShutdownAsync();
+                        this.exitCode = 1;
+                        break;
+                }
+            }
+            return false;
+        }
+
+        public void Dispose() => Dispose(true);
+
+        public void Dispose(bool disposing)
+        {
+            settingsUpdateTimer?.Dispose();
+            packagesTimer?.Dispose();
+            remindersTimer?.Dispose();
+            heartbeatTimer?.Dispose();
+            statsTimer?.Dispose();
+            notificationsTimer?.Dispose();
         }
     }
 }

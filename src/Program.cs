@@ -8,6 +8,12 @@
 
     class Program
     {
+        enum ExitCode : int
+        {
+            Success = 0,
+            UnexpectedError = 1,
+        }
+
         public void Configure(IApplicationBuilder app, ILoggerFactory loggerFactory)
         {
             app.Run(async context =>
@@ -58,8 +64,27 @@
                 }
             }
 
+            int exitCode = (int)ExitCode.Success;
             // Convert to async main method
-            new Bot(botType, shard).RunAsync().GetAwaiter().GetResult();
+            try
+            {
+                var instanceCount = 0;
+                do
+                {
+                    using (var bot = new Bot(botType, shard, instanceCount))
+                    {
+                        exitCode = bot.RunAsync().GetAwaiter().GetResult();
+                    }
+
+                    instanceCount++;
+                } while (exitCode != (int)ExitCode.Success); // re-create the bot on failures.  Only exit if a clean shutdown occurs.
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+            }
+
+            Console.ReadLine();
         }
     }
 }

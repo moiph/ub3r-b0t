@@ -29,7 +29,7 @@
                         audioInstance = new AudioInstance
                         {
                             GuildId = voiceChannel.GuildId,
-                            AudioClient = voiceChannel.ConnectAsync().GetAwaiter().GetResult()
+                            AudioClient = await voiceChannel.ConnectAsync().ConfigureAwait(false)
                         };
                         audioInstance.Stream = audioInstance.AudioClient.CreatePCMStream(2880, bitrate: voiceChannel.Bitrate);
                         audioInstances.TryAdd(voiceChannel.GuildId, audioInstance);
@@ -162,7 +162,6 @@
                         var memstream = new MemoryStream();
                         await p.StandardOutput.BaseStream.CopyToAsync(memstream);
                         voiceClips.TryAdd(filename, memstream);
-                        p.WaitForExit();
                     }
                 }
                 finally
