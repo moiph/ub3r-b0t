@@ -27,6 +27,7 @@
         private static long startTime;
 
         private ConcurrentDictionary<string, int> commandsIssued = new ConcurrentDictionary<string, int>();
+        private ConcurrentDictionary<string, RepeatData> repeatData = new ConcurrentDictionary<string, RepeatData>();
 
         private static Regex UrlRegex = new Regex("(https?://[^ ]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static Regex channelRegex = new Regex("#([a-zA-Z0-9\\-]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -578,6 +579,27 @@
                     response = response.Replace("%from%", messageData.UserName);
                     string[] resps = response.Split(new char[] { '|' });
                     responses.AddRange(resps);
+                }
+                else if (settings.FunResponsesEnabled && !string.IsNullOrEmpty(messageData.Content))// responses still empty? have some repetition fun
+                {
+                    var repeat = repeatData.GetOrAdd(messageData.Channel, new RepeatData());
+                    if (string.Equals(repeat.Text, messageData.Content, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (!repeat.Nicks.Contains(messageData.UserName))
+                        {
+                            repeat.Nicks.Add(messageData.UserName);
+                        }
+
+                        if (repeat.Nicks.Count == 3)
+                        {
+                            responses.Add(messageData.Content);
+                            repeat.Reset(messageData.UserName, messageData.Content);
+                        }
+                    }
+                    else
+                    {
+                        repeat.Reset(messageData.UserName, messageData.Content);
+                    }
                 }
             }
 
