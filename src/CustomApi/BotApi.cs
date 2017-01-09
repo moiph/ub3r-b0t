@@ -47,6 +47,11 @@ namespace UB3RB0T
                 {
                     string response = string.Join("\n", responses);
 
+                    char a = (char)1;
+                    char b = (char)2;
+                    char c = (char)3;
+                    response = response.Replace("%a", a.ToString()).Replace("%b", b.ToString()).Replace("%c", c.ToString());
+
                     // Extra processing for figlet/cowsay on Discord
                     if (query.StartsWith("cowsay", StringComparison.OrdinalIgnoreCase) || query.StartsWith("figlet", StringComparison.OrdinalIgnoreCase))
                     {

@@ -290,7 +290,9 @@
             consoleLogger.Log(LogType.Debug, "Heartbeat");
             this.commandsIssued.Clear();
 
-            JsonConfig.ConfigInstances.Clear();
+            PhrasesConfig.Instance.Reset();
+            CommandsConfig.Instance.Reset();
+            BotConfig.Instance.Reset();
             consoleLogger.Log(LogType.Info, "Config reloaded.");
 
             try

@@ -126,6 +126,7 @@
 
         private async Task SendAudioAsyncInternalAsync(AudioInstance audioInstance, string filename)
         {
+            Console.WriteLine($"[audio] [{filename}] sendaudio begin");
             var filePath = PhrasesConfig.Instance.VoiceFilePath;
             var p = Process.Start(new ProcessStartInfo
             {
@@ -135,11 +136,16 @@
                 RedirectStandardOutput = true,
             });
 
-            await streamLock.WaitAsync().ConfigureAwait(false);
+            await streamLock.WaitAsync();
+            Console.WriteLine($"[audio] [{filename}] inside audio lock");
             try
             {
                 await p.StandardOutput.BaseStream.CopyToAsync(audioInstance.Stream);
+                Console.WriteLine($"[audio] [{filename}] stream copied");
+                p.WaitForExit();
+                Console.WriteLine($"[audio] [{filename}] process exit");
                 await audioInstance.Stream.FlushAsync();
+                Console.WriteLine($"[audio] [{filename}] stream flushed");
             }
             catch (Exception ex)
             {
@@ -151,9 +157,10 @@
             finally
             {
                 streamLock.Release();
+                Console.WriteLine($"[audio] [{filename}] lock released");
             }
 
-            Console.WriteLine("flushing audio stream");
+            Console.WriteLine($"[audio] [{filename}] sendaudio end");
         }
 
         public void Dispose() => Dispose(true);

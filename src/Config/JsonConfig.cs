@@ -4,7 +4,6 @@
     using System;
     using System.Collections.Concurrent;
     using System.IO;
-    using System.Net;
     using System.Threading.Tasks;
 
     internal class JsonConfig
@@ -13,9 +12,9 @@
 
         internal static readonly ConcurrentDictionary<string, object> ConfigInstances = new ConcurrentDictionary<string, object>(StringComparer.OrdinalIgnoreCase);
 
-        public static T AddOrUpdateInstance<T>(string key, object addValue, Func<string, object, object> valueFactory) where T: class, new()
+        public static T AddOrSetInstance<T>(string key, object addValue) where T: class, new()
         {
-            object instance = ConfigInstances.AddOrUpdate(key, addValue, valueFactory);
+            object instance = ConfigInstances[key] = addValue;
             return (T)instance;
         }
 
@@ -50,7 +49,7 @@
             var config = await Utilities.GetApiResponseAsync<T>(uri);
             if (config != null)
             {
-                JsonConfig.AddOrUpdateInstance<T>(instanceKey, config, (x, y) => config);
+                JsonConfig.AddOrSetInstance<T>(instanceKey, config);
             }
             else
             {
