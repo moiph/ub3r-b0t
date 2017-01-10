@@ -74,7 +74,10 @@
                     Console.WriteLine(ex);
                 }
 
+                await streamLock.WaitAsync();
                 audioInstance.Stream.Dispose();
+                audioInstance.Stream = null;
+                streamLock.Release();
 
                 try
                 {
@@ -140,12 +143,25 @@
             Console.WriteLine($"[audio] [{filename}] inside audio lock");
             try
             {
-                await p.StandardOutput.BaseStream.CopyToAsync(audioInstance.Stream);
-                Console.WriteLine($"[audio] [{filename}] stream copied");
-                p.WaitForExit();
-                Console.WriteLine($"[audio] [{filename}] process exit");
-                await audioInstance.Stream.FlushAsync();
-                Console.WriteLine($"[audio] [{filename}] stream flushed");
+                if (audioInstance.Stream != null)
+                {
+                    await p.StandardOutput.BaseStream.CopyToAsync(audioInstance.Stream);
+                    Console.WriteLine($"[audio] [{filename}] stream copied");
+                    p.WaitForExit();
+                    Console.WriteLine($"[audio] [{filename}] process exit");
+                    var flushTask = audioInstance.Stream.FlushAsync();
+                    var timeoutTask = Task.Delay(10000);
+                    if (await Task.WhenAny(flushTask, timeoutTask) == timeoutTask)
+                    {
+                        Console.WriteLine($"[audio] [{filename}] timeout occurred");
+                        throw new TimeoutException();
+                    }
+                    Console.WriteLine($"[audio] [{filename}] stream flushed");
+                }
+                else
+                {
+                    Console.WriteLine($"[audio] [{filename}] stream was null, skipped.");
+                }
             }
             catch (Exception ex)
             {
@@ -167,6 +183,11 @@
 
         public void Dispose(bool isDisposing)
         {
+            foreach (var kvp in this.audioInstances)
+            {
+                kvp.Value.Stream.Dispose();
+                kvp.Value.AudioClient.Dispose();
+            }
             this.audioInstances.Clear();
         }
     }

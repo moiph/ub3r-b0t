@@ -519,7 +519,7 @@
                 }
 
                 // handle special owner internal commands
-                if (await this.TryHandleInternalCommand(messageData))
+                if (await this.TryHandleInternalCommandAsync(messageData))
                 {
                     return responses;
                 }
@@ -607,7 +607,7 @@
         }
 
         // Won't work on IRC; we rely on unique ID to match the owner via Discord.
-        private async Task<bool> TryHandleInternalCommand(BotMessageData messageData)
+        private async Task<bool> TryHandleInternalCommandAsync(BotMessageData messageData)
         {
             if (messageData.BotType == BotType.Discord && messageData.UserId == this.Config.Discord.OwnerId.ToString())
             {

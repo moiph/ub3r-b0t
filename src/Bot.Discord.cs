@@ -440,10 +440,24 @@
             // Check discord specific commands prior to general ones.
             if (!string.IsNullOrEmpty(command) && discordCommands.Commands.ContainsKey(command))
             {
-                var sentMessage = await discordCommands.Commands[command].Invoke(message).ConfigureAwait(false);
-                if (sentMessage != null)
+                // make sure we're not rate limited
+                var commandKey = command + guildId;
+                var commandCount = this.commandsIssued.AddOrUpdate(commandKey, 1, (key, val) =>
                 {
-                    this.botResponsesCache.Add(message.Id, sentMessage);
+                    return val + 1;
+                });
+
+                if (commandCount > 10)
+                {
+                    await message.Channel.SendMessageAsync("rate limited try later");
+                }
+                else
+                {
+                    var sentMessage = await discordCommands.Commands[command].Invoke(message).ConfigureAwait(false);
+                    if (sentMessage != null)
+                    {
+                        this.botResponsesCache.Add(message.Id, sentMessage);
+                    }
                 }
             }
             else
@@ -485,6 +499,8 @@
                 var req = WebRequest.Create($"{this.Config.PruneEndpoint}?id={arg.Id}");
                 await req.GetResponseAsync();
             }
+
+            await audioManager.LeaveAudioAsync(arg.Id);
         }
 
         private async Task Discord_UserLeftAsync(SocketGuildUser arg)
