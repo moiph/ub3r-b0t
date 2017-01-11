@@ -4,13 +4,10 @@
     using System;
     using System.Collections.Concurrent;
     using System.Diagnostics;
-    using System.Threading;
     using System.Threading.Tasks;
 
     public class AudioManager : IDisposable
     {
-        internal static readonly SemaphoreSlim streamLock  = new SemaphoreSlim(1, 1);
-
         private ConcurrentDictionary<ulong, AudioInstance> audioInstances = new ConcurrentDictionary<ulong, AudioInstance>();
 
         public async Task JoinAudioAsync(IVoiceChannel voiceChannel)
@@ -28,13 +25,13 @@
 
             if (audioInstance.AudioClient.ConnectionState == ConnectionState.Connected)
             {
-                await this.SendAudioAsync(audioInstance, "hello.mp3");
+                this.SendAudioAsync(audioInstance, "hello.mp3");
             }
             else
             {
                 audioInstance.AudioClient.Connected += async () =>
                 {
-                    await this.SendAudioAsync(audioInstance, "hello.mp3");
+                    this.SendAudioAsync(audioInstance, "hello.mp3");
                     await Task.CompletedTask;
                 };
                 audioInstance.AudioClient.Disconnected += async (Exception ex) =>
@@ -65,7 +62,7 @@
                 // say our goodbyes
                 try
                 {
-                    await this.SendAudioAsync(audioInstance, "goodbye.mp3");
+                    this.SendAudioAsync(audioInstance, "goodbye.mp3");
                     await Task.Delay(1000);
                 }
                 catch (Exception ex)
@@ -74,10 +71,10 @@
                     Console.WriteLine(ex);
                 }
 
-                await streamLock.WaitAsync();
+                await audioInstance.streamLock.WaitAsync();
                 audioInstance.Stream.Dispose();
                 audioInstance.Stream = null;
-                streamLock.Release();
+                audioInstance.streamLock.Release();
 
                 try
                 {
@@ -89,7 +86,7 @@
                     Console.WriteLine(ex);
                 }
 
-                audioInstance.AudioClient.Dispose();
+                audioInstance.Dispose();
             }
         }
 
@@ -103,28 +100,26 @@
                 {
                     if (audioInstances.TryGetValue(voiceChannel.GuildId, out AudioInstance audioInstance))
                     {
-                        await this.SendAudioAsync(audioInstance, filename);
+                        this.SendAudioAsync(audioInstance, filename);
                     }
                 }
             }
         }
 
-        public async Task SendAudioAsync(AudioInstance audioInstance, string filename)
+        // Normally we'd say no to async void; but we never want to await on the audio send
+        public async void SendAudioAsync(AudioInstance audioInstance, string filename)
         {
-            Task.Run(async () =>
+            try
             {
-                try
-                {
-                    await this.SendAudioAsyncInternalAsync(audioInstance, filename);
-                }
-                catch (Exception ex)
-                {
-                    // TODO: proper logging
-                    Console.WriteLine(ex);
-                }
-            }).Forget();
-
-            await Task.CompletedTask;
+                await this.SendAudioAsyncInternalAsync(audioInstance, filename);
+            }
+            catch (Exception ex)
+            {
+                // TODO: proper logging
+                Console.WriteLine(ex);
+                audioInstance.Dispose();
+                audioInstances.TryRemove(audioInstance.GuildId, out AudioInstance oldInstance);
+            }
         }
 
         private async Task SendAudioAsyncInternalAsync(AudioInstance audioInstance, string filename)
@@ -139,7 +134,7 @@
                 RedirectStandardOutput = true,
             });
 
-            await streamLock.WaitAsync();
+            await audioInstance.streamLock.WaitAsync();
             Console.WriteLine($"[audio] [{filename}] inside audio lock");
             try
             {
@@ -166,13 +161,12 @@
             catch (Exception ex)
             {
                 Console.WriteLine(ex);
-                audioInstance.Stream.Dispose();
-                audioInstance.AudioClient.Dispose();
+                audioInstance.Dispose();
                 audioInstances.TryRemove(audioInstance.GuildId, out AudioInstance oldInstance);
             }
             finally
             {
-                streamLock.Release();
+                audioInstance.streamLock.Release();
                 Console.WriteLine($"[audio] [{filename}] lock released");
             }
 
@@ -185,8 +179,7 @@
         {
             foreach (var kvp in this.audioInstances)
             {
-                kvp.Value.Stream.Dispose();
-                kvp.Value.AudioClient.Dispose();
+                kvp.Value.Dispose();
             }
             this.audioInstances.Clear();
         }
