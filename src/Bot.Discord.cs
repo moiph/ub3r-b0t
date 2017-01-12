@@ -416,6 +416,7 @@
             }
 
             // Update the seen data
+            // TODO: Pull this out to common area to share with IRC
             if (settings.SeenEnabled && textChannel != null && !string.IsNullOrEmpty(message.Content) && this.Config.SeenEndpoint != null)
             {
                 var messageText = message.Content;
@@ -432,6 +433,29 @@
                     Text = messageText,
                     Timestamp = Utilities.Utime,
                 };
+            }
+
+            // TODO: Pull this out to common area to share with IRC
+            if (settings.FunResponsesEnabled && !string.IsNullOrEmpty(message.Content))
+            {
+                var repeat = repeatData.GetOrAdd(message.Channel.Id.ToString(), new RepeatData());
+                if (string.Equals(repeat.Text, message.Content, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!repeat.Nicks.Contains(message.Author.Id.ToString()))
+                    {
+                        repeat.Nicks.Add(message.Author.Id.ToString());
+                    }
+
+                    if (repeat.Nicks.Count == 3)
+                    {
+                        await message.Channel.SendMessageAsync(message.Content);
+                        repeat.Reset(string.Empty, string.Empty);
+                    }
+                }
+                else
+                {
+                    repeat.Reset(message.Author.Id.ToString(), message.Content);
+                }
             }
 
             // If it's a command, match that before anything else.

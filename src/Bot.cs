@@ -233,38 +233,43 @@
                         }
                         else if (this.client != null)
                         {
-                            if (this.client.GetChannel(Convert.ToUInt64(timer.Channel)) is ISocketMessageChannel channel)
+                            ISocketMessageChannel channel = this.client.GetChannel(Convert.ToUInt64(timer.Channel)) as ISocketMessageChannel;
+                            IGuild guild = timer.Server != "private" ? this.client.GetGuild(Convert.ToUInt64(timer.Server)) : null;
+                            if (channel  != null || guild != null)
                             {
                                 string nick = timer.Nick;
-                                bool canSendMessages = true;
 
                                 try
                                 {
-                                    if (channel is IGuildChannel guildChan)
+                                    string msg = string.Format("{0}: {1} ({2} ago) {3}", nick, timer.Reason, timer.Duration, requestedBy);
+
+                                    if (channel is IGuildChannel guildChan && (guildChan.Guild as SocketGuild).CurrentUser.GetPermissions(guildChan).SendMessages)
                                     {
-                                        if (!(guildChan.Guild as SocketGuild).CurrentUser.GetPermissions(guildChan).SendMessages)
+                                        // try to find an exact match for the user, failing that perform a nick search
+                                        var guildUser = await guildChan.GetUserAsync(Convert.ToUInt64(timer.UserId));
+                                        if (string.IsNullOrEmpty(requestedBy) && guildUser != null)
                                         {
-                                            canSendMessages = false;
+                                            nick = guildUser.Mention;
                                         }
                                         else
                                         {
-                                            // try to find an exact match for the user, failing that perform a nick search
-                                            var guildUser = await guildChan.GetUserAsync(Convert.ToUInt64(timer.UserId));
-                                            if (string.IsNullOrEmpty(requestedBy) && guildUser != null)
-                                            {
-                                                nick = guildUser.Mention;
-                                            }
-                                            else
-                                            {
-                                                nick = (await guildChan.Guild.GetUsersAsync().ConfigureAwait(false)).Find(nick).FirstOrDefault()?.Mention ?? nick;
-                                            }
+                                            nick = (await guildChan.Guild.GetUsersAsync().ConfigureAwait(false)).Find(nick).FirstOrDefault()?.Mention ?? nick;
+                                        }
+
+                                        msg = string.Format("{0}: {1} ({2} ago) {3}", nick, timer.Reason, timer.Duration, requestedBy);
+                                        await channel.SendMessageAsync(msg);
+                                    }
+                                    else if (guild != null)
+                                    {
+                                        var guildUser = await guild.GetUserAsync(Convert.ToUInt64(timer.UserId));
+                                        if (guildUser != null)
+                                        {
+                                            msg = "(Seems the original channel this reminder was created on was deleted): " + msg;
+                                            await (await guildUser.CreateDMChannelAsync()).SendMessageAsync(msg);
                                         }
                                     }
-
-                                    // TODO: Try to DM the user if we can't send to the original channel
-                                    if (canSendMessages)
+                                    else if (channel != null)
                                     {
-                                        string msg = string.Format("{0}: {1} ({2} ago) {3}", nick, timer.Reason, timer.Duration, requestedBy);
                                         await channel.SendMessageAsync(msg);
                                     }
 
@@ -595,27 +600,6 @@
                     response = response.Replace("%from%", messageData.UserName);
                     string[] resps = response.Split(new char[] { '|' });
                     responses.AddRange(resps);
-                }
-                else if (settings.FunResponsesEnabled && !string.IsNullOrEmpty(messageData.Content))// responses still empty? have some repetition fun
-                {
-                    var repeat = repeatData.GetOrAdd(messageData.Channel, new RepeatData());
-                    if (string.Equals(repeat.Text, messageData.Content, StringComparison.OrdinalIgnoreCase))
-                    {
-                        if (!repeat.Nicks.Contains(messageData.UserName))
-                        {
-                            repeat.Nicks.Add(messageData.UserName);
-                        }
-
-                        if (repeat.Nicks.Count == 3)
-                        {
-                            responses.Add(messageData.Content);
-                            repeat.Reset(string.Empty, string.Empty);
-                        }
-                    }
-                    else
-                    {
-                        repeat.Reset(messageData.UserName, messageData.Content);
-                    }
                 }
             }
 

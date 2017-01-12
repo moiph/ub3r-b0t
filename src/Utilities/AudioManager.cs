@@ -167,7 +167,10 @@
             }
             finally
             {
-                audioInstance.streamLock?.Release();
+                if (!audioInstance.isDisposed)
+                {
+                    audioInstance.streamLock.Release();
+                }
                 Console.WriteLine($"[audio] [{filename}] lock released");
             }
 
