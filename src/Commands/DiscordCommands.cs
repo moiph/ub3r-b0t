@@ -17,19 +17,21 @@
 
     public class DiscordCommands
     {
-        public Dictionary<string, Func<SocketMessage, Task<IMessage>>> Commands { get; private set; }
+        public Dictionary<string, Func<SocketUserMessage, Task<IMessage>>> Commands { get; private set; }
         private DiscordSocketClient client;
         private AudioManager audioManager;
+        private BotApi botApi;
 
         private ScriptOptions scriptOptions;
 
         // TODO:
         // this is icky
-        internal DiscordCommands(DiscordSocketClient client, AudioManager audioManager)
+        internal DiscordCommands(DiscordSocketClient client, AudioManager audioManager, BotApi botApi)
         {
             this.client = client;
             this.audioManager = audioManager;
-            this.Commands = new Dictionary<string, Func<SocketMessage, Task<IMessage>>>();
+            this.botApi = botApi;
+            this.Commands = new Dictionary<string, Func<SocketUserMessage, Task<IMessage>>>();
 
             this.CreateScriptOptions();
 
@@ -37,6 +39,52 @@
             {
                 var serverId = (message.Channel as IGuildChannel)?.GuildId.ToString() ?? "n/a";
                 return await message.Channel.SendMessageAsync($"```Server ID: {serverId} | Channel ID: {message.Channel.Id} | Your ID: {message.Author.Id} | Shard ID: {message.Discord.ShardId} | Version: {DiscordSocketConfig.Version}```");
+            });
+
+            Commands.Add("seen", async (message) =>
+            {
+                if (message.Channel is IGuildChannel guildChannel)
+                {
+                    var settings = SettingsConfig.GetSettings(guildChannel.GuildId.ToString());
+                    if (!settings.SeenEnabled)
+                    {
+                        return await message.Channel.SendMessageAsync("Seen data is not being tracked for this server.  Enable it in the admin settings panel.");
+                    }
+
+                    string[] parts = message.Content.Split(new[] { ' ' }, 2);
+                    if (parts.Length != 2)
+                    {
+                        return await message.Channel.SendMessageAsync("Usage: .seen username");
+                    }
+
+                    var targetUser = (await guildChannel.Guild.GetUsersAsync()).Find(parts[1]).FirstOrDefault();
+                    if (targetUser != null)
+                    {
+                        if (targetUser.Id == message.Discord.CurrentUser.Id)
+                        {
+                            return await message.Channel.SendMessageAsync($"I was last seen...wait...seriously? Ain't no one got time for your shit, {message.Author.Username}.");
+                        }
+
+                        if (targetUser.Id == message.Author.Id)
+                        {
+                            return await message.Channel.SendMessageAsync($"You were last seen now, saying: ... god DAMN it {message.Author.Username}, quit wasting my time");
+                        }
+
+                        string query = $"seen {targetUser.Id} {targetUser.Username}";
+                        var messageData = BotMessageData.Create(message, query);
+
+                        var response = (await this.botApi.IssueRequestAsync(messageData, query)).FirstOrDefault();
+
+                        if (response != null)
+                        {
+                            return await message.Channel.SendMessageAsync(response);
+                        }
+                    }
+
+                    return await message.Channel.SendMessageAsync($"I...omg...I have not seen {parts[1]} in this channel :X I AM SOOOOOO SORRY");
+                }
+
+                return null;
             });
 
             Commands.Add("status", async (message) =>

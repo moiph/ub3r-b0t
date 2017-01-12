@@ -28,6 +28,7 @@
 
         private ConcurrentDictionary<string, int> commandsIssued = new ConcurrentDictionary<string, int>();
         private ConcurrentDictionary<string, RepeatData> repeatData = new ConcurrentDictionary<string, RepeatData>();
+        private ConcurrentDictionary<string, SeenUserData> seenUsers = new ConcurrentDictionary<string, SeenUserData>();
 
         private static Regex UrlRegex = new Regex("(https?://[^ ]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static Regex channelRegex = new Regex("#([a-zA-Z0-9\\-]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -39,6 +40,7 @@
         private Timer remindersTimer;
         private Timer packagesTimer;
         private Timer heartbeatTimer;
+        private Timer seenTimer;
 
         private Logger consoleLogger = Logger.GetConsoleLogger();
 
@@ -80,6 +82,12 @@
                 this.AppInsights.Context.Properties.Add("BotType", this.botType.ToString());
             }
 
+            // If a custom API endpoint is supported...support it
+            if (this.Config.ApiEndpoint != null)
+            {
+                this.BotApi = new BotApi(this.Config.ApiEndpoint, this.Config.ApiKey, this.botType);
+            }
+
             if (botType == BotType.Discord)
             {
                 if (string.IsNullOrEmpty(this.Config.Discord.Token))
@@ -105,12 +113,6 @@
             }
 
             Bot.startTime = Utilities.Utime;
-
-            // If a custom API endpoint is supported...support it
-            if (this.Config.ApiEndpoint != null)
-            {
-                this.BotApi = new BotApi(this.Config.ApiEndpoint, this.Config.ApiKey, this.botType);
-            }
 
             this.StartTimers();
             this.StartWebListener();
@@ -150,6 +152,7 @@
             notificationsTimer = new Timer(CheckNotificationsAsync, null, 10000, 10000);
             remindersTimer = new Timer(CheckRemindersAsync, null, 10000, 10000);
             heartbeatTimer = new Timer(HeartbeatTimerAsync, null, 30000, 30000);
+            seenTimer = new Timer(SeenTimerAsync, null, 60000, 60000);
             packagesTimer = new Timer(CheckPackagesAsync, null, 1800000, 1800000);
         }
 
@@ -303,6 +306,16 @@
             catch (Exception ex)
             {
                 Console.WriteLine(ex);
+            }
+        }
+
+        private async void SeenTimerAsync(object state)
+        {
+            var seenCopy = new Dictionary<string, SeenUserData>(seenUsers);
+            seenUsers.Clear();
+            if (seenCopy.Count > 0)
+            {
+                await this.Config.SeenEndpoint.ToString().PostJsonAsync(seenCopy.Values);
             }
         }
 
@@ -467,6 +480,9 @@
                     client.Disconnect("Shutting down.");
                 }
             }
+
+            // flush any remaining seen data before shutdown
+            this.SeenTimerAsync(null);
         }
 
         // Whether or not the message author is the bot owner (will only return true in Discord scenarios).
@@ -593,7 +609,7 @@
                         if (repeat.Nicks.Count == 3)
                         {
                             responses.Add(messageData.Content);
-                            repeat.Reset(messageData.UserName, messageData.Content);
+                            repeat.Reset(string.Empty, string.Empty);
                         }
                     }
                     else

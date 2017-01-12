@@ -25,6 +25,8 @@
         // Called upon guild leave (useful to clear out service state, e.g. settings, reminders, etc)
         public Uri PruneEndpoint { get; set; }
 
+        public Uri SeenEndpoint { get; set; }
+
         public DiscordConfig Discord { get; set; }
         public Irc Irc { get; set; }
 

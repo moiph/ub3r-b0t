@@ -52,7 +52,7 @@
             client.Ready += Client_Ready;
 
             audioManager = new AudioManager();
-            discordCommands = new DiscordCommands(client, audioManager);
+            discordCommands = new DiscordCommands(client, audioManager, this.BotApi);
 
             // If user customizeable server settings are supported...support them
             // Currently discord only.
@@ -413,6 +413,25 @@
                         return;
                     }
                 }
+            }
+
+            // Update the seen data
+            if (settings.SeenEnabled && textChannel != null && !string.IsNullOrEmpty(message.Content) && this.Config.SeenEndpoint != null)
+            {
+                var messageText = message.Content;
+                if (messageText.Length > 256)
+                {
+                    messageText = message.Content.Substring(0, 253) + "...";
+                }
+
+                seenUsers["" + textChannel.Id + message.Author.Id] = new SeenUserData
+                {
+                    Name = message.Author.Id.ToString(),
+                    Channel = textChannel.Id.ToString(),
+                    Server = textChannel.Guild.Id.ToString(),
+                    Text = messageText,
+                    Timestamp = Utilities.Utime,
+                };
             }
 
             // If it's a command, match that before anything else.

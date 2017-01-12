@@ -24,6 +24,7 @@
                 this.AudioClient.Dispose();
                 this.Stream?.Dispose();
                 this.streamLock.Dispose();
+                this.streamLock = null;
                 this.isDisposed = true;
             }
         }

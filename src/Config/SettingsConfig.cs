@@ -73,6 +73,7 @@
 
         public bool FunResponsesEnabled { get; set; }
         public bool AutoTitlesEnabled { get; set; }
+        public bool SeenEnabled { get; set; }
 
         public bool DisableLinkParsing { get; set; }
 

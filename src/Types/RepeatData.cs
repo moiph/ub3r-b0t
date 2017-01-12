@@ -10,7 +10,10 @@
         public void Reset(string nick, string text)
         {
             this.Nicks.Clear();
-            this.Nicks.Add(nick);
+            if (!string.IsNullOrEmpty(nick))
+            {
+                this.Nicks.Add(nick);
+            }
             this.Text = text;
         }
     }

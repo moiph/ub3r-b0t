@@ -117,8 +117,8 @@
             {
                 // TODO: proper logging
                 Console.WriteLine(ex);
-                audioInstance.Dispose();
                 audioInstances.TryRemove(audioInstance.GuildId, out AudioInstance oldInstance);
+                oldInstance.Dispose();
             }
         }
 
@@ -161,12 +161,13 @@
             catch (Exception ex)
             {
                 Console.WriteLine(ex);
-                audioInstance.Dispose();
+                p.Dispose();
                 audioInstances.TryRemove(audioInstance.GuildId, out AudioInstance oldInstance);
+                oldInstance.Dispose();
             }
             finally
             {
-                audioInstance.streamLock.Release();
+                audioInstance.streamLock?.Release();
                 Console.WriteLine($"[audio] [{filename}] lock released");
             }
 

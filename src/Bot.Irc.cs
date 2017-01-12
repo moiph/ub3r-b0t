@@ -36,7 +36,7 @@
             {
                 foreach (string channel in this.Config.Irc.Servers.Where(s => s.Host == client.Id).First().Channels)
                 {
-                    serverData[client.Host].Channels.Add(channel.ToLowerInvariant(), new ChannelData());
+                    serverData[client.Host].Channels[channel.ToLowerInvariant()] = new ChannelData();
                     client.Command("JOIN", channel, string.Empty);
                 }
             }
@@ -45,6 +45,25 @@
             {
                 string query = string.Empty;
                 string prefix = ".";
+
+                // Update the seen data
+                if (!string.IsNullOrEmpty(data.Text) && this.Config.SeenEndpoint != null)
+                {
+                    var messageText = data.Text;
+                    if (messageText.Length > 256)
+                    {
+                        messageText = data.Text.Substring(0, 253) + "...";
+                    }
+
+                    seenUsers["" + data.Target + data.Nick] = new SeenUserData
+                    {
+                        Name = data.Nick,
+                        Channel = data.Target,
+                        Server = client.Host,
+                        Text = messageText,
+                        Timestamp = Utilities.Utime,
+                    };
+                }
 
                 if (data.Text.StartsWith("."))
                 {
