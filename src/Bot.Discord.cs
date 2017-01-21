@@ -121,7 +121,8 @@
         private async Task Client_UserVoiceStateUpdatedAsync(SocketUser arg1, SocketVoiceState arg2, SocketVoiceState arg3)
         {
             // voice state detection
-            var botGuildUser = await (arg1 as IGuildUser).Guild.GetCurrentUserAsync();
+            var guildUser = (arg1 as IGuildUser);
+            var botGuildUser = await guildUser.Guild.GetCurrentUserAsync();
             if (arg2.VoiceChannel != arg3.VoiceChannel && arg3.VoiceChannel == botGuildUser.VoiceChannel)
             {
                 // if they are connecting for the first time, wait a moment to account for possible conncetion delay. otherwise play immediately.
@@ -130,11 +131,11 @@
                     await Task.Delay(1000);
                 }
 
-                await this.audioManager.SendAudioAsync(arg3.VoiceChannel, PhrasesConfig.Instance.VoiceGreetingFileNames.Random());
+                await this.audioManager.SendAudioAsync(guildUser, arg3.VoiceChannel, VoicePhraseType.UserJoin);
             }
             else if (arg2.VoiceChannel != arg3.VoiceChannel && arg2.VoiceChannel == botGuildUser.VoiceChannel)
             {
-                await this.audioManager.SendAudioAsync(arg2.VoiceChannel, PhrasesConfig.Instance.VoiceFarewellFileNames.Random());
+                await this.audioManager.SendAudioAsync(guildUser, arg2.VoiceChannel, VoicePhraseType.UserLeave);
             }
         }
 

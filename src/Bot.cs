@@ -233,9 +233,16 @@
                         }
                         else if (this.client != null)
                         {
-                            ISocketMessageChannel channel = this.client.GetChannel(Convert.ToUInt64(timer.Channel)) as ISocketMessageChannel;
+                            IMessageChannel channel = this.client.GetChannel(Convert.ToUInt64(timer.Channel)) as ISocketMessageChannel;
                             IGuild guild = timer.Server != "private" ? this.client.GetGuild(Convert.ToUInt64(timer.Server)) : null;
-                            if (channel  != null || guild != null)
+                            // it may have been a PM so try to get the user
+                            var user = this.client.GetUser(Convert.ToUInt64(timer.UserId));
+                            if (channel == null && user != null && timer.Server == "private")
+                            {
+                                channel = await user.CreateDMChannelAsync() as IDMChannel;
+                            }
+
+                            if (channel != null || guild != null)
                             {
                                 string nick = timer.Nick;
 
@@ -320,7 +327,14 @@
             seenUsers.Clear();
             if (seenCopy.Count > 0)
             {
-                await this.Config.SeenEndpoint.ToString().PostJsonAsync(seenCopy.Values);
+                try
+                {
+                    await this.Config.SeenEndpoint.ToString().PostJsonAsync(seenCopy.Values);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex);
+                }
             }
         }
 
