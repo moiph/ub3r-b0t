@@ -27,7 +27,7 @@
 
     public abstract class JsonConfig<T> where T : JsonConfig<T>, new()
     {
-        private static readonly string instanceKey = typeof(T).ToString();
+        protected static readonly string instanceKey = typeof(T).ToString();
 
         protected virtual string FileName { get; }
 
@@ -44,7 +44,7 @@
             JsonConfig.ConfigInstances.TryRemove(instanceKey, out object oldConfig);
         }
 
-        public async Task OverrideAsync(Uri uri)
+        public virtual async Task OverrideAsync(Uri uri)
         {
             var config = await Utilities.GetApiResponseAsync<T>(uri);
             if (config != null)

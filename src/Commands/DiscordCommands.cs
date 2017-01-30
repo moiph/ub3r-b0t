@@ -344,7 +344,7 @@
                 {
                     if ((message.Author as IGuildUser).GuildPermissions.ManageGuild)
                     {
-                        var req = WebRequest.Create($"{SettingsConfig.Instance.CreateEndpoint}?id={guildChannel.GuildId}");
+                        var req = WebRequest.Create($"{SettingsConfig.Instance.CreateEndpoint}?id={guildChannel.GuildId}&name={guildChannel.Name}");
                         try
                         {
                             await req.GetResponseAsync();
@@ -358,7 +358,7 @@
                     }
                     else
                     {
-                        return await message.Channel.SendMessageAsync("You must have manage server permisions to use that command. nice try, dungheap");
+                        return await message.Channel.SendMessageAsync("You must have manage server permissions to use that command. nice try, dungheap");
                     }
                 }
 

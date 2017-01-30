@@ -80,10 +80,10 @@
 
             int exitCode = (int)ExitCode.Success;
             // Convert to async main method
-            try
+            var instanceCount = 0;
+            do
             {
-                var instanceCount = 0;
-                do
+                try
                 {
                     using (var bot = new Bot(botType, shard, instanceCount))
                     {
@@ -96,14 +96,14 @@
 
                         exitCode = bot.RunAsync().GetAwaiter().GetResult();
                     }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex);
+                }
 
-                    instanceCount++;
-                } while (exitCode != (int)ExitCode.Success); // re-create the bot on failures.  Only exit if a clean shutdown occurs.
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex);
-            }
+                instanceCount++;
+            } while (exitCode != (int)ExitCode.Success); // re-create the bot on failures.  Only exit if a clean shutdown occurs.
 
             Console.ReadLine();
         }

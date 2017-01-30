@@ -170,7 +170,7 @@
                     p.WaitForExit();
                     Console.WriteLine($"[audio] [{filename}] process exit");
                     var flushTask = audioInstance.Stream.FlushAsync();
-                    var timeoutTask = Task.Delay(10000);
+                    var timeoutTask = Task.Delay(8000);
                     if (await Task.WhenAny(flushTask, timeoutTask) == timeoutTask)
                     {
                         Console.WriteLine($"[audio] [{filename}] timeout occurred");
@@ -188,7 +188,7 @@
                 Console.WriteLine(ex);
                 p?.Dispose();
                 audioInstances.TryRemove(audioInstance.GuildId, out AudioInstance oldInstance);
-                oldInstance.Dispose();
+                oldInstance?.Dispose();
             }
             finally
             {

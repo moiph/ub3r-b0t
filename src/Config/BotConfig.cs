@@ -32,6 +32,8 @@
 
         // endpoint to send heartbeat data to
         public Uri HeartbeatEndpoint { get; set; }
+        // endpoint to send alerts (e.g. bot restarts) to
+        public Uri AlertEndpoint { get; set; }
 
         /// Hostname to listen on for incoming http requests (for monitoring)
         public string WebListenerHostName { get; set; }
@@ -65,6 +67,11 @@
         /// Key for statistics on https://bots.discord.pw
         /// </summary>
         public string DiscordBotsKey { get; set; }
+
+        /// <summary>
+        /// Key for statistics on https://bots.discordlist.net/
+        /// </summary>
+        public string DiscordListKey { get; set; }
     }
 
     public class Irc

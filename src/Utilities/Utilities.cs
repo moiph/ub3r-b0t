@@ -3,6 +3,7 @@ namespace UB3RB0T
 {
     using Discord;
     using Discord.WebSocket;
+    using Microsoft.AspNetCore.WebUtilities;
     using Newtonsoft.Json;
     using System;
     using System.Collections.Generic;
@@ -22,6 +23,12 @@ namespace UB3RB0T
         const long TOOLONG = 473040000;
 
         public static void Forget(this Task task) { }
+
+        public static Uri AppendQueryParam(this Uri uri, string key, string value)
+        {
+            var newQueryParams = new Dictionary<string, string> { { key, value } };
+            return new Uri(QueryHelpers.AddQueryString(uri.ToString(), newQueryParams)); 
+        }
 
         public static bool HasMentionPrefix(this IUserMessage msg, IUser user, ref int argPos)
         {
@@ -77,8 +84,15 @@ namespace UB3RB0T
             WebResponse webResponse = null;
             try
             {
-                webResponse = await req.GetResponseAsync();
+                var responseTask = req.GetResponseAsync();
+                var timeoutTask = Task.Delay(10000);
 
+                if (await Task.WhenAny(responseTask, timeoutTask) == timeoutTask)
+                {
+                    throw new TimeoutException();
+                }
+
+                webResponse = responseTask.Result;
                 if (webResponse != null)
                 {
                     Stream responseStream = webResponse.GetResponseStream();

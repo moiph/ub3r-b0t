@@ -22,6 +22,8 @@
         private BotType botType;
         private int instanceCount;
 
+        private IWebHost listenerHost;
+
         private DiscordSocketClient client;
         private Dictionary<string, IrcClient> ircClients;
         private static long startTime;
@@ -58,6 +60,7 @@
         public TelemetryClient AppInsights { get; private set; }
 
         private int exitCode = 0;
+        private bool isShuttingDown;
 
         /// Initialize and connect to the desired clients, hook up event handlers.
         /// </summary>
@@ -137,12 +140,12 @@
                     port += 10 + shard;
                 }
 
-                var host = new WebHostBuilder()
+                this.listenerHost = new WebHostBuilder()
                     .UseKestrel()
                     .UseUrls($"http://localhost:{port}", $"http://{this.Config.WebListenerHostName}:{port}")
                     .UseStartup<Program>()
                     .Build();
-                host.Run();
+                this.listenerHost.Run();
             });
         }
 
@@ -151,7 +154,7 @@
             // TODO: I see a pattern here.  Clean this up.
             notificationsTimer = new Timer(CheckNotificationsAsync, null, 10000, 10000);
             remindersTimer = new Timer(CheckRemindersAsync, null, 10000, 10000);
-            heartbeatTimer = new Timer(HeartbeatTimerAsync, null, 30000, 30000);
+            heartbeatTimer = new Timer(HeartbeatTimerAsync, null, 60000, 60000);
             seenTimer = new Timer(SeenTimerAsync, null, 60000, 60000);
             packagesTimer = new Timer(CheckPackagesAsync, null, 1800000, 1800000);
         }
@@ -199,7 +202,8 @@
             try
             {
                 consoleLogger.Log(LogType.Debug, "Fetching server settings...");
-                await SettingsConfig.Instance.OverrideAsync(this.Config.SettingsEndpoint);
+                var sinceToken = SettingsConfig.Instance.SinceToken;
+                await SettingsConfig.Instance.OverrideAsync(this.Config.SettingsEndpoint.AppendQueryParam("since", sinceToken.ToString()));
                 consoleLogger.Log(LogType.Debug, "Server settings updated.");
             }
             catch (Exception ex)
@@ -319,6 +323,20 @@
             {
                 Console.WriteLine(ex);
             }
+
+            // if we haven't seen any incoming discord messages since the last heartbeat, we've got a problem
+            if (this.botType == BotType.Discord && messageCount == 0)
+            {
+                this.exitCode = 1;
+                if (this.Config.AlertEndpoint != null)
+                {
+                    string messageContent = $"\U0001F501 Shard {this.shard} triggered automatic restart due to inactivity";
+                    await this.Config.AlertEndpoint.ToString().PostJsonAsync(new { content = messageContent });
+                }
+            }
+
+            // reset message count
+            messageCount = 0;
         }
 
         private async void SeenTimerAsync(object state)
@@ -486,22 +504,27 @@
         /// </summary>
         public async Task ShutdownAsync()
         {
-            if (this.botType == BotType.Discord)
+            if (!this.isShuttingDown)
             {
-                // explicitly leave all audio channels so that we can say goodbye
-                await this.audioManager?.LeaveAllAudioAsync();
-                this.client.DisconnectAsync().Forget(); // awaiting this likes to hang
-            }
-            else if (this.botType == BotType.Irc)
-            {
-                foreach (var client in this.ircClients.Values)
+                this.isShuttingDown = true;
+                if (this.botType == BotType.Discord)
                 {
-                    client.Disconnect("Shutting down.");
+                    // explicitly leave all audio channels so that we can say goodbye
+                    await this.audioManager?.LeaveAllAudioAsync();
+                    this.client.DisconnectAsync().Forget(); // awaiting this likes to hang
+                    await Task.Delay(5000);
                 }
-            }
+                else if (this.botType == BotType.Irc)
+                {
+                    foreach (var client in this.ircClients.Values)
+                    {
+                        client.Disconnect("Shutting down.");
+                    }
+                }
 
-            // flush any remaining seen data before shutdown
-            this.SeenTimerAsync(null);
+                // flush any remaining seen data before shutdown
+                this.SeenTimerAsync(null);
+            }
         }
 
         // Whether or not the message author is the bot owner (will only return true in Discord scenarios).
@@ -604,7 +627,7 @@
                     }
                 }
                 
-                if (response == null && (settings.FunResponsesEnabled || IsAuthorOwner(messageData)) && PhrasesConfig.Instance.ExactPhrases.ContainsKey(messageData.Content))
+                if (response == null && (settings.FunResponsesEnabled || IsAuthorOwner(messageData)) && PhrasesConfig.Instance.ExactPhrases.ContainsKey(messageData.Content) && new Random().Next(1, 100) <= settings.FunResponseChance)
                 {
                     response = PhrasesConfig.Instance.Responses[PhrasesConfig.Instance.ExactPhrases[messageData.Content]].Random();
                 }
@@ -646,6 +669,8 @@
             heartbeatTimer?.Dispose();
             statsTimer?.Dispose();
             notificationsTimer?.Dispose();
+            listenerHost?.Dispose();
+            this.client?.Dispose();
             audioManager?.Dispose();
         }
     }

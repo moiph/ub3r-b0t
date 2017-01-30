@@ -5,10 +5,12 @@
     using Discord.WebSocket;
     using Flurl;
     using Flurl.Http;
+    using Newtonsoft.Json;
     using System;
     using System.Collections.Generic;
     using System.Linq;
     using System.Net;
+    using System.Net.Http;
     using System.Text.RegularExpressions;
     using System.Threading;
     using System.Threading.Tasks;
@@ -17,6 +19,7 @@
     public partial class Bot
     {
         private MessageCache botResponsesCache = new MessageCache();
+        private int messageCount = 0;
 
         private bool isReady;
 
@@ -71,7 +74,7 @@
             await client.ConnectAsync();
             await this.client.SetGameAsync(this.Config.Discord.Status);
 
-            if (!string.IsNullOrEmpty(this.Config.Discord.DiscordBotsKey) || !string.IsNullOrEmpty(this.Config.Discord.CarbonStatsKey) && statsTimer == null)
+            if ((!string.IsNullOrEmpty(this.Config.Discord.DiscordBotsKey) || !string.IsNullOrEmpty(this.Config.Discord.CarbonStatsKey) || !string.IsNullOrEmpty(this.Config.Discord.DiscordListKey)) && statsTimer == null)
             {
                 statsTimer = new Timer(StatsTimerAsync, null, 3600000, 3600000);
             }
@@ -80,6 +83,32 @@
         private Task Client_Ready()
         {
             this.isReady = true;
+
+            Task.Run(async () =>
+            {
+                await Task.Delay(10000);
+                foreach (var guildSetting in SettingsConfig.Instance.Settings)
+                {
+                    if (guildSetting.Value.VoiceId != 0)
+                    {
+                        try
+                        {
+                            var guild = this.client.GetGuild(Convert.ToUInt64(guildSetting.Key));
+                            var voiceChannel = guild != null ? await guild.GetVoiceChannelAsync(guildSetting.Value.VoiceId) : null;
+                            if (voiceChannel != null)
+                            {
+                                await this.audioManager.JoinAudioAsync(voiceChannel);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            // TODO: proper logging
+                            Console.WriteLine(ex);
+                        }
+                    }
+                }
+            }).Forget();
+
             return Task.CompletedTask;
         }
 
@@ -116,6 +145,36 @@
                 }
             }
 
+            if (!string.IsNullOrEmpty(this.Config.Discord.DiscordListKey) && this.shard == 0)
+            {
+                try
+                {
+                    using (var httpClient = new HttpClient())
+                    {
+                        httpClient.BaseAddress = new Uri("https://bots.discordlist.net");
+                        var content = new FormUrlEncodedContent(new[]
+                        {
+                            new KeyValuePair<string, string>("token", this.Config.Discord.DiscordListKey),
+                            new KeyValuePair<string, string>("servers", (this.client.Guilds.Count() * this.Config.Discord.ShardCount).ToString()),
+                        });
+
+                        var result = await httpClient.PostAsync("/api", content);
+                        if (result.IsSuccessStatusCode)
+                        {
+                            Console.WriteLine($"Updated discordlist.net server count to {this.client.Guilds.Count() * this.Config.Discord.ShardCount}");
+                        }
+                        else
+                        {
+                            Console.WriteLine(await result.Content.ReadAsStringAsync());
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // TODO: Update to using one of the logging classes (Discord/IRC)
+                    Console.WriteLine($"Failed to update discordlist.net stats: {ex}");
+                }
+            }
         }
 
         private async Task Client_UserVoiceStateUpdatedAsync(SocketUser arg1, SocketVoiceState arg2, SocketVoiceState arg3)
@@ -145,11 +204,10 @@
             {
                 this.AppInsights?.TrackEvent("serverJoin");
 
-                var defaultChannel = await arg.GetDefaultChannelAsync();
-
+                var defaultChannel = await arg.GetDefaultChannelAsync(); // arg.DefaultChannel;
+                var owner = await arg.GetOwnerAsync(); // arg.Owner;
                 if (arg.CurrentUser != null && arg.CurrentUser.GetPermissions(defaultChannel).SendMessages)
                 {
-                    var owner = await arg.GetOwnerAsync();
                     await defaultChannel.SendMessageAsync($"(HELLO, I AM UB3R-B0T! .halp for info. {owner.Mention} you're the kickass owner-- you can use .admin to configure some stuff.)");
                 }
             }
@@ -259,7 +317,8 @@
                 }
                 else
                 {
-                    await (await (await arg2.GetOwnerAsync()).CreateDMChannelAsync()).SendMessageAsync($"Permissions error detected for {arg2.Name} on user bans: Can't send messages to configured mod logging channel.");
+                    var owner = await arg2.GetOwnerAsync(); // arg2.Owner;
+                    await (await owner.CreateDMChannelAsync()).SendMessageAsync($"Permissions error detected for {arg2.Name} on user bans: Can't send messages to configured mod logging channel.");
                 }
             }
         }
@@ -344,6 +403,8 @@
 
         public async Task Discord_OnMessageReceivedAsync(SocketMessage socketMessage)
         {
+            messageCount++;
+
             // Ignore system and our own messages.
             var message = socketMessage as SocketUserMessage;
             bool isOutbound = false;
@@ -365,17 +426,6 @@
 
             // if it's a globally blocked server, ignore it unless it's the owner
             if (message.Author.Id != this.Config.Discord.OwnerId && guildId != null && this.Config.Discord.BlockedServers.Contains(guildId.Value))
-            {
-                return;
-            }
-
-            // validate server settings don't block this channel;
-            // if the ID is in there and it's block, bail. if it's not in there and it's allow mode, also bail.
-            if (settings.Channels.Contains(socketMessage.Channel.Id.ToString()) && settings.IsChannelListBlock)
-            {
-                return;
-            }
-            else if (!settings.Channels.Contains(socketMessage.Channel.Id.ToString()) && !settings.IsChannelListBlock)
             {
                 return;
             }
@@ -591,7 +641,8 @@
                 }
                 else
                 {
-                    await (await (await arg.Guild.GetOwnerAsync()).CreateDMChannelAsync()).SendMessageAsync($"Permissions error detected for {arg.Guild.Name} on user leave: Can't send messages to configured mod logging channel.");
+                    var owner = await arg.Guild.GetOwnerAsync();
+                    await (await owner.CreateDMChannelAsync()).SendMessageAsync($"Permissions error detected for {arg.Guild.Name} on user leave: Can't send messages to configured mod logging channel.");
                 }
             }
         }
@@ -629,6 +680,15 @@
                 }
             }
 
+            if (settings.JoinRoleId != 0 && arg.Guild.CurrentUser.GuildPermissions.ManageRoles)
+            {
+                var role = arg.Guild.GetRole(settings.JoinRoleId);
+                if (role != null)
+                {
+                    await arg.AddRolesAsync(role);
+                }
+            }
+
             // mod log
             if (settings.Mod_LogId != 0 && settings.HasFlag(ModOptions.Mod_LogUserJoin))
             {
@@ -639,7 +699,8 @@
                 }
                 else
                 {
-                    await (await (await arg.Guild.GetOwnerAsync()).CreateDMChannelAsync()).SendMessageAsync($"Permissions error detected for {arg.Guild.Name} on user join: Can't send messages to configured mod logging channel.");
+                    var owner = await arg.Guild.GetOwnerAsync();
+                    await (await owner.CreateDMChannelAsync()).SendMessageAsync($"Permissions error detected for {arg.Guild.Name} on user join: Can't send messages to configured mod logging channel.");
                 }
             }
         }
