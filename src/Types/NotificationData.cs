@@ -7,5 +7,6 @@
         public string Server { get; set; }
         public string Text { get; set; }
         public BotType BotType { get; set; }
+        public EmbedData Embed { get; set; }
     }
 }

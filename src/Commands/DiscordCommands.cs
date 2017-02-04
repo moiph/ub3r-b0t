@@ -71,9 +71,9 @@
                         }
 
                         string query = $"seen {targetUser.Id} {targetUser.Username}";
-                        var messageData = BotMessageData.Create(message, query);
+                        var messageData = BotMessageData.Create(message, query, settings);
 
-                        var response = (await this.botApi.IssueRequestAsync(messageData, query)).FirstOrDefault();
+                        var response = (await this.botApi.IssueRequestAsync(messageData, query)).Responses.FirstOrDefault();
 
                         if (response != null)
                         {
@@ -344,7 +344,7 @@
                 {
                     if ((message.Author as IGuildUser).GuildPermissions.ManageGuild)
                     {
-                        var req = WebRequest.Create($"{SettingsConfig.Instance.CreateEndpoint}?id={guildChannel.GuildId}&name={guildChannel.Name}");
+                        var req = WebRequest.Create($"{SettingsConfig.Instance.CreateEndpoint}?id={guildChannel.GuildId}&name={guildChannel.Guild.Name}");
                         try
                         {
                             await req.GetResponseAsync();

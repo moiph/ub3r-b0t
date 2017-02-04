@@ -391,11 +391,12 @@
                     var botUser = (guildChannel.Guild as SocketGuild).CurrentUser;
                     if (botUser != null && this.client.GetChannel(settings.Mod_LogId) is ITextChannel modLogChannel && botUser.GetPermissions(modLogChannel).SendMessages)
                     {
-                        await modLogChannel.SendMessageAsync(delText.Substring(0, Math.Min(delText.Length, Discord.DiscordConfig.MaxMessageSize)));
+                        modLogChannel.SendMessageAsync(delText.Substring(0, Math.Min(delText.Length, Discord.DiscordConfig.MaxMessageSize))).Forget();
                     }
                     else
                     {
-                        await (await (await guildChannel.Guild.GetOwnerAsync()).CreateDMChannelAsync()).SendMessageAsync($"Permissions error detected for {guildChannel.Guild.Name} on message deletes: Can't send messages to configured mod logging channel.");
+                        var ownerDMChannel = await (await guildChannel.Guild.GetOwnerAsync()).CreateDMChannelAsync();
+                        ownerDMChannel.SendMessageAsync($"Permissions error detected for {guildChannel.Guild.Name} on message deletes: Can't send messages to configured mod logging channel.").Forget();
                     }
                 }
             }
@@ -566,14 +567,22 @@
 
                 try
                 {
-                    List<string> responses = await this.ProcessMessageAsync(BotMessageData.Create(message, query), settings);
+                    BotResponseData responseData = await this.ProcessMessageAsync(BotMessageData.Create(message, query, settings), settings);
 
-                    foreach (string response in responses)
+                    if (responseData.Embed != null)
                     {
-                        if (!string.IsNullOrEmpty(response))
+                        var sentMessage = await message.Channel.SendMessageAsync(((char)1).ToString(), false, responseData.Embed.CreateEmbedBuilder());
+                        this.botResponsesCache.Add(message.Id, sentMessage);
+                    }
+                    else
+                    {
+                        foreach (string response in responseData.Responses)
                         {
-                            var sentMessage = await message.Channel.SendMessageAsync(response);
-                            this.botResponsesCache.Add(message.Id, sentMessage);
+                            if (!string.IsNullOrEmpty(response))
+                            {
+                                var sentMessage = await message.Channel.SendMessageAsync(response);
+                                this.botResponsesCache.Add(message.Id, sentMessage);
+                            }
                         }
                     }
                 }
@@ -657,8 +666,8 @@
 
                 greeting = channelRegex.Replace(greeting, new MatchEvaluator((Match chanMatch) =>
                 {
-                    string channelName = chanMatch.Captures[0].Value;
-                    var channel = arg.Guild.Channels.Where(c => c.Name == channelName).FirstOrDefault();
+                    string channelName = chanMatch.Groups[1].Value;
+                    var channel = arg.Guild.Channels.Where(c => c.Name.Equals(channelName, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
 
                     if (channel != null)
                     {

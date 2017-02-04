@@ -379,10 +379,11 @@
                             {
                                 notificationsToDelete.Add(notification.Id);
 
-                                if (!string.IsNullOrEmpty(notification.Text) && (channel.Guild as SocketGuild).CurrentUser.GetPermissions(channel).SendMessages)
+                                if ((!string.IsNullOrEmpty(notification.Text) || notification.Embed != null) && (channel.Guild as SocketGuild).CurrentUser.GetPermissions(channel).SendMessages)
                                 {
+                                    var settings = SettingsConfig.GetSettings(channel.GuildId);
                                     // adjust the notification text to disable discord link parsing, if configured to do so
-                                    if (SettingsConfig.GetSettings(channel.GuildId).DisableLinkParsing)
+                                    if (settings.DisableLinkParsing)
                                     {
                                         notification.Text = UrlRegex.Replace(notification.Text, new MatchEvaluator((Match urlMatch) =>
                                         {
@@ -392,7 +393,14 @@
 
                                     try
                                     {
-                                        await channel.SendMessageAsync(notification.Text);
+                                        if (settings.PreferEmbeds && notification.Embed != null)
+                                        {
+                                            await channel.SendMessageAsync(((char)1).ToString(), false, notification.Embed.CreateEmbedBuilder());
+                                        }
+                                        else
+                                        {
+                                            await channel.SendMessageAsync(notification.Text);
+                                        }
                                     }
                                     catch (Exception ex)
                                     {
@@ -456,9 +464,9 @@
 
                         if (this.botType == BotType.Irc)
                         {
-                            var responses = await this.BotApi.IssueRequestAsync(messageData, query);
+                            var apiResponse = await this.BotApi.IssueRequestAsync(messageData, query);
 
-                            foreach (var response in responses)
+                            foreach (var response in apiResponse.Responses)
                             {
                                 this.ircClients[package.Server]?.Command("PRIVMSG", package.Channel, response);
                             }
@@ -467,11 +475,11 @@
                         {
                             if (this.client.GetChannel(Convert.ToUInt64(package.Channel)) is ITextChannel channel)
                             {
-                                var responses = await this.BotApi.IssueRequestAsync(messageData, query);
+                                var botResponse = await this.BotApi.IssueRequestAsync(messageData, query);
 
                                 if ((channel.Guild as SocketGuild).CurrentUser.GetPermissions(channel).SendMessages)
                                 {
-                                    if (responses.Length > 0 && !string.IsNullOrEmpty(responses[0]))
+                                    if (botResponse.Responses.Count > 0 && !string.IsNullOrEmpty(botResponse.Responses[0]))
                                     {
                                         string senderNick = package.Nick;
                                         var user = (await channel.Guild.GetUsersAsync().ConfigureAwait(false)).Find(package.Nick).FirstOrDefault();
@@ -482,7 +490,7 @@
 
                                         await channel.SendMessageAsync($"{senderNick} oshi- an upsdate!");
 
-                                        foreach (var response in responses)
+                                        foreach (var response in botResponse.Responses)
                                         {
                                             if (!string.IsNullOrEmpty(response))
                                             {
@@ -510,7 +518,9 @@
                 if (this.botType == BotType.Discord)
                 {
                     // explicitly leave all audio channels so that we can say goodbye
-                    await this.audioManager?.LeaveAllAudioAsync();
+                    var audioTask = this.audioManager?.LeaveAllAudioAsync();
+                    var timeoutTask = Task.Delay(15000);
+                    await Task.WhenAny(audioTask, timeoutTask);
                     this.client.DisconnectAsync().Forget(); // awaiting this likes to hang
                     await Task.Delay(5000);
                 }
@@ -533,17 +543,18 @@
             return !string.IsNullOrEmpty(messageData.UserId) && messageData.UserId == this.Config.Discord?.OwnerId.ToString();
         }
 
-        private async Task<List<string>> ProcessMessageAsync(BotMessageData messageData) => await ProcessMessageAsync(messageData, new Settings());
+        private async Task<BotResponseData> ProcessMessageAsync(BotMessageData messageData) => await ProcessMessageAsync(messageData, new Settings());
 
-        private async Task<List<string>> ProcessMessageAsync(BotMessageData messageData, Settings settings)
+        private async Task<BotResponseData> ProcessMessageAsync(BotMessageData messageData, Settings settings)
         {
             var responses = new List<string>();
+            var responseData = new BotResponseData { Responses = responses };
 
             if (this.BotApi != null)
             {
                 // if an explicit command is being used, it wins out over any implicitly parsed command
                 string query = messageData.Query;
-                string command = messageData.Command;
+                string command = CommandsConfig.Instance.Commands.ContainsKey(messageData.Command) ? messageData.Command : string.Empty;
                 string[] contentParts = messageData.Content.Split(new[] { ' ' });
 
                 if (string.IsNullOrEmpty(command))
@@ -579,13 +590,13 @@
                 // handle special owner internal commands
                 if (await this.TryHandleInternalCommandAsync(messageData))
                 {
-                    return responses;
+                    return responseData;
                 }
 
                 // Ignore if the command is disabled on this server
                 if (settings.IsCommandDisabled(CommandsConfig.Instance, command))
                 {
-                    return responses;
+                    return responseData;
                 }
 
                 if (!string.IsNullOrEmpty(command) && CommandsConfig.Instance.Commands.ContainsKey(command))
@@ -607,12 +618,12 @@
                             { "serverId", messageData.Server },
                         };
                         this.AppInsights?.TrackEvent(command.ToLowerInvariant(), props);
-                        responses.AddRange(await this.BotApi.IssueRequestAsync(messageData, query));
+                        responseData = await this.BotApi.IssueRequestAsync(messageData, query);
                     }
                 }
             }
 
-            if (responses.Count == 0)
+            if (responseData.Responses.Count == 0 && responseData.Embed == null)
             {
                 bool mentionsBot = messageData.BotType == BotType.Discord ? messageData.DiscordMessageData.MentionedUsers.Count == 1 && messageData.DiscordMessageData.MentionedUsers.First().Id == client.CurrentUser.Id :
                     (messageData.IrcMessageData.Text.Contains(this.Config.Name));
@@ -636,11 +647,11 @@
                 {
                     response = response.Replace("%from%", messageData.UserName);
                     string[] resps = response.Split(new char[] { '|' });
-                    responses.AddRange(resps);
+                    responseData.Responses.AddRange(resps);
                 }
             }
 
-            return responses;
+            return responseData;
         }
 
         // Won't work on IRC; we rely on unique ID to match the owner via Discord.

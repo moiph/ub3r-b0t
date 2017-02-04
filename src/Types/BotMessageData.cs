@@ -22,6 +22,7 @@
         public string Content { get; set; }
         public string Command { get; set; } // the parse command out of the message
         public string Query { get; set; }
+        public string Format { get; set; }
 
         public BotMessageData(BotType botType)
         {
@@ -45,7 +46,7 @@
             };
         }
 
-        public static BotMessageData Create(SocketUserMessage discordMessageData, string query)
+        public static BotMessageData Create(SocketUserMessage discordMessageData, string query, Settings serverSettings)
         {
             string command = query.Split(new[] { ' ' }, 2)?[0];
 
@@ -59,6 +60,7 @@
                 Content = discordMessageData.Content,
                 Command = command,
                 Query = query,
+                Format = serverSettings.PreferEmbeds ? "embed" : string.Empty,
             };
         }
     }

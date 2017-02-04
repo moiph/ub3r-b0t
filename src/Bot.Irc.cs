@@ -70,7 +70,7 @@
                     query = data.Text.Substring(prefix.Length);
                 }
 
-                responses.AddRange(await this.ProcessMessageAsync(BotMessageData.Create(data, query, client)));
+                responses.AddRange((await this.ProcessMessageAsync(BotMessageData.Create(data, query, client))).Responses);
 
                 foreach (string response in responses)
                 {

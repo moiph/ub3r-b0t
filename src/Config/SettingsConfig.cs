@@ -98,6 +98,7 @@
         public int FunResponseChance { get; set; } = 100;
         public bool AutoTitlesEnabled { get; set; }
         public bool SeenEnabled { get; set; }
+        public bool PreferEmbeds { get; set; } = true;
 
         public bool DisableLinkParsing { get; set; }
 

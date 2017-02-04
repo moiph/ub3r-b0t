@@ -8,5 +8,6 @@
         public string Msg { get; set; }
         public string[] Msgs { get; set; } = new string[] { };
         public string Error { get; set; }
+        public EmbedData Embed { get; set; }
     }
 }

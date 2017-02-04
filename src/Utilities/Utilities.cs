@@ -30,6 +30,51 @@ namespace UB3RB0T
             return new Uri(QueryHelpers.AddQueryString(uri.ToString(), newQueryParams)); 
         }
 
+        public static EmbedBuilder CreateEmbedBuilder(this EmbedData embedData)
+        {
+            var embedBuilder = new EmbedBuilder
+            {
+                Title = embedData.Title,
+                ThumbnailUrl = embedData.ThumbnailUrl,
+                Description = embedData.Description,
+                Url = embedData.Url,
+            };
+
+            if (!string.IsNullOrEmpty(embedData.Author))
+            {
+                embedBuilder.Author = new EmbedAuthorBuilder
+                {
+                    Name = embedData.Author,
+                    Url = embedData.AuthorUrl,
+                    IconUrl = embedData.AuthorIconUrl,
+                };
+            }
+
+            if (!string.IsNullOrEmpty(embedData.Footer))
+            {
+                embedBuilder.Footer = new EmbedFooterBuilder
+                {
+                    Text = embedData.Footer,
+                    IconUrl = embedData.FooterIconUrl,
+                };
+            }
+
+            foreach (var embedField in embedData.EmbedFields)
+            {
+                if (!string.IsNullOrEmpty(embedField.Name) && !string.IsNullOrEmpty(embedField.Value))
+                {
+                    embedBuilder.AddField((field) =>
+                    {
+                        field.IsInline = embedField.IsInline;
+                        field.Name = embedField.Name;
+                        field.Value = embedField.Value;
+                    });
+                }
+            }
+
+            return embedBuilder;
+        }
+
         public static bool HasMentionPrefix(this IUserMessage msg, IUser user, ref int argPos)
         {
             var text = msg.Content;

@@ -3,6 +3,7 @@
     using Discord;
     using System;
     using System.Collections.Concurrent;
+    using System.Collections.Generic;
     using System.Diagnostics;
     using System.Threading.Tasks;
 
@@ -45,10 +46,13 @@
 
         public async Task LeaveAllAudioAsync()
         {
+            var leaveTasks = new List<Task>();
             foreach (var key in audioInstances.Keys)
             {
-                await this.LeaveAudioAsync(key);
+                leaveTasks.Add(this.LeaveAudioAsync(key));
             }
+
+            await Task.WhenAll(leaveTasks);
         }
 
         public async Task LeaveAudioAsync(IGuildChannel guildChannel)
