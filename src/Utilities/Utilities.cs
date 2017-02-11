@@ -241,6 +241,19 @@ namespace UB3RB0T
             return true;
         }
 
+        public static async Task<IUserMessage> SendOwnerDMAsync(this IGuild guild, string message)
+        {
+            try
+            {
+                return await (await (await guild.GetOwnerAsync()).CreateDMChannelAsync()).SendMessageAsync(message);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to send guild owner message: {ex}");
+                return null;
+            }
+        }
+
         // port from discord.net .9x
         public static IEnumerable<IUser> Find(this IEnumerable<IUser> users, string name, ushort? discriminator = null, bool exactMatch = false)
         {

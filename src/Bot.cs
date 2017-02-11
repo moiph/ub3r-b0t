@@ -44,6 +44,8 @@
         private Timer heartbeatTimer;
         private Timer seenTimer;
 
+        private int missedHeartbeats = 0;
+
         private Logger consoleLogger = Logger.GetConsoleLogger();
 
         // TODO: Genalize this API support -- currently specific to private API
@@ -325,13 +327,26 @@
             }
 
             // if we haven't seen any incoming discord messages since the last heartbeat, we've got a problem
-            if (this.botType == BotType.Discord && messageCount == 0)
+            if (this.botType == BotType.Discord)
             {
-                this.exitCode = 1;
-                if (this.Config.AlertEndpoint != null)
+                if (messageCount == 0)
                 {
-                    string messageContent = $"\U0001F501 Shard {this.shard} triggered automatic restart due to inactivity";
-                    await this.Config.AlertEndpoint.ToString().PostJsonAsync(new { content = messageContent });
+                    this.missedHeartbeats++;
+
+                    if (missedHeartbeats >= 5)
+                    {
+                        this.missedHeartbeats = 0;
+                        this.exitCode = 1;
+                        if (this.Config.AlertEndpoint != null)
+                        {
+                            string messageContent = $"\U0001F501 Shard {this.shard} triggered automatic restart due to inactivity";
+                            await this.Config.AlertEndpoint.ToString().PostJsonAsync(new { content = messageContent });
+                        }
+                    }
+                }
+                else
+                {
+                    this.missedHeartbeats = 0;
                 }
             }
 
@@ -379,33 +394,40 @@
                             {
                                 notificationsToDelete.Add(notification.Id);
 
-                                if ((!string.IsNullOrEmpty(notification.Text) || notification.Embed != null) && (channel.Guild as SocketGuild).CurrentUser.GetPermissions(channel).SendMessages)
+                                if (!string.IsNullOrEmpty(notification.Text) || notification.Embed != null)
                                 {
-                                    var settings = SettingsConfig.GetSettings(channel.GuildId);
-                                    // adjust the notification text to disable discord link parsing, if configured to do so
-                                    if (settings.DisableLinkParsing)
+                                    if ((channel.Guild as SocketGuild).CurrentUser.GetPermissions(channel).SendMessages)
                                     {
-                                        notification.Text = UrlRegex.Replace(notification.Text, new MatchEvaluator((Match urlMatch) =>
+                                        var settings = SettingsConfig.GetSettings(channel.GuildId);
+                                        // adjust the notification text to disable discord link parsing, if configured to do so
+                                        if (settings.DisableLinkParsing)
                                         {
-                                            return $"<{urlMatch.Captures[0]}>";
-                                        }));
-                                    }
+                                            notification.Text = UrlRegex.Replace(notification.Text, new MatchEvaluator((Match urlMatch) =>
+                                            {
+                                                return $"<{urlMatch.Captures[0]}>";
+                                            }));
+                                        }
 
-                                    try
-                                    {
-                                        if (settings.PreferEmbeds && notification.Embed != null)
+                                        try
                                         {
-                                            await channel.SendMessageAsync(((char)1).ToString(), false, notification.Embed.CreateEmbedBuilder());
+                                            if (settings.PreferEmbeds && notification.Embed != null)
+                                            {
+                                                await channel.SendMessageAsync(((char)1).ToString(), false, notification.Embed.CreateEmbedBuilder());
+                                            }
+                                            else
+                                            {
+                                                await channel.SendMessageAsync(notification.Text);
+                                            }
                                         }
-                                        else
+                                        catch (Exception ex)
                                         {
-                                            await channel.SendMessageAsync(notification.Text);
+                                            // somehow seeing 403s even if sendmessages is true?
+                                            Console.WriteLine(ex);
                                         }
                                     }
-                                    catch (Exception ex)
+                                    else
                                     {
-                                        // somehow seeing 403s even if sendmessages is true?
-                                        Console.WriteLine(ex);
+                                        await channel.Guild.SendOwnerDMAsync($"Permissions error detected for {channel.Guild.Name}: Notifications cannot be sent to {channel.Name}");
                                     }
                                 }
                             }

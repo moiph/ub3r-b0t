@@ -145,6 +145,16 @@
                 return null;
             });
 
+            Commands.Add("devoice", async (message) =>
+            {
+                if (message.Channel is IGuildChannel channel)
+                {
+                    await audioManager.LeaveAudioAsync(channel);
+                }
+
+                return null;
+            });
+
             Commands.Add("clear", async (message) =>
             {
                 if (message.Channel is IDMChannel)

@@ -2,6 +2,7 @@
 {
     using Discord;
     using Discord.Audio;
+    using Discord.Net;
     using Discord.WebSocket;
     using Flurl;
     using Flurl.Http;
@@ -84,7 +85,7 @@
         {
             this.isReady = true;
 
-            Task.Run(async () =>
+            /*Task.Run(async () =>
             {
                 await Task.Delay(10000);
                 foreach (var guildSetting in SettingsConfig.Instance.Settings)
@@ -107,7 +108,7 @@
                         }
                     }
                 }
-            }).Forget();
+            }).Forget();*/
 
             return Task.CompletedTask;
         }
@@ -259,7 +260,7 @@
                         }
                         else
                         {
-                            await (await (await guildUserBefore.Guild.GetOwnerAsync()).CreateDMChannelAsync()).SendMessageAsync($"Permissions error detected for {guildUserBefore.Guild.Name} on user role updates: Can't send messages to configured mod logging channel.");
+                            await guildUserBefore.Guild.SendOwnerDMAsync($"Permissions error detected for {guildUserBefore.Guild.Name} on user role updates: Can't send messages to configured mod logging channel.");
                         }
                     }
                 }
@@ -295,7 +296,7 @@
                         }
                         else
                         {
-                            await (await (await guildUserBefore.Guild.GetOwnerAsync()).CreateDMChannelAsync()).SendMessageAsync($"Permissions error detected for {guildUserBefore.Guild.Name} on user name updates: Can't send messages to configured mod logging channel.");
+                            await guildUserBefore.Guild.SendOwnerDMAsync($"Permissions error detected for {guildUserBefore.Guild.Name} on user name updates: Can't send messages to configured mod logging channel.");
                         }
                     }
                 }
@@ -317,8 +318,7 @@
                 }
                 else
                 {
-                    var owner = await arg2.GetOwnerAsync(); // arg2.Owner;
-                    await (await owner.CreateDMChannelAsync()).SendMessageAsync($"Permissions error detected for {arg2.Name} on user bans: Can't send messages to configured mod logging channel.");
+                    await arg2.SendOwnerDMAsync($"Permissions error detected for {arg2.Name} on user bans: Can't send messages to configured mod logging channel.");
                 }
             }
         }
@@ -342,7 +342,7 @@
                         }
                         else
                         {
-                            await (await (await guildChannel.Guild.GetOwnerAsync()).CreateDMChannelAsync()).SendMessageAsync($"Permissions error detected for {guildChannel.Guild.Name} on message updates: Can't send messages to configured mod logging channel.");
+                            await guildChannel.Guild.SendOwnerDMAsync($"Permissions error detected for {guildChannel.Guild.Name} on message updates: Can't send messages to configured mod logging channel.");
                         }
                     }
                 }
@@ -395,8 +395,7 @@
                     }
                     else
                     {
-                        var ownerDMChannel = await (await guildChannel.Guild.GetOwnerAsync()).CreateDMChannelAsync();
-                        ownerDMChannel.SendMessageAsync($"Permissions error detected for {guildChannel.Guild.Name} on message deletes: Can't send messages to configured mod logging channel.").Forget();
+                        guildChannel.Guild.SendOwnerDMAsync($"Permissions error detected for {guildChannel.Guild.Name} on message deletes: Can't send messages to configured mod logging channel.").Forget();
                     }
                 }
             }
@@ -580,7 +579,7 @@
                         {
                             if (!string.IsNullOrEmpty(response))
                             {
-                                var sentMessage = await message.Channel.SendMessageAsync(response);
+                                var sentMessage = await message.Channel.SendMessageAsync(response.Substring(0, Math.Min(response.Length, 2000)));
                                 this.botResponsesCache.Add(message.Id, sentMessage);
                             }
                         }
@@ -636,22 +635,22 @@
                 }
                 else
                 {
-                    await (await (await farewellChannel.Guild.GetOwnerAsync()).CreateDMChannelAsync()).SendMessageAsync($"Permissions error detected for {farewellChannel.Guild.Name}: Can't send messages to configured farewell channel.");
+                    await farewellChannel.Guild.SendOwnerDMAsync($"Permissions error detected for {farewellChannel.Guild.Name}: Can't send messages to configured farewell channel.");
                 }
             }
 
             // mod log
             if (settings.Mod_LogId != 0 && settings.HasFlag(ModOptions.Mod_LogUserLeave))
             {
+                var botUser = arg.Guild.CurrentUser;
                 string leaveText = $"{arg.Username}#{arg.Discriminator} left.";
-                if (this.client.GetChannel(settings.Mod_LogId) is ITextChannel modLogChannel && arg.Guild.CurrentUser.GetPermissions(modLogChannel).SendMessages)
+                if (this.client.GetChannel(settings.Mod_LogId) is ITextChannel modLogChannel && botUser != null && botUser.GetPermissions(modLogChannel).SendMessages)
                 {
                     await modLogChannel.SendMessageAsync(leaveText);
                 }
                 else
                 {
-                    var owner = await arg.Guild.GetOwnerAsync();
-                    await (await owner.CreateDMChannelAsync()).SendMessageAsync($"Permissions error detected for {arg.Guild.Name} on user leave: Can't send messages to configured mod logging channel.");
+                    await arg.Guild.SendOwnerDMAsync($"Permissions error detected for {arg.Guild.Name} on user leave: Can't send messages to configured mod logging channel.");
                 }
             }
         }
@@ -667,7 +666,7 @@
                 greeting = channelRegex.Replace(greeting, new MatchEvaluator((Match chanMatch) =>
                 {
                     string channelName = chanMatch.Groups[1].Value;
-                    var channel = arg.Guild.Channels.Where(c => c.Name.Equals(channelName, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+                    var channel = arg.Guild.Channels.Where(c => c is ITextChannel && c.Name.Equals(channelName, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
 
                     if (channel != null)
                     {
@@ -685,7 +684,7 @@
                 }
                 else
                 {
-                    await (await (await greetingChannel.Guild.GetOwnerAsync()).CreateDMChannelAsync()).SendMessageAsync($"Permissions error detected for {greetingChannel.Guild.Name}: Can't send messages to configured greeting channel.");
+                    await greetingChannel.Guild.SendOwnerDMAsync($"Permissions error detected for {greetingChannel.Guild.Name}: Can't send messages to configured greeting channel.");
                 }
             }
 
@@ -694,7 +693,14 @@
                 var role = arg.Guild.GetRole(settings.JoinRoleId);
                 if (role != null)
                 {
-                    await arg.AddRolesAsync(role);
+                    try
+                    {
+                        await arg.AddRolesAsync(role);
+                    }
+                    catch (HttpException ex) when (ex.StatusCode == HttpStatusCode.Forbidden)
+                    {
+                        await arg.Guild.SendOwnerDMAsync($"Permissions error detected for {arg.Guild.Name}: Auto role add on user joined failed, role `{role.Name}` is higher in order than my role");
+                    }
                 }
             }
 
@@ -708,8 +714,7 @@
                 }
                 else
                 {
-                    var owner = await arg.Guild.GetOwnerAsync();
-                    await (await owner.CreateDMChannelAsync()).SendMessageAsync($"Permissions error detected for {arg.Guild.Name} on user join: Can't send messages to configured mod logging channel.");
+                    await arg.Guild.SendOwnerDMAsync($"Permissions error detected for {arg.Guild.Name} on user join: Can't send messages to configured mod logging channel.");
                 }
             }
         }

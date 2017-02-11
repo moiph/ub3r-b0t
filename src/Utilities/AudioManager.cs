@@ -5,11 +5,13 @@
     using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Diagnostics;
+    using System.IO;
     using System.Threading.Tasks;
 
     public class AudioManager : IDisposable
     {
         private ConcurrentDictionary<ulong, AudioInstance> audioInstances = new ConcurrentDictionary<ulong, AudioInstance>();
+        private ConcurrentDictionary<string, byte[]> audioBytes = new ConcurrentDictionary<string, byte[]>();
 
         public async Task JoinAudioAsync(IVoiceChannel voiceChannel)
         {
@@ -152,39 +154,64 @@
 
         private async Task SendAudioAsyncInternalAsync(AudioInstance audioInstance, string filePath)
         {
-            var filename = System.IO.Path.GetFileName(filePath);
-            Console.WriteLine($"[audio] [{filename}] sendaudio begin");
+            var filename = Path.GetFileName(filePath);
 
-            var p = Process.Start(new ProcessStartInfo
+            Process p = null;
+            if (!audioBytes.ContainsKey(filename))
             {
-                FileName = "c:\\audio\\ffmpeg",
-                Arguments = $"-i {filePath} -f s16le -ar 48000 -ac 2 pipe:1 -loglevel error",
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-            });
+                Console.WriteLine($"[audio] [{filename}] reading data");
+                p = Process.Start(new ProcessStartInfo
+                {
+                    FileName = "c:\\audio\\ffmpeg",
+                    Arguments = $"-i {filePath} -f s16le -ar 48000 -ac 2 pipe:1 -loglevel error",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                });
+            }
+            else
+            {
+                Console.WriteLine($"[audio] [{filename}] using cached bytes");
+            }
 
             await audioInstance.streamLock.WaitAsync();
-            Console.WriteLine($"[audio] [{filename}] inside audio lock");
+
             try
             {
                 if (audioInstance.Stream != null)
                 {
-                    await p.StandardOutput.BaseStream.CopyToAsync(audioInstance.Stream);
-                    Console.WriteLine($"[audio] [{filename}] stream copied");
-                    p.WaitForExit();
-                    Console.WriteLine($"[audio] [{filename}] process exit");
+                    if (p != null)
+                    {
+                        using (var memoryStream = new MemoryStream())
+                        {
+                            await p.StandardOutput.BaseStream.CopyToAsync(memoryStream);
+                            byte[] data;
+                            using (var binaryReader = new BinaryReader(memoryStream))
+                            {
+                                binaryReader.BaseStream.Position = 0;
+                                data = binaryReader.ReadBytes((int)memoryStream.Length);
+                            }
+
+                            if (!audioBytes.ContainsKey(filename))
+                            {
+                                audioBytes[filename] = AdjustVolume(data, .8f);
+                            }
+                        }
+                    }
+
+                    using (var memoryStream = new MemoryStream(audioBytes[filename]))
+                    { 
+                        await memoryStream.CopyToAsync(audioInstance.Stream);
+                    }
+
+                    p?.WaitForExit();
                     var flushTask = audioInstance.Stream.FlushAsync();
                     var timeoutTask = Task.Delay(8000);
+
                     if (await Task.WhenAny(flushTask, timeoutTask) == timeoutTask)
                     {
                         Console.WriteLine($"[audio] [{filename}] timeout occurred");
                         throw new TimeoutException();
                     }
-                    Console.WriteLine($"[audio] [{filename}] stream flushed");
-                }
-                else
-                {
-                    Console.WriteLine($"[audio] [{filename}] stream was null, skipped.");
                 }
             }
             catch (Exception ex)
@@ -198,16 +225,30 @@
             {
                 if (audioInstance != null && !audioInstance.isDisposed)
                 {
-                    Console.WriteLine($"[audio] [{filename}] lock released");
                     audioInstance?.streamLock?.Release();
                 }
-                else
-                {
-                    Console.WriteLine($"[audio] [{filename}] audio already disposed");
-                }
+            }
+        }
+
+        private static byte[] AdjustVolume(byte[] audioSamples, float volume)
+        {
+            var array = new byte[audioSamples.Length];
+            for (var i = 0; i < array.Length; i += 2)
+            {
+                short buf1 = audioSamples[i + 1];
+                short buf2 = audioSamples[i];
+
+                buf1 = (short)((buf1 & 0xff) << 8);
+                buf2 = (short)(buf2 & 0xff);
+
+                var res = (short)(buf1 | buf2);
+                res = (short)(res * volume);
+
+                array[i] = (byte)res;
+                array[i + 1] = (byte)(res >> 8);
             }
 
-            Console.WriteLine($"[audio] [{filename}] sendaudio end");
+            return array;
         }
 
         public void Dispose() => Dispose(true);
