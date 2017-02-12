@@ -408,6 +408,10 @@
             // Ignore system and our own messages.
             var message = socketMessage as SocketUserMessage;
             bool isOutbound = false;
+
+            // replicate to webhook, if configured
+            this.CallOutgoingWebhookAsync(message).Forget();
+
             if (message == null || (isOutbound = message.Author.Id == client.CurrentUser.Id))
             {
                 if (isOutbound)
@@ -588,6 +592,30 @@
                 finally
                 {
                     typingState?.Dispose();
+                }
+            }
+        }
+
+        private async Task CallOutgoingWebhookAsync(SocketUserMessage message)
+        {
+            if (message != null && this.Config.Discord.OutgoingWebhooks.TryGetValue(message.Channel.Id, out var webhook))
+            {
+                if (!message.Author.IsBot || message.Author.Username != webhook.UserName)
+                {
+                    try
+                    {
+                        var text = $"<{message.Author.Username}> {message.Content}";
+                        if (message.MentionedUsers.Any(u => u.Id == webhook.MentionUserId))
+                        {
+                            text += webhook.MentionText;
+                        }
+
+                        var result = await webhook.Endpoint.ToString().PostJsonAsync(new { text = text, username = message.Author.Username });
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Outgoing webhook failed {ex}");
+                    }
                 }
             }
         }

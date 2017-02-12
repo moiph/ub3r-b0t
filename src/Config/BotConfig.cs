@@ -72,6 +72,19 @@
         /// Key for statistics on https://bots.discordlist.net/
         /// </summary>
         public string DiscordListKey { get; set; }
+
+        /// <summary>
+        /// Outgoing webhooks, to send messages for particular channels to...wherever
+        /// </summary>
+        public Dictionary<ulong, OutgoingWebhook> OutgoingWebhooks { get; set; } = new Dictionary<ulong, OutgoingWebhook>();
+    }
+
+    public class OutgoingWebhook
+    {
+        public Uri Endpoint { get; set; }
+        public string UserName { get; set; }
+        public ulong MentionUserId { get; set; }
+        public string MentionText { get; set; }
     }
 
     public class Irc
