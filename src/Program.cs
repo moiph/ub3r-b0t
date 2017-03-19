@@ -5,6 +5,7 @@
     using Microsoft.AspNetCore.Hosting;
     using Microsoft.Extensions.Logging;
     using System;
+    using System.Linq;
     using System.Runtime.InteropServices;
 
     class Program
@@ -32,12 +33,22 @@
         {
             app.Run(async context =>
             {
-                var response = $"Online{Environment.NewLine}";
+                string response = string.Empty;
+                if (context.Request.Query["guilds"] == "1" && BotInstance != null)
+                {
+                    response = string.Join($",{Environment.NewLine}", BotInstance.client.Guilds.Select(g => g.Id));
+                }
+                else
+                {
+                    response = $"Online{Environment.NewLine}";
+                }
                 context.Response.ContentLength = response.Length;
                 context.Response.ContentType = "text/plain";
                 await context.Response.WriteAsync(response);
             });
         }
+
+        static Bot BotInstance;
 
         static void Main(string[] args)
         {
@@ -87,6 +98,7 @@
                 {
                     using (var bot = new Bot(botType, shard, instanceCount))
                     {
+                        BotInstance = bot;
                         // Handle clean shutdown when possible
                         SetConsoleCtrlHandler((ctrlType) =>
                         {

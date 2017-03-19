@@ -54,6 +54,7 @@
             client.GuildMemberUpdated += Client_GuildMemberUpdatedAsync;
             client.UserVoiceStateUpdated += Client_UserVoiceStateUpdatedAsync;
             client.Ready += Client_Ready;
+            client.Disconnected += Client_Disconnected;
 
             audioManager = new AudioManager();
             discordCommands = new DiscordCommands(client, audioManager, this.BotApi);
@@ -79,6 +80,12 @@
             {
                 statsTimer = new Timer(StatsTimerAsync, null, 3600000, 3600000);
             }
+        }
+
+        private Task Client_Disconnected(Exception arg)
+        {
+            this.isReady = false;
+            return Task.CompletedTask;
         }
 
         private Task Client_Ready()
@@ -191,11 +198,33 @@
                     await Task.Delay(1000);
                 }
 
-                await this.audioManager.SendAudioAsync(guildUser, arg3.VoiceChannel, VoicePhraseType.UserJoin);
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        await this.audioManager.SendAudioAsync(guildUser, arg3.VoiceChannel, VoicePhraseType.UserJoin);
+                    }
+                    catch (Exception ex)
+                    {
+                        // TODO: proper logging
+                        Console.WriteLine(ex);
+                    }
+                }).Forget();
             }
             else if (arg2.VoiceChannel != arg3.VoiceChannel && arg2.VoiceChannel == botGuildUser.VoiceChannel)
             {
-                await this.audioManager.SendAudioAsync(guildUser, arg2.VoiceChannel, VoicePhraseType.UserLeave);
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        await this.audioManager.SendAudioAsync(guildUser, arg2.VoiceChannel, VoicePhraseType.UserLeave);
+                    }
+                    catch (Exception ex)
+                    {
+                        // TODO: proper logging
+                        Console.WriteLine(ex);
+                    }
+                }).Forget();
             }
         }
 
@@ -205,8 +234,10 @@
             {
                 this.AppInsights?.TrackEvent("serverJoin");
 
-                var defaultChannel = await arg.GetDefaultChannelAsync(); // arg.DefaultChannel;
-                var owner = await arg.GetOwnerAsync(); // arg.Owner;
+                //var defaultChannel = await arg.GetDefaultChannelAsync(); // arg.DefaultChannel;
+                var defaultChannel = arg.DefaultChannel;
+                //var owner = await arg.GetOwnerAsync(); // arg.Owner;
+                var owner = arg.Owner;
                 if (arg.CurrentUser != null && arg.CurrentUser.GetPermissions(defaultChannel).SendMessages)
                 {
                     await defaultChannel.SendMessageAsync($"(HELLO, I AM UB3R-B0T! .halp for info. {owner.Mention} you're the kickass owner-- you can use .admin to configure some stuff.)");
@@ -630,7 +661,18 @@
                 await req.GetResponseAsync();
             }
 
-            await audioManager.LeaveAudioAsync(arg.Id);
+            Task.Run(async () =>
+            {
+                try
+                {
+                    await audioManager.LeaveAudioAsync(arg.Id);
+                }
+                catch (Exception ex)
+                {
+                    // TODO: proper logging
+                    Console.WriteLine(ex);
+                }
+            }).Forget();
         }
 
         private async Task Discord_UserLeftAsync(SocketGuildUser arg)
@@ -654,7 +696,7 @@
                     return channelName;
                 }));
 
-                var farewellChannel = this.client.GetChannel(settings.FarewellId) as ITextChannel ?? await arg.Guild.GetDefaultChannelAsync();
+                var farewellChannel = this.client.GetChannel(settings.FarewellId) as ITextChannel ?? arg.Guild.DefaultChannel;
                 var botUser = (farewellChannel.Guild as SocketGuild).CurrentUser;
 
                 if (botUser != null && botUser.GetPermissions(farewellChannel).SendMessages)
@@ -704,7 +746,7 @@
                     return channelName;
                 }));
 
-                var greetingChannel = this.client.GetChannel(settings.GreetingId) as ITextChannel ?? await arg.Guild.GetDefaultChannelAsync();
+                var greetingChannel = this.client.GetChannel(settings.GreetingId) as ITextChannel ?? arg.Guild.DefaultChannel;
                 var botUser = (greetingChannel.Guild as SocketGuild).CurrentUser;
                 if (botUser != null && botUser.GetPermissions(greetingChannel).SendMessages)
                 {
@@ -725,7 +767,7 @@
                     {
                         await arg.AddRolesAsync(role);
                     }
-                    catch (HttpException ex) when (ex.StatusCode == HttpStatusCode.Forbidden)
+                    catch (HttpException ex) when (ex.HttpCode == HttpStatusCode.Forbidden)
                     {
                         await arg.Guild.SendOwnerDMAsync($"Permissions error detected for {arg.Guild.Name}: Auto role add on user joined failed, role `{role.Name}` is higher in order than my role");
                     }

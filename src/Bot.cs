@@ -24,7 +24,7 @@
 
         private IWebHost listenerHost;
 
-        private DiscordSocketClient client;
+        public  DiscordSocketClient client;
         private Dictionary<string, IrcClient> ircClients;
         private static long startTime;
 
@@ -127,7 +127,7 @@
                 await Task.Delay(10000);
             }
 
-            await this.ShutdownAsync();
+            await this.ShutdownAsync(true);
             consoleLogger.Log(LogType.Info, "Exited.");
             return this.exitCode;
         }
@@ -333,7 +333,7 @@
                 {
                     this.missedHeartbeats++;
 
-                    if (missedHeartbeats >= 5)
+                    if (missedHeartbeats >= 3)
                     {
                         this.missedHeartbeats = 0;
                         this.exitCode = 1;
@@ -388,77 +388,92 @@
                         {
                             // Pending support
                         }
-                        else if (this.client != null)
+                        else if (this.client != null && this.client.ConnectionState == ConnectionState.Connected)
                         {
-                            if (this.client.GetChannel(Convert.ToUInt64(notification.Channel)) is ITextChannel channel)
+                            try
                             {
-                                notificationsToDelete.Add(notification.Id);
-
-                                if (!string.IsNullOrEmpty(notification.Text) || notification.Embed != null)
+                                if (this.client.GetChannel(Convert.ToUInt64(notification.Channel)) is ITextChannel channel)
                                 {
-                                    if ((channel.Guild as SocketGuild).CurrentUser.GetPermissions(channel).SendMessages)
-                                    {
-                                        var settings = SettingsConfig.GetSettings(channel.GuildId);
-                                        // adjust the notification text to disable discord link parsing, if configured to do so
-                                        if (settings.DisableLinkParsing)
-                                        {
-                                            notification.Text = UrlRegex.Replace(notification.Text, new MatchEvaluator((Match urlMatch) =>
-                                            {
-                                                return $"<{urlMatch.Captures[0]}>";
-                                            }));
-                                        }
+                                    notificationsToDelete.Add(notification.Id);
 
-                                        try
+                                    if (!string.IsNullOrEmpty(notification.Text) || notification.Embed != null)
+                                    {
+                                        if ((channel.Guild as SocketGuild).CurrentUser.GetPermissions(channel).SendMessages)
                                         {
-                                            if (settings.PreferEmbeds && notification.Embed != null)
+                                            var settings = SettingsConfig.GetSettings(channel.GuildId);
+                                            // adjust the notification text to disable discord link parsing, if configured to do so
+                                            if (settings.DisableLinkParsing)
                                             {
-                                                await channel.SendMessageAsync(((char)1).ToString(), false, notification.Embed.CreateEmbedBuilder());
+                                                notification.Text = UrlRegex.Replace(notification.Text, new MatchEvaluator((Match urlMatch) =>
+                                                {
+                                                    return $"<{urlMatch.Captures[0]}>";
+                                                }));
                                             }
-                                            else
+
+                                            try
                                             {
-                                                await channel.SendMessageAsync(notification.Text);
+                                                if (settings.PreferEmbeds && notification.Embed != null)
+                                                {
+                                                    await channel.SendMessageAsync(((char)1).ToString(), false, notification.Embed.CreateEmbedBuilder());
+                                                }
+                                                else
+                                                {
+                                                    await channel.SendMessageAsync(notification.Text);
+                                                }
+                                            }
+                                            catch (Exception ex)
+                                            {
+                                                // somehow seeing 403s even if sendmessages is true?
+                                                Console.WriteLine(ex);
                                             }
                                         }
-                                        catch (Exception ex)
+                                        else
                                         {
-                                            // somehow seeing 403s even if sendmessages is true?
-                                            Console.WriteLine(ex);
+                                            try
+                                            {
+                                                await channel.Guild.SendOwnerDMAsync($"Permissions error detected for {channel.Guild.Name}: Notifications cannot be sent to {channel.Name}");
+                                            }
+                                            catch (Exception ex)
+                                            {
+                                                // somehow seeing 403s even if sendmessages is true?
+                                                Console.WriteLine(ex);
+                                            }
                                         }
                                     }
-                                    else
+                                }
+                                else if (this.client.GetGuild(Convert.ToUInt64(notification.Server)) is IGuild guild)
+                                {
+                                    notificationsToDelete.Add(notification.Id);
+
+                                    if (!string.IsNullOrEmpty(notification.Text))
                                     {
-                                        await channel.Guild.SendOwnerDMAsync($"Permissions error detected for {channel.Guild.Name}: Notifications cannot be sent to {channel.Name}");
+                                        var defaultChannel = await guild.GetDefaultChannelAsync();
+                                        var botGuildUser = await defaultChannel.GetUserAsync(this.client.CurrentUser.Id);
+                                        if ((defaultChannel.Guild as SocketGuild).CurrentUser.GetPermissions(defaultChannel).SendMessages)
+                                        {
+                                            try
+                                            {
+                                                defaultChannel?.SendMessageAsync($"(Configured notification channel no longer exists, please fix it in the settings!) {notification.Text}");
+                                            }
+                                            catch (Exception ex)
+                                            {
+                                                // somehow seeing 403s even if sendmessages is true?
+                                                Console.WriteLine(ex);
+                                            }
+                                        }
                                     }
                                 }
                             }
-                            else if (this.client.GetGuild(Convert.ToUInt64(notification.Server)) is IGuild guild)
+                            catch (NullReferenceException)
                             {
-                                notificationsToDelete.Add(notification.Id);
-
-                                if (!string.IsNullOrEmpty(notification.Text))
-                                {
-                                    var defaultChannel = await guild.GetDefaultChannelAsync();
-                                    var botGuildUser = await defaultChannel.GetUserAsync(this.client.CurrentUser.Id);
-                                    if ((defaultChannel.Guild as SocketGuild).CurrentUser.GetPermissions(defaultChannel).SendMessages)
-                                    {
-                                        try
-                                        {
-                                            defaultChannel?.SendMessageAsync($"(Configured notification channel no longer exists, please fix it in the settings!) {notification.Text}");
-                                        }
-                                        catch (Exception ex)
-                                        {
-                                            // somehow seeing 403s even if sendmessages is true?
-                                            Console.WriteLine(ex);
-                                        } 
-                                    }
-                                }
+                                // TODO: Fix the nullref, something's funky with client state when reconnecting
                             }
                         }
                     }
 
                     if (notificationsToDelete.Count > 0)
                     {
-                        await Utilities.GetApiResponseAsync<object>(new Uri(CommandsConfig.Instance.NotificationsEndpoint.ToString() + "?ids=" + string.Join(",", notificationsToDelete)));
+                        await CommandsConfig.Instance.NotificationsEndpoint.ToString().PostJsonAsync(new { ids = string.Join(",", notificationsToDelete)});
                     }
                 }
             }
@@ -532,7 +547,8 @@
         /// <summary>
         ///  Handles shutdown tasks
         /// </summary>
-        public async Task ShutdownAsync()
+        /// <param name="unexpected">When true, we'll bypass audio goodbyes</param>
+        public async Task ShutdownAsync(bool unexpected = false)
         {
             if (!this.isShuttingDown)
             {
@@ -540,9 +556,13 @@
                 if (this.botType == BotType.Discord)
                 {
                     // explicitly leave all audio channels so that we can say goodbye
-                    var audioTask = this.audioManager?.LeaveAllAudioAsync();
-                    var timeoutTask = Task.Delay(15000);
-                    await Task.WhenAny(audioTask, timeoutTask);
+                    if (!unexpected)
+                    {
+                        var audioTask = this.audioManager?.LeaveAllAudioAsync();
+                        var timeoutTask = Task.Delay(15000);
+                        await Task.WhenAny(audioTask, timeoutTask);
+                    }
+
                     this.client.DisconnectAsync().Forget(); // awaiting this likes to hang
                     await Task.Delay(5000);
                 }
@@ -696,6 +716,7 @@
 
         public void Dispose(bool disposing)
         {
+            Console.WriteLine("dispose start");
             settingsUpdateTimer?.Dispose();
             packagesTimer?.Dispose();
             remindersTimer?.Dispose();
@@ -703,8 +724,11 @@
             statsTimer?.Dispose();
             notificationsTimer?.Dispose();
             listenerHost?.Dispose();
+            Console.WriteLine("disposing of client");
             this.client?.Dispose();
+            Console.WriteLine("disposing of audio manger");
             audioManager?.Dispose();
+            Console.WriteLine("dispose end");
         }
     }
 }

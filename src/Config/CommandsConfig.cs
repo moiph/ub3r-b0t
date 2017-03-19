@@ -7,7 +7,7 @@
     {
         protected override string FileName => "commandsconfig.json";
 
-        public Dictionary<string, string> Commands { get; set; }
+        public Dictionary<string, string> Commands { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         public Uri RemindersEndpoint { get; set; }
 

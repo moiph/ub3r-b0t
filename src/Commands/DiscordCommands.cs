@@ -93,18 +93,29 @@
 
                 var dataSb = new StringBuilder();
                 dataSb.Append("```cs\n" +
-                   "type       shard   server count    users   voice count\n");
+                   "type       shard   server count      users   voice count\n");
 
+                int serverTotal = 0;
+                int userTotal = 0;
+                int voiceTotal = 0;
                 foreach (HeartbeatData heartbeat in serversStatus)
                 {
+                    serverTotal += heartbeat.ServerCount;
+                    userTotal += heartbeat.UserCount;
+                    voiceTotal += heartbeat.VoiceChannelCount;
+
                     var botType = heartbeat.BotType.PadRight(11);
                     var shard = heartbeat.Shard.ToString().PadLeft(4);
                     var servers = heartbeat.ServerCount.ToString().PadLeft(13);
-                    var users = heartbeat.UserCount.ToString().PadLeft(8);
+                    var users = heartbeat.UserCount.ToString().PadLeft(10);
                     var voice = heartbeat.VoiceChannelCount.ToString().PadLeft(13);
 
                     dataSb.Append($"{botType} {shard}  {servers} {users} {voice}\n");
                 }
+
+                // add up totals
+                dataSb.Append($"-------\n");
+                dataSb.Append($"Total:            {serverTotal.ToString().PadLeft(13)} {userTotal.ToString().PadLeft(10)} {voiceTotal.ToString().PadLeft(13)}\n");
 
                 dataSb.Append("```");
 
@@ -139,7 +150,18 @@
             {
                 if (message.Channel is IGuildChannel channel)
                 {
-                    await audioManager.LeaveAudioAsync(channel);
+                    Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await audioManager.LeaveAudioAsync(channel);
+                        }
+                        catch (Exception ex)
+                        {
+                            // TODO: proper logging
+                            Console.WriteLine(ex);
+                        }
+                    }).Forget();
                 }
 
                 return null;
@@ -149,7 +171,18 @@
             {
                 if (message.Channel is IGuildChannel channel)
                 {
-                    await audioManager.LeaveAudioAsync(channel);
+                    Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await audioManager.LeaveAudioAsync(channel);
+                        }
+                        catch (Exception ex)
+                        {
+                            // TODO: proper logging
+                            Console.WriteLine(ex);
+                        }
+                    }).Forget();
                 }
 
                 return null;
@@ -213,12 +246,15 @@
                         count = Math.Min(100, count);
                     }
 
+                    var minimum = Utilities.ToSnowflake(DateTimeOffset.Now.Subtract(TimeSpan.FromMilliseconds(1209540000)));
                     // download messages until we've hit the limit
                     var msgsToDelete = new List<IMessage>();
                     var msgsToDeleteCount = 0;
                     ulong? lastMsgId = null;
+                    var i = 0;
                     while (msgsToDeleteCount < count)
                     {
+                        i++;
                         IEnumerable<IMessage> downloadedMsgs;
                         try
                         {
@@ -240,11 +276,17 @@
                         if (downloadedMsgs.Count() > 0)
                         {
                             lastMsgId = downloadedMsgs.Last().Id;
-                            var msgs = downloadedMsgs.Where(m => deletionUser == null || m.Author?.Id == deletionUser.Id).Take(count - msgsToDeleteCount);
+                            
+                            var msgs = downloadedMsgs.Where(m => (deletionUser == null || m.Author?.Id == deletionUser.Id)).Take(count - msgsToDeleteCount);
                             msgsToDeleteCount += msgs.Count();
                             msgsToDelete.AddRange(msgs);
                         }
                         else
+                        {
+                            break;
+                        }
+
+                        if (i >= 5)
                         {
                             break;
                         }

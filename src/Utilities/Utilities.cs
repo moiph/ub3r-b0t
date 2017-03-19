@@ -30,6 +30,14 @@ namespace UB3RB0T
             return new Uri(QueryHelpers.AddQueryString(uri.ToString(), newQueryParams)); 
         }
 
+        public static ulong ToSnowflake(DateTimeOffset value)
+            => (ulong) (ToUnixMilliseconds(value) - 1420070400000L) << 22;
+
+        public static long ToUnixMilliseconds(DateTimeOffset dto)
+        {
+            return (dto.UtcDateTime.Ticks / TimeSpan.TicksPerMillisecond) - 62135596800;
+        }
+
         public static EmbedBuilder CreateEmbedBuilder(this EmbedData embedData)
         {
             var embedBuilder = new EmbedBuilder

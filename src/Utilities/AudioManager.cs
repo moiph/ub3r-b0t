@@ -26,6 +26,10 @@
                 audioInstance.Stream = audioInstance.AudioClient.CreatePCMStream(2880, bitrate: voiceChannel.Bitrate);
                 audioInstances[voiceChannel.GuildId] = audioInstance;
             }
+            else
+            {
+                Console.WriteLine($"Already in a voice channel for {voiceChannel.GuildId}");
+            }
 
             if (audioInstance.AudioClient.ConnectionState == ConnectionState.Connected)
             {
@@ -94,6 +98,10 @@
                 }
 
                 audioInstance.Dispose();
+            }
+            else
+            {
+                Console.WriteLine($"Not in a voice channel for {guildId}");
             }
         }
 
