@@ -10,10 +10,11 @@
 
     class Program
     {
-        enum ExitCode : int
+        public enum ExitCode : int
         {
             Success = 0,
             UnexpectedError = 1,
+            ExpectedShutdown = 2,
         }
 
         public enum CtrlType
@@ -115,8 +116,9 @@
                 }
 
                 instanceCount++;
-            } while (exitCode != (int)ExitCode.Success); // re-create the bot on failures.  Only exit if a clean shutdown occurs.
+            } while (exitCode == (int)ExitCode.UnexpectedError); // re-create the bot on failures.  Only exit if a clean shutdown occurs.
 
+            Console.WriteLine("Game over man, game over!");
             Console.ReadLine();
         }
     }

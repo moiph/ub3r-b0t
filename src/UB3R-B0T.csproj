@@ -8,6 +8,7 @@
   <PropertyGroup>
     <OutputType>exe</OutputType>
     <TargetFramework>netcoreapp1.0</TargetFramework>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <DebugType>pdbonly</DebugType>
@@ -15,6 +16,11 @@
   <ItemGroup>
     <Compile Include="**\*.cs" />
     <EmbeddedResource Include="**\*.resx" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="obj\**" />
+    <EmbeddedResource Remove="obj\**" />
+    <None Remove="obj\**" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Config\botconfig.json">
@@ -32,7 +38,7 @@
     <Content Include="ub3rb0t.ico" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Discord.Net.WebSocket" Version="1.0.0-rc-00592" />
+    <PackageReference Include="Discord.Net.WebSocket" Version="1.0.0-rc-00655" />
     <PackageReference Include="Flurl.Http" Version="1.1.1" />
     <PackageReference Include="Microsoft.ApplicationInsights" Version="2.3.0-beta1" />
     <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel" Version="1.1.0" />

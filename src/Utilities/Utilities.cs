@@ -67,16 +67,19 @@ namespace UB3RB0T
                 };
             }
 
-            foreach (var embedField in embedData.EmbedFields)
+            if (embedData.EmbedFields != null)
             {
-                if (!string.IsNullOrEmpty(embedField.Name) && !string.IsNullOrEmpty(embedField.Value))
+                foreach (var embedField in embedData.EmbedFields)
                 {
-                    embedBuilder.AddField((field) =>
+                    if (!string.IsNullOrEmpty(embedField.Name) && !string.IsNullOrEmpty(embedField.Value))
                     {
-                        field.IsInline = embedField.IsInline;
-                        field.Name = embedField.Name;
-                        field.Value = embedField.Value;
-                    });
+                        embedBuilder.AddField((field) =>
+                        {
+                            field.IsInline = embedField.IsInline;
+                            field.Name = embedField.Name;
+                            field.Value = embedField.Value;
+                        });
+                    }
                 }
             }
 

@@ -23,7 +23,8 @@
                     GuildId = voiceChannel.GuildId,
                     AudioClient = await voiceChannel.ConnectAsync().ConfigureAwait(false)
                 };
-                audioInstance.Stream = audioInstance.AudioClient.CreatePCMStream(2880, bitrate: voiceChannel.Bitrate);
+
+                audioInstance.Stream = audioInstance.AudioClient.CreatePCMStream(Discord.Audio.AudioApplication.Voice, 2880, bitrate: voiceChannel.Bitrate);
                 audioInstances[voiceChannel.GuildId] = audioInstance;
             }
             else
@@ -31,14 +32,16 @@
                 Console.WriteLine($"Already in a voice channel for {voiceChannel.GuildId}");
             }
 
-            if (audioInstance.AudioClient.ConnectionState == ConnectionState.Connected)
+            if (audioInstance.AudioClient.ConnectionState == ConnectionState.Connected && audioInstance.Stream.CanWrite)
             {
+                await Task.Delay(1000);
                 this.SendAudioAsync(audioInstance, PhrasesConfig.Instance.GetVoiceFileNames(VoicePhraseType.BotJoin).Random());
             }
             else
             {
                 audioInstance.AudioClient.Connected += async () =>
                 {
+                    await Task.Delay(1000);
                     this.SendAudioAsync(audioInstance, PhrasesConfig.Instance.GetVoiceFileNames(VoicePhraseType.BotJoin).Random());
                     await Task.CompletedTask;
                 };
@@ -89,7 +92,7 @@
 
                 try
                 {
-                    await audioInstance.AudioClient.DisconnectAsync();
+                    await audioInstance.AudioClient.StopAsync();
                 }
                 catch (Exception ex)
                 {
@@ -152,10 +155,13 @@
             {
                 // TODO: proper logging
                 Console.WriteLine(ex);
-                audioInstances.TryRemove(audioInstance.GuildId, out AudioInstance oldInstance);
-                if (!oldInstance.isDisposed)
+                if (audioInstance != null)
                 {
-                    oldInstance.Dispose();
+                    audioInstances.TryRemove(audioInstance.GuildId, out AudioInstance oldInstance);
+                    if (oldInstance != null && !oldInstance.isDisposed)
+                    {
+                        oldInstance.Dispose();
+                    }
                 }
             }
         }

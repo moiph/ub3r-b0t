@@ -17,22 +17,30 @@
 
         public MessageCache()
         {
-            _size = 500;
+            _size = 1000;
             _messages = new ConcurrentDictionary<ulong, IMessage>(DefaultConcurrencyLevel, (int)(_size * 1.05));
             _orderedMessages = new ConcurrentQueue<ulong>();
         }
 
         public void Add(ulong id, IMessage message)
         {
-            if (_messages.TryAdd(id, message))
+            if (message != null)
             {
-                _orderedMessages.Enqueue(id);
-
-                while (_orderedMessages.Count > _size && _orderedMessages.TryDequeue(out ulong msgId))
+                if (_messages.TryAdd(id, message))
                 {
-                    _messages.TryRemove(msgId, out var msg);
+                    _orderedMessages.Enqueue(id);
+
+                    while (_orderedMessages.Count > _size && _orderedMessages.TryDequeue(out ulong msgId))
+                    {
+                        _messages.TryRemove(msgId, out var msg);
+                    }
                 }
             }
+        }
+
+        public IMessage Get(ulong id)
+        {
+            return _messages.ContainsKey(id) ? _messages[id] : null;
         }
 
         public IMessage Remove(ulong id)

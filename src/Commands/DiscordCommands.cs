@@ -17,28 +17,36 @@
 
     public class DiscordCommands
     {
-        public Dictionary<string, Func<SocketUserMessage, Task<IMessage>>> Commands { get; private set; }
+        public Dictionary<string, Func<SocketUserMessage, Task<CommandResponse>>> Commands { get; private set; }
         private DiscordSocketClient client;
         private AudioManager audioManager;
         private BotApi botApi;
 
         private ScriptOptions scriptOptions;
 
+        public class CommandResponse
+        {
+            public string Text { get; set; }
+            public Embed Embed { get; set; }
+        }
+
         // TODO:
         // this is icky
+        // it's getting worse...TODO: read the above todo and fix it
         internal DiscordCommands(DiscordSocketClient client, AudioManager audioManager, BotApi botApi)
         {
             this.client = client;
             this.audioManager = audioManager;
             this.botApi = botApi;
-            this.Commands = new Dictionary<string, Func<SocketUserMessage, Task<IMessage>>>();
+            this.Commands = new Dictionary<string, Func<SocketUserMessage, Task<CommandResponse>>>();
 
             this.CreateScriptOptions();
 
-            Commands.Add("debug", async (message) =>
+            Commands.Add("debug", (message) =>
             {
                 var serverId = (message.Channel as IGuildChannel)?.GuildId.ToString() ?? "n/a";
-                return await message.Channel.SendMessageAsync($"```Server ID: {serverId} | Channel ID: {message.Channel.Id} | Your ID: {message.Author.Id} | Shard ID: {message.Discord.ShardId} | Version: {DiscordSocketConfig.Version}```");
+                var response = new CommandResponse { Text = $"```Server ID: {serverId} | Channel ID: {message.Channel.Id} | Your ID: {message.Author.Id} | Shard ID: {message.Discord.ShardId} | Discord.NET Version: {DiscordSocketConfig.Version}```"};
+                return Task.FromResult(response);
             });
 
             Commands.Add("seen", async (message) =>
@@ -48,13 +56,13 @@
                     var settings = SettingsConfig.GetSettings(guildChannel.GuildId.ToString());
                     if (!settings.SeenEnabled)
                     {
-                        return await message.Channel.SendMessageAsync("Seen data is not being tracked for this server.  Enable it in the admin settings panel.");
+                        return new CommandResponse { Text = "Seen data is not being tracked for this server.  Enable it in the admin settings panel." };
                     }
 
                     string[] parts = message.Content.Split(new[] { ' ' }, 2);
                     if (parts.Length != 2)
                     {
-                        return await message.Channel.SendMessageAsync("Usage: .seen username");
+                        return new CommandResponse { Text = "Usage: .seen username" };
                     }
 
                     var targetUser = (await guildChannel.Guild.GetUsersAsync()).Find(parts[1]).FirstOrDefault();
@@ -62,12 +70,12 @@
                     {
                         if (targetUser.Id == message.Discord.CurrentUser.Id)
                         {
-                            return await message.Channel.SendMessageAsync($"I was last seen...wait...seriously? Ain't no one got time for your shit, {message.Author.Username}.");
+                            return new CommandResponse { Text = $"I was last seen...wait...seriously? Ain't no one got time for your shit, {message.Author.Username}." };
                         }
 
                         if (targetUser.Id == message.Author.Id)
                         {
-                            return await message.Channel.SendMessageAsync($"You were last seen now, saying: ... god DAMN it {message.Author.Username}, quit wasting my time");
+                            return new CommandResponse { Text = $"You were last seen now, saying: ... god DAMN it {message.Author.Username}, quit wasting my time" };
                         }
 
                         string query = $"seen {targetUser.Id} {targetUser.Username}";
@@ -77,11 +85,11 @@
 
                         if (response != null)
                         {
-                            return await message.Channel.SendMessageAsync(response);
+                            return new CommandResponse { Text = response };
                         }
                     }
 
-                    return await message.Channel.SendMessageAsync($"I...omg...I have not seen {parts[1]} in this channel :X I AM SOOOOOO SORRY");
+                    return new CommandResponse { Text = $"I...omg...I have not seen {parts[1]} in this channel :X I AM SOOOOOO SORRY" };
                 }
 
                 return null;
@@ -119,7 +127,7 @@
 
                 dataSb.Append("```");
 
-                return await message.Channel.SendMessageAsync(dataSb.ToString());
+                return new CommandResponse { Text = dataSb.ToString() };
             });
 
             Commands.Add("voice", async (message) =>
@@ -127,7 +135,7 @@
                 var channel = (message.Author as IGuildUser)?.VoiceChannel;
                 if (channel == null)
                 {
-                    return await message.Channel.SendMessageAsync("Join a voice channel first");
+                    return new CommandResponse { Text = "Join a voice channel first" };
                 }
 
                 Task.Run(async () =>
@@ -198,13 +206,13 @@
                 var guildUser = message.Author as IGuildUser;
                 if (!guildUser.GuildPermissions.ManageMessages)
                 {
-                    return await message.Channel.SendMessageAsync("you don't have permissions to clear messages, fartface");
+                    return new CommandResponse { Text = "you don't have permissions to clear messages, fartface" };
                 }
 
                 string[] parts = message.Content.Split(new[] { ' ' }, 3);
                 if (parts.Length != 2 && parts.Length != 3)
                 {
-                    return await message.Channel.SendMessageAsync("Usage: .clear #; Usage for user specific messages: .clear # username");
+                    return new CommandResponse { Text = "Usage: .clear #; Usage for user specific messages: .clear # username" };
                 }
 
                 IUser deletionUser = null;
@@ -222,7 +230,7 @@
 
                     if (deletionUser == null)
                     {
-                        return await message.Channel.SendMessageAsync("Couldn't find the specified user. Try their ID if nick matching is struggling");
+                        return new CommandResponse { Text = "Couldn't find the specified user. Try their ID if nick matching is struggling" };
                     }
                 }
 
@@ -231,7 +239,7 @@
 
                 if (!botOnly && !botGuildUser.GetPermissions(message.Channel as IGuildChannel).ManageMessages)
                 {
-                    return await message.Channel.SendMessageAsync("yeah I don't have the permissions to delete messages, buttwad.");
+                    return new CommandResponse { Text = "yeah I don't have the permissions to delete messages, buttwad." };
                 }
 
                 if (int.TryParse(parts[1], out int count))
@@ -297,7 +305,7 @@
                 }
                 else
                 {
-                    return await message.Channel.SendMessageAsync("Usage: .clear #");
+                    return new CommandResponse { Text = "Usage: .clear #" };
                 }
             });
 
@@ -318,7 +326,7 @@
 
                         if (targetUser == null)
                         {
-                            return await message.Channel.SendMessageAsync("User not found. Try a direct mention.");
+                            return new CommandResponse { Text = "User not found. Try a direct mention." };
                         }
                     }
                     else
@@ -326,7 +334,7 @@
                         targetUser = message.Author;
                     }
                 }
-                
+
                 var guildUser = targetUser as IGuildUser;
 
                 if (guildUser == null)
@@ -337,7 +345,7 @@
                 var embedBuilder = new EmbedBuilder
                 {
                     Title = $"UserInfo for {targetUser.Username}#{targetUser.Discriminator}",
-                    ThumbnailUrl = targetUser.AvatarUrl
+                    ThumbnailUrl = targetUser.GetAvatarUrl()
                 };
 
                 if (!string.IsNullOrEmpty(guildUser.Nickname))
@@ -384,7 +392,7 @@
                     field.Value = targetUser.Id.ToString();
                 });
 
-                return await message.Channel.SendMessageAsync(((char)1).ToString(), false, embedBuilder);
+                return new CommandResponse { Text = string.Empty, Embed = embedBuilder };
             });
 
             Commands.Add("roll", RollAsync);
@@ -400,7 +408,7 @@
                         try
                         {
                             await req.GetResponseAsync();
-                            return await message.Channel.SendMessageAsync($"Manage from {SettingsConfig.Instance.ManagementEndpoint}");
+                            return new CommandResponse { Text = $"Manage from {SettingsConfig.Instance.ManagementEndpoint}" };
                         }
                         catch (Exception ex)
                         {
@@ -410,7 +418,7 @@
                     }
                     else
                     {
-                        return await message.Channel.SendMessageAsync("You must have manage server permissions to use that command. nice try, dungheap");
+                        return new CommandResponse { Text = "You must have manage server permissions to use that command. nice try, dungheap" };
                     }
                 }
 
@@ -433,7 +441,7 @@
                         result = ex.ToString().Substring(0, Math.Min(ex.ToString().Length, 800));
                     }
 
-                    return await message.Channel.SendMessageAsync($"``{result}``");
+                    return new CommandResponse { Text = $"``{result}``" };
                 }
 
                 return null;
@@ -441,7 +449,7 @@
         }
 
         // TODO: Not discord specific, move this
-        private async Task<IMessage> RollAsync(SocketMessage message)
+        private async Task<CommandResponse> RollAsync(SocketMessage message)
         {
             string[] parts = message.Content.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
             var rolls = new List<long>();
@@ -475,11 +483,11 @@
                 }
                 else if (parts.Length == 2 && parts[1].Contains("i"))
                 {
-                    await message.Channel.SendMessageAsync("I uhh...I don't know how to deal with unreal dice.... my brain is wrinkled");
+                    return new CommandResponse { Text = "I uhh...I don't know how to deal with unreal dice.... my brain is wrinkled" };
                 }
                 else if (parts.Length == 2 && parts[1] == "0")
                 {
-                    await message.Channel.SendMessageAsync("really? zero sides? ass.");
+                    return new CommandResponse { Text = "really? zero sides? ass." };
                 }
                 else if (parts.Length <= 20)
                 {
@@ -500,7 +508,7 @@
             }
 
             string msg = failed ? "dude at least one of those is a bogus die or you rolled more than 20 of 'em. don't fuck with me man this is serious" : $"You rolled ... {string.Join(" | ", rolls)}";
-            return await message.Channel.SendMessageAsync(msg);
+            return new CommandResponse { Text = msg };
         }
 
         private void CreateScriptOptions()

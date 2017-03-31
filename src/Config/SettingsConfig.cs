@@ -71,6 +71,8 @@
         Mod_LogUserRole = 16,
         Mod_LogUserJoin = 32,
         Mod_LogUserLeave = 64,
+        Mod_LogUserJoinVoice = 128,
+        Mod_LogUserLeaveVoice = 256,
     }
 
     public class Settings
@@ -85,7 +87,7 @@
         public ulong UpdateId { get; set; }
         public ulong JoinRoleId { get; set; }
 
-        public HashSet<string> WordCensors { get; set; } = new HashSet<string>();
+        public HashSet<string> WordCensors { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         public HashSet<string> DisabledCommands { get; set; } = new HashSet<string>();
         public string Prefix { get; set; } = ".";
@@ -98,7 +100,10 @@
         public int FunResponseChance { get; set; } = 100;
         public bool AutoTitlesEnabled { get; set; }
         public bool SeenEnabled { get; set; }
+
         public bool PreferEmbeds { get; set; } = true;
+        public bool TwitterEmbed { get; set; } = false;
+        public bool RssEmbed { get; set; } = false;
 
         public bool DisableLinkParsing { get; set; }
 

@@ -121,15 +121,33 @@
 
             this.StartTimers();
             this.StartWebListener();
-
+            this.StartConsoleListener();
+    
             while (this.exitCode == 0)
             {
                 await Task.Delay(10000);
             }
 
-            await this.ShutdownAsync(true);
+            await this.ShutdownAsync(this.exitCode == (int)Program.ExitCode.UnexpectedError);
             consoleLogger.Log(LogType.Info, "Exited.");
             return this.exitCode;
+        }
+
+        private void StartConsoleListener()
+        {
+            Task.Run(() =>
+            {
+                string read = "";
+                while (read != "exit")
+                {
+                    read = Console.ReadLine();
+
+                    // TODO:
+                    // console command support
+                }
+
+                this.exitCode = (int)Program.ExitCode.ExpectedShutdown;
+            });
         }
 
         private void StartWebListener()
@@ -147,7 +165,7 @@
                     .UseUrls($"http://localhost:{port}", $"http://{this.Config.WebListenerHostName}:{port}")
                     .UseStartup<Program>()
                     .Build();
-                this.listenerHost.Run();
+                this.listenerHost.Start();
             });
         }
 
@@ -183,7 +201,7 @@
                 if (this.Config.HeartbeatEndpoint != null)
                 {
                     heartbeatData.ServerCount = this.client.Guilds.Count();
-                    heartbeatData.VoiceChannelCount = this.client.Guilds.Select(g => g.CurrentUser.VoiceChannel).Where(v => v != null).Count();
+                    heartbeatData.VoiceChannelCount = this.client.Guilds.Select(g => g.CurrentUser?.VoiceChannel).Where(v => v != null).Count();
                     heartbeatData.UserCount = this.client.Guilds.Sum(x => x.Users.Count);
                 }
             }
@@ -340,7 +358,14 @@
                         if (this.Config.AlertEndpoint != null)
                         {
                             string messageContent = $"\U0001F501 Shard {this.shard} triggered automatic restart due to inactivity";
-                            await this.Config.AlertEndpoint.ToString().PostJsonAsync(new { content = messageContent });
+                            try
+                            {
+                                await this.Config.AlertEndpoint.ToString().PostJsonAsync(new { content = messageContent });
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine(ex);
+                            }
                         }
                     }
                 }
@@ -378,7 +403,15 @@
             processingnotifications = true;
             if (CommandsConfig.Instance.NotificationsEndpoint != null)
             {
-                var notifications = await Utilities.GetApiResponseAsync<NotificationData[]>(CommandsConfig.Instance.NotificationsEndpoint);
+                NotificationData[] notifications = null;
+                try
+                {
+                    notifications = await Utilities.GetApiResponseAsync<NotificationData[]>(CommandsConfig.Instance.NotificationsEndpoint);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex);
+                }
                 if (notifications != null)
                 {
                     var notificationsToDelete = new List<string>();
@@ -412,9 +445,11 @@
 
                                             try
                                             {
-                                                if (settings.PreferEmbeds && notification.Embed != null)
+                                                if (notification.Embed != null &&
+                                                    ((settings.TwitterEmbed && notification.Type == NotificationType.Twitter) ||
+                                                    (settings.RssEmbed && notification.Type == NotificationType.Rss)))
                                                 {
-                                                    await channel.SendMessageAsync(((char)1).ToString(), false, notification.Embed.CreateEmbedBuilder());
+                                                    await channel.SendMessageAsync(string.Empty, false, notification.Embed.CreateEmbedBuilder());
                                                 }
                                                 else
                                                 {
@@ -563,7 +598,7 @@
                         await Task.WhenAny(audioTask, timeoutTask);
                     }
 
-                    this.client.DisconnectAsync().Forget(); // awaiting this likes to hang
+                    this.client.StopAsync().Forget(); // awaiting this likes to hang
                     await Task.Delay(5000);
                 }
                 else if (this.botType == BotType.Irc)

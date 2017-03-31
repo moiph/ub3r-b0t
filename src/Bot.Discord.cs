@@ -36,7 +36,6 @@
             {
                 ShardId = this.shard,
                 TotalShards = this.Config.Discord.ShardCount,
-                AudioMode = AudioMode.Outgoing,
                 LogLevel = LogSeverity.Verbose,
                 MessageCacheSize = 500,
             });
@@ -73,8 +72,7 @@
             }
 
             await client.LoginAsync(TokenType.Bot, this.Config.Discord.Token);
-            await client.ConnectAsync();
-            await this.client.SetGameAsync(this.Config.Discord.Status);
+            await client.StartAsync();
 
             if ((!string.IsNullOrEmpty(this.Config.Discord.DiscordBotsKey) || !string.IsNullOrEmpty(this.Config.Discord.CarbonStatsKey) || !string.IsNullOrEmpty(this.Config.Discord.DiscordListKey)) && statsTimer == null)
             {
@@ -91,6 +89,7 @@
         private Task Client_Ready()
         {
             this.isReady = true;
+            this.client.SetGameAsync(this.Config.Discord.Status);
 
             /*Task.Run(async () =>
             {
@@ -226,6 +225,25 @@
                     }
                 }).Forget();
             }
+
+            // mod logging
+            var settings = SettingsConfig.GetSettings(guildUser.GuildId);
+            if (settings.Mod_LogId != 0)
+            {
+                var modLogChannel = this.client.GetChannel(settings.Mod_LogId) as ITextChannel;
+                if (botGuildUser.GetPermissions(modLogChannel).SendMessages)
+                {
+                    if (settings.HasFlag(ModOptions.Mod_LogUserLeaveVoice) && arg2.VoiceChannel != null)
+                    {
+                        await modLogChannel?.SendMessageAsync($"{ guildUser.Username} left voice channel { arg2.VoiceChannel.Name}");
+                    }
+
+                    if (settings.HasFlag(ModOptions.Mod_LogUserJoinVoice) && arg3.VoiceChannel != null)
+                    {
+                        await modLogChannel?.SendMessageAsync($"{guildUser.Username} joined voice channel {arg3.VoiceChannel.Name}");
+                    }
+                }
+            }
         }
 
         private async Task Client_JoinedGuildAsync(SocketGuild arg)
@@ -354,7 +372,7 @@
             }
         }
 
-        private async Task Client_MessageUpdatedAsync(Optional<SocketMessage> arg1, SocketMessage arg2)
+        private async Task Client_MessageUpdatedAsync(Cacheable<IMessage, ulong> arg1, SocketMessage arg2, ISocketMessageChannel arg3)
         {
             if (arg2 != null && arg2.Channel != null && arg2.Channel is IGuildChannel guildChannel)
             {
@@ -363,7 +381,7 @@
 
                 if (settings.Mod_LogId != 0 && settings.HasFlag(ModOptions.Mod_LogEdit) && arg2.Channel.Id != settings.Mod_LogId && !arg2.Author.IsBot)
                 {
-                    if (arg1.IsSpecified && arg1.Value.Content != arg2.Content && !string.IsNullOrEmpty(arg1.Value.Content))
+                    if (arg1.HasValue && arg1.Value.Content != arg2.Content && !string.IsNullOrEmpty(arg1.Value.Content))
                     {
                         string editText = $"**{arg2.Author.Username}** modified in {textChannel.Mention}: `{arg1.Value.Content}` to `{arg2.Content}`";
                         var botUser = (guildChannel.Guild as SocketGuild).CurrentUser;
@@ -378,11 +396,19 @@
                     }
                 }
             }
+
+            // if the message is from the last hour, see if we can re-process it.
+            if (arg2 != null && arg1.HasValue && arg2.Content != arg1.Value.Content &&
+                arg2.Author.Id != client.CurrentUser.Id &&
+                DateTimeOffset.UtcNow.Subtract(arg2.Timestamp) < TimeSpan.FromHours(1))
+            {
+                await this.HandleMessageAsync(arg2);
+            }
         }
 
-        private async Task Client_MessageDeletedAsync(ulong arg1, Optional<SocketMessage> arg2)
+        private async Task Client_MessageDeletedAsync(Cacheable<IMessage, ulong> arg1, ISocketMessageChannel arg2)
         {
-            var msg = this.botResponsesCache.Remove(arg1);
+            var msg = this.botResponsesCache.Remove(arg1.Id);
             if (msg != null)
             {
                 try
@@ -395,9 +421,9 @@
                 }
             }
 
-            if (arg2.IsSpecified && arg2.Value.Channel is IGuildChannel guildChannel)
+            if (arg1.HasValue && arg2 is IGuildChannel guildChannel)
             {
-                var message = arg2.Value;
+                var message = arg1.Value;
                 var textChannel = guildChannel as ITextChannel;
                 var settings = SettingsConfig.GetSettings(guildChannel.GuildId);
 
@@ -434,6 +460,11 @@
 
         public async Task Discord_OnMessageReceivedAsync(SocketMessage socketMessage)
         {
+            await this.HandleMessageAsync(socketMessage);
+        }
+
+        private async Task HandleMessageAsync(SocketMessage socketMessage)
+        { 
             messageCount++;
 
             // Ignore system and our own messages.
@@ -447,7 +478,14 @@
             {
                 if (isOutbound)
                 {
-                    consoleLogger.Log(LogType.Outgoing, $"\tSending to {message.Channel.Name}: {message.Content}");
+                    if (message.Embeds?.Count > 0)
+                    {
+                        consoleLogger.Log(LogType.Outgoing, $"\tSending [embed content] to {message.Channel.Name}");
+                    }
+                    else
+                    {
+                        consoleLogger.Log(LogType.Outgoing, $"\tSending to {message.Channel.Name}: {message.Content}");
+                    }
                 }
 
                 return;
@@ -475,13 +513,7 @@
             // Bail out with help info if it's a PM
             if (message.Channel is IDMChannel && (message.Content.Contains("help") || message.Content.Contains("info") || message.Content.Contains("commands")))
             {
-                await message.Channel.SendMessageAsync("Info and commands can be found at: https://ub3r-b0t.com");
-                return;
-            }
-
-            var textChannel = message.Channel as ITextChannel;
-            if (botGuildUser != null && !botGuildUser.GetPermissions(textChannel).SendMessages)
-            {
+                await this.RespondAsync(message, "Info and commands can be found at: https://ub3r-b0t.com");
                 return;
             }
 
@@ -499,6 +531,12 @@
                         return;
                     }
                 }
+            }
+
+            var textChannel = message.Channel as ITextChannel;
+            if (botGuildUser != null && !botGuildUser.GetPermissions(textChannel).SendMessages)
+            {
+                return;
             }
 
             // Update the seen data
@@ -534,7 +572,7 @@
 
                     if (repeat.Nicks.Count == 3)
                     {
-                        await message.Channel.SendMessageAsync(message.Content);
+                        await this.RespondAsync(message, message.Content);
                         repeat.Reset(string.Empty, string.Empty);
                     }
                 }
@@ -578,13 +616,14 @@
 
                 if (commandCount > 10)
                 {
-                    await message.Channel.SendMessageAsync("rate limited try later");
+                    await this.RespondAsync(message, "rate limited try later");
                 }
                 else
                 {
-                    var sentMessage = await discordCommands.Commands[command].Invoke(message).ConfigureAwait(false);
-                    if (sentMessage != null)
+                    var response = await discordCommands.Commands[command].Invoke(message).ConfigureAwait(false);
+                    if (!string.IsNullOrEmpty(response?.Text) || response.Embed != null)
                     {
+                        var sentMessage = await this.RespondAsync(message, response.Text, response.Embed);
                         this.botResponsesCache.Add(message.Id, sentMessage);
                     }
                 }
@@ -605,7 +644,7 @@
 
                     if (responseData.Embed != null)
                     {
-                        var sentMessage = await message.Channel.SendMessageAsync(((char)1).ToString(), false, responseData.Embed.CreateEmbedBuilder());
+                        var sentMessage = await this.RespondAsync(message, string.Empty, responseData.Embed.CreateEmbedBuilder());
                         this.botResponsesCache.Add(message.Id, sentMessage);
                     }
                     else
@@ -614,7 +653,7 @@
                         {
                             if (!string.IsNullOrEmpty(response))
                             {
-                                var sentMessage = await message.Channel.SendMessageAsync(response.Substring(0, Math.Min(response.Length, 2000)));
+                                var sentMessage = await this.RespondAsync(message, response);
                                 this.botResponsesCache.Add(message.Id, sentMessage);
                             }
                         }
@@ -624,6 +663,26 @@
                 {
                     typingState?.Dispose();
                 }
+            }
+        }
+
+        private async Task<IUserMessage> RespondAsync(SocketUserMessage message, string response, Embed embedResponse = null)
+        {
+            response = response.Substring(0, Math.Min(response.Length, 2000));
+
+            if (this.botResponsesCache.Get(message.Id) is IUserMessage oldMsg)
+            {
+                await oldMsg.ModifyAsync((m) =>
+                {
+                    m.Content = response;
+                    m.Embed = embedResponse;
+                });
+
+                return null;
+            }
+            else
+            {
+                return await message.Channel.SendMessageAsync(response, false, embedResponse);
             }
         }
 
@@ -765,7 +824,7 @@
                 {
                     try
                     {
-                        await arg.AddRolesAsync(role);
+                        await arg.AddRolesAsync(new[] { role });
                     }
                     catch (HttpException ex) when (ex.HttpCode == HttpStatusCode.Forbidden)
                     {
@@ -792,9 +851,22 @@
         private Task Discord_Log(LogMessage arg)
         {
             // TODO: Temporary filter for audio warnings; remove with future Discord.NET update
-            if (arg.Message.Contains("Unknown OpCode (Speaking)") || (arg.Source.Contains("Audio") && arg.Message.Contains("Latency = ")))
+            if (arg.Message != null && arg.Message.Contains("Unknown OpCode") || (arg.Source != null && arg.Source.Contains("Audio") && arg.Message != null && (arg.Message.Contains("Latency = "))))
             {
                 return Task.CompletedTask;
+            }
+
+            if (arg.Severity <= LogSeverity.Warning)
+            {
+                try
+                {
+                    string messageContent = $":information_source: {arg.Severity} on shard {this.shard}: {arg.Message}";
+                    this.Config.AlertEndpoint.ToString().PostJsonAsync(new { content = messageContent });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Error sending log data: " + ex);
+                }
             }
 
             LogType logType = LogType.Debug;
