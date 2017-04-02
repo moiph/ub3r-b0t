@@ -130,12 +130,12 @@
                 return new CommandResponse { Text = dataSb.ToString() };
             });
 
-            Commands.Add("voice", async (message) =>
+            Commands.Add("voice", (message) =>
             {
                 var channel = (message.Author as IGuildUser)?.VoiceChannel;
                 if (channel == null)
                 {
-                    return new CommandResponse { Text = "Join a voice channel first" };
+                    return Task.FromResult(new CommandResponse { Text = "Join a voice channel first" });
                 }
 
                 Task.Run(async () =>
@@ -151,10 +151,10 @@
                     }
                 }).Forget();
 
-                return null;
+                return Task.FromResult((CommandResponse)null);
             });
 
-            Commands.Add("dvoice", async (message) =>
+            Commands.Add("dvoice", (message) =>
             {
                 if (message.Channel is IGuildChannel channel)
                 {
@@ -172,10 +172,10 @@
                     }).Forget();
                 }
 
-                return null;
+                return Task.FromResult((CommandResponse)null);
             });
 
-            Commands.Add("devoice", async (message) =>
+            Commands.Add("devoice", (message) =>
             {
                 if (message.Channel is IGuildChannel channel)
                 {
@@ -193,7 +193,7 @@
                     }).Forget();
                 }
 
-                return null;
+                return Task.FromResult((CommandResponse)null);
             });
 
             Commands.Add("clear", async (message) =>
@@ -300,7 +300,15 @@
                         }
                     }
 
-                    await (message.Channel as ITextChannel).DeleteMessagesAsync(msgsToDelete);
+                    try
+                    {
+                        await (message.Channel as ITextChannel).DeleteMessagesAsync(msgsToDelete);
+                    }
+                    catch (ArgumentOutOfRangeException)
+                    {
+                        return new CommandResponse { Text = "Bots cannot delete messages older than 2 weeks." };
+                    }
+
                     return null;
                 }
                 else
@@ -449,7 +457,7 @@
         }
 
         // TODO: Not discord specific, move this
-        private async Task<CommandResponse> RollAsync(SocketMessage message)
+        private Task<CommandResponse> RollAsync(SocketMessage message)
         {
             string[] parts = message.Content.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
             var rolls = new List<long>();
@@ -483,11 +491,11 @@
                 }
                 else if (parts.Length == 2 && parts[1].Contains("i"))
                 {
-                    return new CommandResponse { Text = "I uhh...I don't know how to deal with unreal dice.... my brain is wrinkled" };
+                    return Task.FromResult(new CommandResponse { Text = "I uhh...I don't know how to deal with unreal dice.... my brain is wrinkled" });
                 }
                 else if (parts.Length == 2 && parts[1] == "0")
                 {
-                    return new CommandResponse { Text = "really? zero sides? ass." };
+                    return Task.FromResult(new CommandResponse { Text = "really? zero sides? ass." });
                 }
                 else if (parts.Length <= 20)
                 {
@@ -508,7 +516,7 @@
             }
 
             string msg = failed ? "dude at least one of those is a bogus die or you rolled more than 20 of 'em. don't fuck with me man this is serious" : $"You rolled ... {string.Join(" | ", rolls)}";
-            return new CommandResponse { Text = msg };
+            return Task.FromResult(new CommandResponse { Text = msg });
         }
 
         private void CreateScriptOptions()

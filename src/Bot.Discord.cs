@@ -49,7 +49,6 @@
             client.MessageDeleted += Client_MessageDeletedAsync;
             client.MessageUpdated += Client_MessageUpdatedAsync;
             client.UserBanned += Client_UserBannedAsync;
-            client.UserUpdated += Client_UserUpdatedAsync;
             client.GuildMemberUpdated += Client_GuildMemberUpdatedAsync;
             client.UserVoiceStateUpdated += Client_UserVoiceStateUpdatedAsync;
             client.Ready += Client_Ready;
@@ -189,41 +188,44 @@
             // voice state detection
             var guildUser = (arg1 as IGuildUser);
             var botGuildUser = await guildUser.Guild.GetCurrentUserAsync();
-            if (arg2.VoiceChannel != arg3.VoiceChannel && arg3.VoiceChannel == botGuildUser.VoiceChannel)
+            if (guildUser.Id != botGuildUser.Id) // ignore joins/leaves from the bot
             {
-                // if they are connecting for the first time, wait a moment to account for possible conncetion delay. otherwise play immediately.
-                if (arg2.VoiceChannel == null)
+                if (arg2.VoiceChannel != arg3.VoiceChannel && arg3.VoiceChannel == botGuildUser.VoiceChannel)
                 {
-                    await Task.Delay(1000);
-                }
+                    // if they are connecting for the first time, wait a moment to account for possible conncetion delay. otherwise play immediately.
+                    if (arg2.VoiceChannel == null)
+                    {
+                        await Task.Delay(1000);
+                    }
 
-                Task.Run(async () =>
+                    Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await this.audioManager.SendAudioAsync(guildUser, arg3.VoiceChannel, VoicePhraseType.UserJoin);
+                        }
+                        catch (Exception ex)
+                        {
+                            // TODO: proper logging
+                            Console.WriteLine(ex);
+                        }
+                    }).Forget();
+                }
+                else if (arg2.VoiceChannel != arg3.VoiceChannel && arg2.VoiceChannel == botGuildUser.VoiceChannel)
                 {
-                    try
+                    Task.Run(async () =>
                     {
-                        await this.audioManager.SendAudioAsync(guildUser, arg3.VoiceChannel, VoicePhraseType.UserJoin);
-                    }
-                    catch (Exception ex)
-                    {
-                        // TODO: proper logging
-                        Console.WriteLine(ex);
-                    }
-                }).Forget();
-            }
-            else if (arg2.VoiceChannel != arg3.VoiceChannel && arg2.VoiceChannel == botGuildUser.VoiceChannel)
-            {
-                Task.Run(async () =>
-                {
-                    try
-                    {
-                        await this.audioManager.SendAudioAsync(guildUser, arg2.VoiceChannel, VoicePhraseType.UserLeave);
-                    }
-                    catch (Exception ex)
-                    {
-                        // TODO: proper logging
-                        Console.WriteLine(ex);
-                    }
-                }).Forget();
+                        try
+                        {
+                            await this.audioManager.SendAudioAsync(guildUser, arg2.VoiceChannel, VoicePhraseType.UserLeave);
+                        }
+                        catch (Exception ex)
+                        {
+                            // TODO: proper logging
+                            Console.WriteLine(ex);
+                        }
+                    }).Forget();
+                }
             }
 
             // mod logging
@@ -231,17 +233,21 @@
             if (settings.Mod_LogId != 0)
             {
                 var modLogChannel = this.client.GetChannel(settings.Mod_LogId) as ITextChannel;
-                if (botGuildUser.GetPermissions(modLogChannel).SendMessages)
+                if (modLogChannel != null && botGuildUser.GetPermissions(modLogChannel).SendMessages)
                 {
-                    if (settings.HasFlag(ModOptions.Mod_LogUserLeaveVoice) && arg2.VoiceChannel != null)
+                    if (settings.HasFlag(ModOptions.Mod_LogUserLeaveVoice) && arg2.VoiceChannel != null && arg2.VoiceChannel.Id != arg3.VoiceChannel?.Id)
                     {
-                        await modLogChannel?.SendMessageAsync($"{ guildUser.Username} left voice channel { arg2.VoiceChannel.Name}");
+                        modLogChannel.SendMessageAsync($"{ guildUser.Username} left voice channel { arg2.VoiceChannel.Name}").Forget();
                     }
 
-                    if (settings.HasFlag(ModOptions.Mod_LogUserJoinVoice) && arg3.VoiceChannel != null)
+                    if (settings.HasFlag(ModOptions.Mod_LogUserJoinVoice) && arg3.VoiceChannel != null && arg3.VoiceChannel.Id != arg2.VoiceChannel?.Id)
                     {
-                        await modLogChannel?.SendMessageAsync($"{guildUser.Username} joined voice channel {arg3.VoiceChannel.Name}");
+                        modLogChannel.SendMessageAsync($"{guildUser.Username} joined voice channel {arg3.VoiceChannel.Name}").Forget();
                     }
+                }
+                else
+                {
+                    await guildUser.Guild.SendOwnerDMAsync($"Permissions error detected for {guildUser.Guild.Name} on voice channel updates: Can't send messages to configured mod logging channel.");
                 }
             }
         }
@@ -252,9 +258,7 @@
             {
                 this.AppInsights?.TrackEvent("serverJoin");
 
-                //var defaultChannel = await arg.GetDefaultChannelAsync(); // arg.DefaultChannel;
                 var defaultChannel = arg.DefaultChannel;
-                //var owner = await arg.GetOwnerAsync(); // arg.Owner;
                 var owner = arg.Owner;
                 if (arg.CurrentUser != null && arg.CurrentUser.GetPermissions(defaultChannel).SendMessages)
                 {
@@ -269,83 +273,78 @@
             {
                 // Mod log
                 var settings = SettingsConfig.GetSettings(guildUserBefore.GuildId);
-                if (settings.Mod_LogId != 0 && settings.HasFlag(ModOptions.Mod_LogUserRole))
+                if (settings.Mod_LogId != 0)
                 {
-                    var rolesAdded = new List<string>();
-                    foreach (ulong roleId in guildUserAfter.RoleIds)
+                    if (settings.HasFlag(ModOptions.Mod_LogUserRole))
                     {
-                        if (!guildUserBefore.RoleIds.Any(r => r == roleId))
+                        var rolesAdded = new List<string>();
+                        foreach (ulong roleId in guildUserAfter.RoleIds)
                         {
-                            rolesAdded.Add(guildUserAfter.Guild.Roles.First(g => g.Id == roleId).Name.TrimStart('@'));
-                        }
-                    }
-
-                    var rolesRemoved = new List<string>();
-                    foreach (ulong roleId in guildUserBefore.RoleIds)
-                    {
-                        if (!guildUserAfter.RoleIds.Any(r => r == roleId))
-                        {
-                            rolesRemoved.Add(guildUserBefore.Guild.Roles.First(g => g.Id == roleId).Name.TrimStart('@'));
-                        }
-                    }
-
-                    if (rolesAdded.Count > 0 || rolesRemoved.Count > 0)
-                    {
-                        var modLogChannel = this.client.GetChannel(settings.Mod_LogId) as ITextChannel;
-                        var botUser = (modLogChannel?.Guild as SocketGuild).CurrentUser;
-                        if (botUser.GetPermissions(modLogChannel).SendMessages)
-                        {
-                            if (rolesAdded.Count > 0)
+                            if (!guildUserBefore.RoleIds.Any(r => r == roleId))
                             {
-                                string roleText = $"**{guildUserAfter.Username}#{guildUserAfter.Discriminator}** had these roles added: `{string.Join(",", rolesAdded)}`";
-                                await modLogChannel?.SendMessageAsync(roleText.Substring(0, Math.Min(roleText.Length, 2000)));
-                            }
-
-                            if (rolesRemoved.Count > 0)
-                            {
-                                string roleText = $"**{guildUserAfter.Username}#{guildUserAfter.Discriminator}** had these roles removed: `{string.Join(",", rolesRemoved)}`";
-                                await modLogChannel?.SendMessageAsync(roleText.Substring(0, Math.Min(roleText.Length, 2000)));
+                                rolesAdded.Add(guildUserAfter.Guild.Roles.First(g => g.Id == roleId).Name.TrimStart('@'));
                             }
                         }
-                        else
-                        {
-                            await guildUserBefore.Guild.SendOwnerDMAsync($"Permissions error detected for {guildUserBefore.Guild.Name} on user role updates: Can't send messages to configured mod logging channel.");
-                        }
-                    }
-                }
-            }
-        }
 
-        private async Task Client_UserUpdatedAsync(SocketUser arg1, SocketUser arg2)
-        {
-            if (arg1 is IGuildUser guildUserBefore && arg2 is IGuildUser guildUserAfter)
-            {
-                // mod log
-                var settings = SettingsConfig.GetSettings(guildUserBefore.GuildId);
-                if (settings.Mod_LogId != 0 && settings.HasFlag(ModOptions.Mod_LogUserNick))
-                {
-                    if (guildUserAfter.Nickname != guildUserBefore.Nickname)
-                    {
-                        var modLogChannel = this.client.GetChannel(settings.Mod_LogId) as ITextChannel;
-                        var botUser = (modLogChannel?.Guild as SocketGuild).CurrentUser;
-                        if (botUser.GetPermissions(modLogChannel).SendMessages)
+                        var rolesRemoved = new List<string>();
+                        foreach (ulong roleId in guildUserBefore.RoleIds)
                         {
-                            if (string.IsNullOrEmpty(guildUserAfter.Nickname))
+                            if (!guildUserAfter.RoleIds.Any(r => r == roleId))
                             {
-                                await modLogChannel.SendMessageAsync($"{guildUserAfter.Username}#{guildUserAfter.Discriminator} removed their nickname (was {guildUserBefore.Nickname})");
+                                rolesRemoved.Add(guildUserBefore.Guild.Roles.First(g => g.Id == roleId).Name.TrimStart('@'));
                             }
-                            else if (string.IsNullOrEmpty(guildUserBefore.Nickname))
+                        }
+
+                        if (rolesAdded.Count > 0 || rolesRemoved.Count > 0)
+                        {
+                            var modLogChannel = this.client.GetChannel(settings.Mod_LogId) as ITextChannel;
+                            var botUser = (modLogChannel?.Guild as SocketGuild).CurrentUser;
+                            if (botUser.GetPermissions(modLogChannel).SendMessages)
                             {
-                                await modLogChannel.SendMessageAsync($"{guildUserAfter.Username}#{guildUserAfter.Discriminator} set a new nickname to {guildUserAfter.Nickname}");
+                                if (rolesAdded.Count > 0)
+                                {
+                                    string roleText = $"**{guildUserAfter.Username}#{guildUserAfter.Discriminator}** had these roles added: `{string.Join(",", rolesAdded)}`";
+                                    await modLogChannel?.SendMessageAsync(roleText.Substring(0, Math.Min(roleText.Length, 2000)));
+                                }
+
+                                if (rolesRemoved.Count > 0)
+                                {
+                                    string roleText = $"**{guildUserAfter.Username}#{guildUserAfter.Discriminator}** had these roles removed: `{string.Join(",", rolesRemoved)}`";
+                                    await modLogChannel?.SendMessageAsync(roleText.Substring(0, Math.Min(roleText.Length, 2000)));
+                                }
                             }
                             else
                             {
-                                await modLogChannel.SendMessageAsync($"{guildUserAfter.Username}#{guildUserAfter.Discriminator} changed their nickname from {guildUserBefore.Nickname} to {guildUserAfter.Nickname}");
+                                await guildUserBefore.Guild.SendOwnerDMAsync($"Permissions error detected for {guildUserBefore.Guild.Name} on user role updates: Can't send messages to configured mod logging channel.");
                             }
                         }
-                        else
+                    }
+
+                    if (settings.Mod_LogId != 0 && settings.HasFlag(ModOptions.Mod_LogUserNick))
+                    {
+                        if (guildUserAfter.Nickname != guildUserBefore.Nickname)
                         {
-                            await guildUserBefore.Guild.SendOwnerDMAsync($"Permissions error detected for {guildUserBefore.Guild.Name} on user name updates: Can't send messages to configured mod logging channel.");
+                            var modLogChannel = this.client.GetChannel(settings.Mod_LogId) as ITextChannel;
+                            var botUser = (modLogChannel?.Guild as SocketGuild).CurrentUser;
+                            if (botUser.GetPermissions(modLogChannel).SendMessages)
+                            {
+                                if (string.IsNullOrEmpty(guildUserAfter.Nickname))
+                                {
+                                    await modLogChannel.SendMessageAsync($"{guildUserAfter.Username}#{guildUserAfter.Discriminator} removed their nickname (was {guildUserBefore.Nickname})");
+                                }
+                                else if (string.IsNullOrEmpty(guildUserBefore.Nickname))
+                                {
+                                    await modLogChannel.SendMessageAsync($"{guildUserAfter.Username}#{guildUserAfter.Discriminator} set a new nickname to {guildUserAfter.Nickname}");
+                                }
+                                else
+                                {
+                                    await modLogChannel.SendMessageAsync($"{guildUserAfter.Username}#{guildUserAfter.Discriminator} changed their nickname from {guildUserBefore.Nickname} to {guildUserAfter.Nickname}");
+                                }
+                            }
+                            else
+                            {
+                                await guildUserBefore.Guild.SendOwnerDMAsync($"Permissions error detected for {guildUserBefore.Guild.Name} on user name updates: Can't send messages to configured mod logging channel.");
+                            }
                         }
                     }
                 }
@@ -458,9 +457,32 @@
             }
         }
 
-        public async Task Discord_OnMessageReceivedAsync(SocketMessage socketMessage)
+        public Task Discord_OnMessageReceivedAsync(SocketMessage socketMessage)
         {
-            await this.HandleMessageAsync(socketMessage);
+            Task.Run(async () =>
+            {
+                try
+                {
+                    await this.HandleMessageAsync(socketMessage);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex);
+                    if (this.Config.AlertEndpoint != null)
+                    {
+                        try
+                        {
+                            await this.Config.AlertEndpoint.ToString().PostJsonAsync(new { content = $":warning: shard {this.shard}: " + ex.ToString().Substring(0, Math.Min(ex.ToString().Length, 1950)) });
+                        }
+                        catch (Exception exx)
+                        {
+                            Console.WriteLine(exx);
+                        }
+                    }
+                }
+            }).Forget();
+
+            return Task.CompletedTask;
         }
 
         private async Task HandleMessageAsync(SocketMessage socketMessage)
@@ -494,7 +516,7 @@
             // grab the settings for this server
             var botGuildUser = (message.Channel is IGuildChannel guildChannel) ? await guildChannel.GetUserAsync(client.CurrentUser.Id) : null;
             var guildUser = message.Author as IGuildUser;
-            var guildId = guildUser?.GuildId;
+            var guildId = (guildUser != null && guildUser.IsWebhook) ? null : guildUser?.GuildId;
             var settings = SettingsConfig.GetSettings(guildId?.ToString());
 
             // if it's a globally blocked server, ignore it unless it's the owner
@@ -504,7 +526,7 @@
             }
 
             // if the user is blocked based on role, return
-            var botlessRoleId = guildUser?.Guild.Roles.FirstOrDefault(r => r.Name.ToLowerInvariant() == "botless")?.Id;
+            var botlessRoleId = guildUser?.Guild?.Roles?.FirstOrDefault(r => r.Name?.ToLowerInvariant() == "botless")?.Id;
             if ((message.Author as IGuildUser)?.RoleIds.Any(r => botlessRoleId != null && r == botlessRoleId.Value) ?? false)
             {
                 return;
@@ -536,6 +558,26 @@
             var textChannel = message.Channel as ITextChannel;
             if (botGuildUser != null && !botGuildUser.GetPermissions(textChannel).SendMessages)
             {
+                return;
+            }
+
+            // special case FAQ channel
+            if (message.Channel.Id == this.Config.FaqChannel && message.Content.EndsWith("?") && this.Config.FaqEndpoint != null)
+            {
+                var result = await this.Config.FaqEndpoint.ToString().WithHeader("Ocp-Apim-Subscription-Key", this.Config.FaqKey).PostJsonAsync(new { question = message.Content });
+                if (result.IsSuccessStatusCode)
+                {
+                    var response = await result.Content.ReadAsStringAsync();
+                    var qnaData = JsonConvert.DeserializeObject<QnAMakerData>(response);
+                    var score = Math.Floor(qnaData.Score);
+                    var answer = WebUtility.HtmlDecode(qnaData.Answer);
+                    await message.Channel.SendMessageAsync($"{answer} ({score}% match)");
+                }
+                else
+                {
+                    await message.Channel.SendMessageAsync("An error occurred while fetching data");
+                }
+
                 return;
             }
 
@@ -621,7 +663,7 @@
                 else
                 {
                     var response = await discordCommands.Commands[command].Invoke(message).ConfigureAwait(false);
-                    if (!string.IsNullOrEmpty(response?.Text) || response.Embed != null)
+                    if (response != null && (!string.IsNullOrEmpty(response.Text) || response.Embed != null))
                     {
                         var sentMessage = await this.RespondAsync(message, response.Text, response.Embed);
                         this.botResponsesCache.Add(message.Id, sentMessage);
@@ -653,7 +695,8 @@
                         {
                             if (!string.IsNullOrEmpty(response))
                             {
-                                var sentMessage = await this.RespondAsync(message, response);
+                                // if sending a multi part message, skip the edit optimization.
+                                var sentMessage = await this.RespondAsync(message, response, embedResponse: null, bypassEdit: responseData.Responses.Count > 1);
                                 this.botResponsesCache.Add(message.Id, sentMessage);
                             }
                         }
@@ -666,11 +709,11 @@
             }
         }
 
-        private async Task<IUserMessage> RespondAsync(SocketUserMessage message, string response, Embed embedResponse = null)
+        private async Task<IUserMessage> RespondAsync(SocketUserMessage message, string response, Embed embedResponse = null, bool bypassEdit = false)
         {
             response = response.Substring(0, Math.Min(response.Length, 2000));
 
-            if (this.botResponsesCache.Get(message.Id) is IUserMessage oldMsg)
+            if (!bypassEdit && this.botResponsesCache.Get(message.Id) is IUserMessage oldMsg)
             {
                 await oldMsg.ModifyAsync((m) =>
                 {
@@ -856,7 +899,7 @@
                 return Task.CompletedTask;
             }
 
-            if (arg.Severity <= LogSeverity.Warning)
+            if (arg.Severity <= LogSeverity.Warning && arg.Message != null && !arg.Message.Contains("Preemptive Rate limit triggered") && !arg.Message.Contains("referenced an unknown"))
             {
                 try
                 {

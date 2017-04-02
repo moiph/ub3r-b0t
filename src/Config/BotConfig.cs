@@ -27,6 +27,10 @@
 
         public Uri SeenEndpoint { get; set; }
 
+        public ulong FaqChannel { get; set; }
+        public Uri FaqEndpoint { get; set; }
+        public string FaqKey { get; set; }
+
         public DiscordConfig Discord { get; set; }
         public Irc Irc { get; set; }
 

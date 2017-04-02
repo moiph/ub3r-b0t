@@ -22,6 +22,8 @@ namespace UB3RB0T
         const int ONEYEAR = ONEDAY * 365;
         const long TOOLONG = 473040000;
 
+        private static HashSet<ulong> blockedDMUsers = new HashSet<ulong>();
+
         public static void Forget(this Task task) { }
 
         public static Uri AppendQueryParam(this Uri uri, string key, string value)
@@ -254,12 +256,18 @@ namespace UB3RB0T
 
         public static async Task<IUserMessage> SendOwnerDMAsync(this IGuild guild, string message)
         {
+            if (blockedDMUsers.Contains(guild.OwnerId))
+            {
+                return null;
+            }
+
             try
             {
                 return await (await (await guild.GetOwnerAsync()).CreateDMChannelAsync()).SendMessageAsync(message);
             }
             catch (Exception ex)
             {
+                blockedDMUsers.Add(guild.OwnerId);
                 Console.WriteLine($"Failed to send guild owner message: {ex}");
                 return null;
             }

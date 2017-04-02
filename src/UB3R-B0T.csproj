@@ -38,7 +38,7 @@
     <Content Include="ub3rb0t.ico" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Discord.Net.WebSocket" Version="1.0.0-rc-00655" />
+    <PackageReference Include="Discord.Net.WebSocket" Version="1.0.0-rc-00668" />
     <PackageReference Include="Flurl.Http" Version="1.1.1" />
     <PackageReference Include="Microsoft.ApplicationInsights" Version="2.3.0-beta1" />
     <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel" Version="1.1.0" />

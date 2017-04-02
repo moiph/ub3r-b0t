@@ -9,6 +9,7 @@
     public class AudioInstance : IDisposable
     {
         internal bool isDisposed;
+        internal bool isDisconnecting;
 
         internal readonly SemaphoreSlim streamLock = new SemaphoreSlim(1, 1);
 
@@ -23,10 +24,25 @@
         {
             if (!this.isDisposed)
             {
-                this.AudioClient.Dispose();
-                this.Stream?.Dispose();
-                this.streamLock.Dispose();
                 this.isDisposed = true;
+
+                this.streamLock.Wait();
+
+                try
+                {
+                    this.AudioClient.StopAsync().GetAwaiter().GetResult();
+                }
+                catch (Exception ex)
+                {
+                    // TODO: proper logging
+                    Console.WriteLine(ex);
+                }
+
+                this.Stream.Dispose();
+                this.Stream = null;
+                this.AudioClient.Dispose();
+                this.streamLock.Release();
+                this.streamLock.Dispose();
             }
         }
     }

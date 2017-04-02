@@ -24,8 +24,8 @@
                     AudioClient = await voiceChannel.ConnectAsync().ConfigureAwait(false)
                 };
 
-                audioInstance.Stream = audioInstance.AudioClient.CreatePCMStream(Discord.Audio.AudioApplication.Voice, 2880, bitrate: voiceChannel.Bitrate);
                 audioInstances[voiceChannel.GuildId] = audioInstance;
+                audioInstance.Stream = audioInstance.AudioClient.CreatePCMStream(Discord.Audio.AudioApplication.Voice, 2880, bitrate: voiceChannel.Bitrate);
             }
             else
             {
@@ -34,16 +34,13 @@
 
             if (audioInstance.AudioClient.ConnectionState == ConnectionState.Connected && audioInstance.Stream.CanWrite)
             {
-                await Task.Delay(1000);
-                this.SendAudioAsync(audioInstance, PhrasesConfig.Instance.GetVoiceFileNames(VoicePhraseType.BotJoin).Random());
+                await this.SendAudioAsync(audioInstance, PhrasesConfig.Instance.GetVoiceFileNames(VoicePhraseType.BotJoin).Random());
             }
             else
             {
                 audioInstance.AudioClient.Connected += async () =>
                 {
-                    await Task.Delay(1000);
-                    this.SendAudioAsync(audioInstance, PhrasesConfig.Instance.GetVoiceFileNames(VoicePhraseType.BotJoin).Random());
-                    await Task.CompletedTask;
+                    await this.SendAudioAsync(audioInstance, PhrasesConfig.Instance.GetVoiceFileNames(VoicePhraseType.BotJoin).Random());
                 };
                 audioInstance.AudioClient.Disconnected += async (Exception ex) =>
                 {
@@ -71,36 +68,25 @@
 
         public async Task LeaveAudioAsync(ulong guildId)
         {
-            if (audioInstances.TryRemove(guildId, out AudioInstance audioInstance))
+            if (audioInstances.TryGetValue(guildId, out AudioInstance audioInstance))
             {
-                // say our goodbyes
-                try
+                if (!audioInstance.isDisconnecting)
                 {
-                    this.SendAudioAsync(audioInstance, PhrasesConfig.Instance.GetVoiceFileNames(VoicePhraseType.BotLeave).Random());
-                    await Task.Delay(1000);
-                }
-                catch (Exception ex)
-                {
-                    // TODO: proper logging
-                    Console.WriteLine(ex);
-                }
+                    audioInstance.isDisconnecting = true;
+                    // say our goodbyes
+                    try
+                    {
+                        await this.SendAudioAsyncInternalAsync(audioInstance, PhrasesConfig.Instance.GetVoiceFileNames(VoicePhraseType.BotLeave).Random());
+                    }
+                    catch (Exception ex)
+                    {
+                        // TODO: proper logging
+                        Console.WriteLine(ex);
+                    }
 
-                await audioInstance.streamLock.WaitAsync();
-                audioInstance.Stream.Dispose();
-                audioInstance.Stream = null;
-                audioInstance.streamLock.Release();
-
-                try
-                {
-                    await audioInstance.AudioClient.StopAsync();
+                    audioInstances.TryRemove(guildId, out audioInstance);
+                    audioInstance.Dispose();
                 }
-                catch (Exception ex)
-                {
-                    // TODO: proper logging
-                    Console.WriteLine(ex);
-                }
-
-                audioInstance.Dispose();
             }
             else
             {
@@ -138,32 +124,15 @@
                             voiceFileNames = PhrasesConfig.Instance.GetVoiceFileNames(VoicePhraseType.UserLeave);
                         }
 
-                        this.SendAudioAsync(audioInstance, voiceFileNames.Random());
+                        await this.SendAudioAsync(audioInstance, voiceFileNames.Random());
                     }
                 }
             }
         }
 
-        // Normally we'd say no to async void; but we never want to await on the audio send
-        public async void SendAudioAsync(AudioInstance audioInstance, string filename)
+        public async Task SendAudioAsync(AudioInstance audioInstance, string filename)
         {
-            try
-            {
-                await this.SendAudioAsyncInternalAsync(audioInstance, filename);
-            }
-            catch (Exception ex)
-            {
-                // TODO: proper logging
-                Console.WriteLine(ex);
-                if (audioInstance != null)
-                {
-                    audioInstances.TryRemove(audioInstance.GuildId, out AudioInstance oldInstance);
-                    if (oldInstance != null && !oldInstance.isDisposed)
-                    {
-                        oldInstance.Dispose();
-                    }
-                }
-            }
+            await this.SendAudioAsyncInternalAsync(audioInstance, filename);
         }
 
         private async Task SendAudioAsyncInternalAsync(AudioInstance audioInstance, string filePath)
@@ -189,10 +158,14 @@
 
             await audioInstance.streamLock.WaitAsync();
 
+            Console.WriteLine($"[audio] [{filename}] lock obtained");
+
             try
             {
                 if (audioInstance.Stream != null)
                 {
+                    Console.WriteLine($"[audio] [{filename}] stream copy");
+
                     if (p != null)
                     {
                         using (var memoryStream = new MemoryStream())
@@ -232,8 +205,6 @@
             {
                 Console.WriteLine(ex);
                 p?.Dispose();
-                audioInstances.TryRemove(audioInstance.GuildId, out AudioInstance oldInstance);
-                oldInstance?.Dispose();
             }
             finally
             {
