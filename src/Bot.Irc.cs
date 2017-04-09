@@ -1,6 +1,7 @@
 ﻿namespace UB3RB0T
 {
     using System;
+    using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Linq;
     using System.Text.RegularExpressions;
@@ -19,7 +20,7 @@
             foreach (IrcServer server in this.Config.Irc.Servers.Where(s => s.Enabled))
             {
                 serverData.Add(server.Host, new ServerData());
-                var ircClient = new IrcClient(server.Host, this.Config.Name, server.Host, server.Port, /* useSsl -- pending support */false);
+                var ircClient = new IrcClient(server.Host, server.Nick ?? this.Config.Name, server.Host, server.Port, /* useSsl -- pending support */false, server.Password);
                 ircClients.Add(server.Host, ircClient);
                 ircClient.OnIrcEvent += this.OnIrcEventAsync;
 
@@ -31,6 +32,7 @@
         public async void OnIrcEventAsync(MessageData data, IrcClient client)
         {
             var responses = new List<string>();
+            var settings = new Settings();
 
             if (data.Verb == ReplyCode.RPL_ENDOFMOTD || data.Verb == ReplyCode.RPL_NOMOTD) //  motd end or motd missing
             {
@@ -44,7 +46,13 @@
             if (data.Verb == "PRIVMSG")
             {
                 string query = string.Empty;
-                string prefix = ".";
+
+                // TODO: put this in config
+                // twitch parses "." prefix as internal commands; so we have to remap it :(
+                if (client.Host == "irc.chat.twitch.tv")
+                {
+                    settings.Prefix = "^";
+                }
 
                 // Update the seen data
                 if (!string.IsNullOrEmpty(data.Text) && this.Config.SeenEndpoint != null)
@@ -65,12 +73,18 @@
                     };
                 }
 
-                if (data.Text.StartsWith("."))
+                var httpMatch = httpRegex.Match(data.Text);
+                if (httpMatch.Success)
                 {
-                    query = data.Text.Substring(prefix.Length);
+                    this.urls[data.Target] = httpMatch.Value;
                 }
 
-                responses.AddRange((await this.ProcessMessageAsync(BotMessageData.Create(data, query, client))).Responses);
+                if (data.Text.StartsWith(settings.Prefix))
+                {
+                    query = data.Text.Substring(settings.Prefix.Length);
+                }
+                
+                responses.AddRange((await this.ProcessMessageAsync(BotMessageData.Create(data, query, client), settings)).Responses);
 
                 foreach (string response in responses)
                 {

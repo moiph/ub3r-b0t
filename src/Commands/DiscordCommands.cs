@@ -14,6 +14,7 @@
     using System.Text;
     using Microsoft.CodeAnalysis;
     using System.IO;
+    using Discord.Net;
 
     public class DiscordCommands
     {
@@ -403,6 +404,16 @@
                 return new CommandResponse { Text = string.Empty, Embed = embedBuilder };
             });
 
+            Commands.Add("role", async (message) =>
+            {
+                return await this.SelfRole(message, true);
+            });
+
+            Commands.Add("derole", async (message) =>
+            {
+                return await this.SelfRole(message, false);
+            });
+
             Commands.Add("roll", RollAsync);
             Commands.Add("d", RollAsync);
 
@@ -454,6 +465,72 @@
 
                 return null;
             });
+        }
+
+        private async Task<CommandResponse> SelfRole(SocketMessage message, bool isAdd)
+        {
+            if (message.Channel is IGuildChannel guildChannel)
+            {
+                var settings = SettingsConfig.GetSettings(guildChannel.GuildId.ToString());
+                var roleArgs = message.Content.Split(new[] { ' ' }, 2);
+
+                if (roleArgs.Length == 1)
+                {
+                    return new CommandResponse { Text = $"Usage: {settings.Prefix}role rolename | {settings.Prefix}derole rolename" };
+                }
+
+                IRole requestedRole = message.MentionedRoles.FirstOrDefault();
+                if (requestedRole == null)
+                {
+                    requestedRole = guildChannel.Guild.Roles.Where(r => r.Name.ToLowerInvariant().Contains(roleArgs[1].ToLowerInvariant())).FirstOrDefault();
+
+                    if (requestedRole == null)
+                    {
+                        return new CommandResponse { Text = "wtf? role not found, spel teh name beter or something." };
+                    }
+                }
+
+                if (!(await guildChannel.Guild.GetCurrentUserAsync()).GuildPermissions.ManageRoles)
+                {
+                    return new CommandResponse { Text = "gee thanks asswad I can't manage roles in this server. not much I can do for ya here buddy. unless you wanna, y'know, up my permissions" };
+                }
+
+                if (!settings.SelfRoles.Contains(requestedRole.Id))
+                {
+                    return new CommandResponse { Text = "woah there buttmunch tryin' to cheat the system? you don't have the AUTHORITY to self-assign THAT role. now make like a tree and get outta here" };
+                }
+
+                var guildAuthor = message.Author as IGuildUser;
+                if (isAdd && guildAuthor.RoleIds.Contains(requestedRole.Id))
+                {
+                    return new CommandResponse { Text = "seriously? you already have that role. settle DOWN, freakin' role enthustiast" };
+                }
+
+                if (!isAdd && !guildAuthor.RoleIds.Contains(requestedRole.Id))
+                {
+                    return new CommandResponse { Text = "seriously? you don't even have that role. settle DOWN, freakin' role unenthustiast" };
+                }
+
+                try
+                {
+                    if (isAdd)
+                    {
+                        await guildAuthor.AddRoleAsync(requestedRole);
+                        return new CommandResponse { Text = $"access granted to role `{requestedRole.Name}`. congratulation !" };
+                    }
+                    else
+                    {
+                        await guildAuthor.RemoveRoleAsync(requestedRole);
+                        return new CommandResponse { Text = $"access removed from role `{requestedRole.Name}`. congratulation ... ?" };
+                    }
+                }
+                catch (HttpException ex) when (ex.HttpCode == HttpStatusCode.Forbidden)
+                {
+                    return new CommandResponse { Text = "...it seems I cannot actually modify that role. yell at management" };
+                }
+            }
+
+            return new CommandResponse { Text = "role command does not work in private channels" };
         }
 
         // TODO: Not discord specific, move this

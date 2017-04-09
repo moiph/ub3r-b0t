@@ -89,6 +89,7 @@
 
         public HashSet<string> WordCensors { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+        public HashSet<ulong> SelfRoles { get; set; } = new HashSet<ulong>();
         public HashSet<string> DisabledCommands { get; set; } = new HashSet<string>();
         public string Prefix { get; set; } = ".";
 

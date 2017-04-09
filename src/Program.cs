@@ -7,6 +7,7 @@
     using System;
     using System.Linq;
     using System.Runtime.InteropServices;
+    using System.Text;
 
     class Program
     {
@@ -37,15 +38,25 @@
                 string response = string.Empty;
                 if (context.Request.Query["guilds"] == "1" && BotInstance != null)
                 {
-                    response = string.Join($",{Environment.NewLine}", BotInstance.client.Guilds.Select(g => g.Id));
+                    response = string.Join($",{Environment.NewLine}",
+                        BotInstance.client.Guilds.OrderByDescending(g => g.Users.Count).Select(g => $"{g.Id} | {g.Name} | {g.Users.Count}"));
                 }
                 else
                 {
                     response = $"Online{Environment.NewLine}";
                 }
-                context.Response.ContentLength = response.Length;
+
+                context.Response.ContentLength = Encoding.UTF8.GetByteCount(response);
                 context.Response.ContentType = "text/plain";
-                await context.Response.WriteAsync(response);
+
+                try
+                {
+                    await context.Response.WriteAsync(response);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e);
+                }
             });
         }
 

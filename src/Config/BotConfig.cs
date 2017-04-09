@@ -78,6 +78,11 @@
         public string DiscordListKey { get; set; }
 
         /// <summary>
+        /// Key for statistics on https://discordbots.org/
+        /// </summary>
+        public string DiscordBotsOrgKey { get; set; }
+
+        /// <summary>
         /// Outgoing webhooks, to send messages for particular channels to...wherever
         /// </summary>
         public Dictionary<ulong, OutgoingWebhook> OutgoingWebhooks { get; set; } = new Dictionary<ulong, OutgoingWebhook>();
@@ -114,6 +119,16 @@
         /// List of channels to join.
         /// </summary>
         public string[] Channels { get; set; }
+
+        /// <summary>
+        /// Nickname to use; if empty, uses the global bot Name.
+        /// </summary>
+        public string Nick { get; set; } = null;
+
+        /// <summary>
+        /// Password to connect to the server (optional)
+        /// </summary>
+        public string Password { get; set; } = null;
 
         /// <summary>
         /// Flags whether or not this server is enabled.

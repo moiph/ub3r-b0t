@@ -20,7 +20,8 @@ namespace UB3RB0T
         const int ONEDAY = ONEHOUR * 24;
         const int ONEWEEK = ONEDAY * 7;
         const int ONEYEAR = ONEDAY * 365;
-        const long TOOLONG = 473040000;
+        const long TOOLONG = 315360000;
+                             
 
         private static HashSet<ulong> blockedDMUsers = new HashSet<ulong>();
 
@@ -171,6 +172,41 @@ namespace UB3RB0T
             }
         }
 
+        public static bool TryParseAbsoluteReminder(Match timerMatch, BotMessageData messageData, out string query)
+        {
+            query = string.Empty;
+
+            string toMatch = timerMatch.Groups["target"].ToString().Trim();
+            string to = toMatch == "me" ? messageData.UserName : toMatch;
+            string req = to == messageData.UserName ? string.Empty : messageData.UserName;
+            string durationStr = string.Empty;
+            long duration = 0;
+
+            GroupCollection matchGroups = timerMatch.Groups;
+            string reason = matchGroups["reason"].ToString();
+
+            var dateTimeString = matchGroups["time"].ToString();
+            if (matchGroups["date"].Success)
+            {
+                dateTimeString = matchGroups["date"] + " " + dateTimeString;
+            }
+
+            if (DateTime.TryParse(dateTimeString, DateTimeFormatInfo.InvariantInfo, DateTimeStyles.AdjustToUniversal, out DateTime dt))
+            {
+                duration = (long)dt.Subtract(DateTime.UtcNow).TotalSeconds;
+                durationStr = $"{duration}s";
+            }
+
+            if (duration < 10 || duration > TOOLONG)
+            {
+                return false;
+            }
+
+            query = $"timer for:\"{to}\" {durationStr} {reason}";
+
+            return true;
+        }
+
         public static bool TryParseReminder(Match timerMatch, BotMessageData messageData, out string query)
         {
             query = string.Empty;
@@ -190,7 +226,7 @@ namespace UB3RB0T
                 if (int.TryParse(yearString.Remove(yearString.Length - 5, 5), out int yearValue))
                 {
                     duration += yearValue * ONEYEAR;
-                    durationStr = yearValue.ToString() + "y";
+                    durationStr = $"{yearValue}y";
                 }
             }
 
@@ -200,7 +236,7 @@ namespace UB3RB0T
                 if (int.TryParse(weekString.Remove(weekString.Length - 5, 5), out int weekValue))
                 {
                     duration += weekValue * ONEWEEK;
-                    durationStr += weekValue.ToString() + "w";
+                    durationStr += $"{weekValue}w";
                 }
             }
 
@@ -210,7 +246,7 @@ namespace UB3RB0T
                 if (int.TryParse(dayString.Remove(dayString.Length - 4, 4), out int dayValue))
                 {
                     duration += dayValue * ONEDAY;
-                    durationStr += dayValue.ToString() + "d";
+                    durationStr += $"{dayValue}d";
                 }
             }
 
@@ -220,7 +256,7 @@ namespace UB3RB0T
                 if (int.TryParse(hourString.Remove(hourString.Length - 5, 5), out int hourValue))
                 {
                     duration += hourValue * ONEHOUR;
-                    durationStr += hourValue.ToString() + "h";
+                    durationStr += $"{hourValue}h";
                 }
             }
 
@@ -230,7 +266,7 @@ namespace UB3RB0T
                 if (int.TryParse(minuteString.Remove(minuteString.Length - 7, 7), out int minuteValue))
                 {
                     duration += minuteValue * 60;
-                    durationStr += minuteValue.ToString() + "m";
+                    durationStr += $"{minuteValue}m";
                 }
             }
 
@@ -240,7 +276,7 @@ namespace UB3RB0T
                 if (int.TryParse(secongString.Remove(secongString.Length - 8, 8), out int secondValue))
                 {
                     duration += secondValue;
-                    durationStr += secondValue.ToString() + "s";
+                    durationStr += $"{secondValue}s";
                 }
             }
 

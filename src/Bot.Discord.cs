@@ -1,7 +1,6 @@
 ﻿namespace UB3RB0T
 {
     using Discord;
-    using Discord.Audio;
     using Discord.Net;
     using Discord.WebSocket;
     using Flurl;
@@ -181,6 +180,20 @@
                     Console.WriteLine($"Failed to update discordlist.net stats: {ex}");
                 }
             }
+
+            if (!string.IsNullOrEmpty(this.Config.Discord.DiscordBotsOrgKey))
+            {
+                try
+                {
+                    var result = await "https://discordbots.org/api/85614143951892480/stats"
+                        .WithHeader("Authorization", this.Config.Discord.DiscordBotsOrgKey)
+                        .PostJsonAsync(new { shard_id = client.ShardId, shard_count = this.Config.Discord.ShardCount, server_count = client.Guilds.Count() });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Failed ot update discordbots.org stats: {ex}");
+                }
+            }
         }
 
         private async Task Client_UserVoiceStateUpdatedAsync(SocketUser arg1, SocketVoiceState arg2, SocketVoiceState arg3)
@@ -232,8 +245,7 @@
             var settings = SettingsConfig.GetSettings(guildUser.GuildId);
             if (settings.Mod_LogId != 0)
             {
-                var modLogChannel = this.client.GetChannel(settings.Mod_LogId) as ITextChannel;
-                if (modLogChannel != null && botGuildUser.GetPermissions(modLogChannel).SendMessages)
+                if (this.client.GetChannel(settings.Mod_LogId) is ITextChannel modLogChannel && botGuildUser.GetPermissions(modLogChannel).SendMessages)
                 {
                     if (settings.HasFlag(ModOptions.Mod_LogUserLeaveVoice) && arg2.VoiceChannel != null && arg2.VoiceChannel.Id != arg3.VoiceChannel?.Id)
                     {
@@ -468,6 +480,8 @@
                 catch (Exception ex)
                 {
                     Console.WriteLine(ex);
+                    this.AppInsights?.TrackException(ex);
+
                     if (this.Config.AlertEndpoint != null)
                     {
                         try
@@ -564,7 +578,8 @@
             // special case FAQ channel
             if (message.Channel.Id == this.Config.FaqChannel && message.Content.EndsWith("?") && this.Config.FaqEndpoint != null)
             {
-                var result = await this.Config.FaqEndpoint.ToString().WithHeader("Ocp-Apim-Subscription-Key", this.Config.FaqKey).PostJsonAsync(new { question = message.Content });
+                string content = message.Content.Replace("<@85614143951892480>", "ub3r-b0t");
+                var result = await this.Config.FaqEndpoint.ToString().WithHeader("Ocp-Apim-Subscription-Key", this.Config.FaqKey).PostJsonAsync(new { question = content });
                 if (result.IsSuccessStatusCode)
                 {
                     var response = await result.Content.ReadAsStringAsync();
@@ -599,6 +614,12 @@
                     Text = messageText,
                     Timestamp = Utilities.Utime,
                 };
+            }
+
+            var httpMatch = httpRegex.Match(message.Content);
+            if (httpMatch.Success)
+            {
+                this.urls[message.Channel.Id.ToString()] = httpMatch.Value;
             }
 
             // TODO: Pull this out to common area to share with IRC
@@ -641,7 +662,7 @@
             string command = query.Split(new[] { ' ' }, 2)?[0];
 
             // if it's a blocked command, bail
-            if (settings.IsCommandDisabled(CommandsConfig.Instance, command))
+            if (settings.IsCommandDisabled(CommandsConfig.Instance, command) && !IsAuthorOwner(message))
             {
                 return;
             }
@@ -872,6 +893,10 @@
                     catch (HttpException ex) when (ex.HttpCode == HttpStatusCode.Forbidden)
                     {
                         await arg.Guild.SendOwnerDMAsync($"Permissions error detected for {arg.Guild.Name}: Auto role add on user joined failed, role `{role.Name}` is higher in order than my role");
+                    }
+                    catch (HttpException ex) when (ex.HttpCode == HttpStatusCode.NotFound)
+                    {
+                        await arg.Guild.SendOwnerDMAsync($"Error detected for {arg.Guild.Name}: Auto role add on user joined failed, role `{role.Name}` does not exist");
                     }
                 }
             }

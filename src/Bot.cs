@@ -31,12 +31,15 @@
         private ConcurrentDictionary<string, int> commandsIssued = new ConcurrentDictionary<string, int>();
         private ConcurrentDictionary<string, RepeatData> repeatData = new ConcurrentDictionary<string, RepeatData>();
         private ConcurrentDictionary<string, SeenUserData> seenUsers = new ConcurrentDictionary<string, SeenUserData>();
+        private ConcurrentDictionary<string, string> urls = new ConcurrentDictionary<string, string>();
 
         private static Regex UrlRegex = new Regex("(https?://[^ ]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static Regex channelRegex = new Regex("#([a-zA-Z0-9\\-]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static Regex httpRegex = new Regex("https?://([^\\s]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        public static Regex TimerRegex = new Regex(".*?remind (?<target>.+?) in (?<years>[0-9]+ year)?s? ?(?<weeks>[0-9]+ week)?s? ?(?<days>[0-9]+ day)?s? ?(?<hours>[0-9]+ hour)?s? ?(?<minutes>[0-9]+ minute)?s? ?(?<seconds>[0-9]+ seconds)?.*?(?<prep>[^ ]+) (?<reason>.+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        public static Regex Timer2Regex = new Regex(".*?remind (?<target>.+?) (?<prep>[^ ]+) (?<reason>.+?) in (?<years>[0-9]+ year)?s? ?(?<weeks>[0-9]+ week)?s? ?(?<days>[0-9]+ day)?s? ?(?<hours>[0-9]+ hour)?s? ?(?<minutes>[0-9]+ minute)?s? ?(?<seconds>[0-9]+ seconds)?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static Regex timerRegex = new Regex(".*?remind (?<target>.+?) in (?<years>[0-9]+ year)?s? ?(?<weeks>[0-9]+ week)?s? ?(?<days>[0-9]+ day)?s? ?(?<hours>[0-9]+ hour)?s? ?(?<minutes>[0-9]+ minute)?s? ?(?<seconds>[0-9]+ seconds)?.*?(?<prep>[^ ]+) (?<reason>.+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static Regex timer2Regex = new Regex(".*?remind (?<target>.+?) (?<prep>[^ ]+) (?<reason>.+?) in (?<years>[0-9]+ year)?s? ?(?<weeks>[0-9]+ week)?s? ?(?<days>[0-9]+ day)?s? ?(?<hours>[0-9]+ hour)?s? ?(?<minutes>[0-9]+ minute)?s? ?(?<seconds>[0-9]+ seconds)?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static Regex timerOnRegex  = new Regex(".*?remind (?<target>.+?) (?<prep>[^ ]+) (?<reason>.+?) at (?<time>[0-9]+:[0-9]{2} ?(am|pm)? ?(\\+[0-9]+|\\-[0-9]+)?)( on (?<date>[0-9]+(/|-)[0-9]+(/|-)[0-9]+))?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static Regex timerOn2Regex = new Regex(".*?remind (?<target>.+?) at (?<time>[0-9]+:[0-9]{2} ?(am|pm)? ?(\\+[0-9]+|\\-[0-9]+)?)( on (?<date>[0-9]+(/|-)[0-9]+(/|-)[0-9]+))? ?(?<prep>[^ ]+) (?<reason>.+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         private Timer notificationsTimer;
         private Timer remindersTimer;
@@ -142,8 +145,29 @@
                 {
                     read = Console.ReadLine();
 
-                    // TODO:
-                    // console command support
+                    try
+                    {
+                        // TODO:
+                        // proper console command support
+                        if (read.StartsWith("JOIN"))
+                        {
+                            var args = read.Split(new[] { ' ' });
+                            if (args.Length != 3)
+                            {
+                                Console.WriteLine("invalid");
+                            }
+                            else if (this.ircClients.ContainsKey(args[1]))
+                            {
+                                // TODO: update irc library to handle this nonsense
+                                this.serverData[args[1]].Channels[args[2].ToLowerInvariant()] = new ChannelData();
+                                this.ircClients[args[1]].Command("JOIN", args[2], string.Empty);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(ex);
+                    }
                 }
 
                 this.exitCode = (int)Program.ExitCode.ExpectedShutdown;
@@ -251,9 +275,12 @@
 
                         if (this.botType == BotType.Irc)
                         {
-                            string msg = string.Format("{0}: {1} ({2} ago) {3}", timer.Nick, timer.Reason, timer.Duration, requestedBy);
-                            this.ircClients[timer.Server]?.Command("PRIVMSG", timer.Channel, msg);
-                            remindersToDelete.Add(timer.Id);
+                            if (this.ircClients.ContainsKey(timer.Server))
+                            {
+                                string msg = string.Format("{0}: {1} ({2} ago) {3}", timer.Nick, timer.Reason, timer.Duration, requestedBy);
+                                this.ircClients[timer.Server]?.Command("PRIVMSG", timer.Channel, msg);
+                                remindersToDelete.Add(timer.Id);
+                            }
                         }
                         else if (this.client != null)
                         {
@@ -620,7 +647,10 @@
             return !string.IsNullOrEmpty(messageData.UserId) && messageData.UserId == this.Config.Discord?.OwnerId.ToString();
         }
 
-        private async Task<BotResponseData> ProcessMessageAsync(BotMessageData messageData) => await ProcessMessageAsync(messageData, new Settings());
+        private bool IsAuthorOwner(SocketUserMessage message)
+        {
+            return message.Author.Id == this.Config.Discord?.OwnerId;
+        }
 
         private async Task<BotResponseData> ProcessMessageAsync(BotMessageData messageData, Settings settings)
         {
@@ -636,31 +666,52 @@
 
                 if (string.IsNullOrEmpty(command))
                 {
-                    // check for reminders
-                    Match timerMatch = TimerRegex.Match(messageData.Content);
-                    Match timer2Match = Timer2Regex.Match(messageData.Content);
-
-                    if (timerMatch.Success || timer2Match.Success)
+                    if (messageData.Content.ToLowerInvariant().Contains("remind "))
                     {
-                        Match matchToUse = timerMatch.Success && !timerMatch.Groups["prep"].Value.All(char.IsDigit) ? timerMatch : timer2Match;
-                        if (Utilities.TryParseReminder(matchToUse, messageData, out query))
+                        // check for reminders
+                        Match timerAtMatch = timerOnRegex.Match(messageData.Content);
+                        Match timerAt2Match = timerOn2Regex.Match(messageData.Content);
+                        if (timerAtMatch.Success && Utilities.TryParseAbsoluteReminder(timerAtMatch, messageData, out query))
                         {
                             command = "timer";
                         }
-                    }
-                    else if (settings.AutoTitlesEnabled && CommandsConfig.Instance.AutoTitleMatches.Any(t => messageData.Content.Contains(t)))
-                    {
-                        Match match = httpRegex.Match(messageData.Content);
-                        if (match != null)
+                        else if (timerAt2Match.Success && Utilities.TryParseAbsoluteReminder(timerAt2Match, messageData, out query))
                         {
-                            command = "title";
-                            query = $"{command} {match.Value}";
+                            command = "timer";
+                        }
+                        else // try relative timers if absolute had no match
+                        {
+                            Match timerMatch = timerRegex.Match(messageData.Content);
+                            Match timer2Match = timer2Regex.Match(messageData.Content);
+
+                            if (timerMatch.Success || timer2Match.Success)
+                            {
+                                Match matchToUse = timerMatch.Success && !timerMatch.Groups["prep"].Value.All(char.IsDigit) ? timerMatch : timer2Match;
+                                if (Utilities.TryParseReminder(matchToUse, messageData, out query))
+                                {
+                                    command = "timer";
+                                }
+                            }
+
                         }
                     }
-                    else if ((settings.FunResponsesEnabled || IsAuthorOwner(messageData)) && contentParts.Length > 1 && contentParts[1] == "face")
+
+                    if (string.IsNullOrEmpty(command))
                     {
-                        command = "face";
-                        query = $"{command} {contentParts[0]}";
+                        if (settings.AutoTitlesEnabled && CommandsConfig.Instance.AutoTitleMatches.Any(t => messageData.Content.Contains(t)))
+                        {
+                            Match match = httpRegex.Match(messageData.Content);
+                            if (match != null)
+                            {
+                                command = "title";
+                                query = $"{command} {match.Value}";
+                            }
+                        }
+                        else if ((settings.FunResponsesEnabled || IsAuthorOwner(messageData)) && contentParts.Length > 1 && contentParts[1] == "face")
+                        {
+                            command = "face";
+                            query = $"{command} {contentParts[0]}";
+                        }
                     }
                 }
 
@@ -671,7 +722,7 @@
                 }
 
                 // Ignore if the command is disabled on this server
-                if (settings.IsCommandDisabled(CommandsConfig.Instance, command))
+                if (settings.IsCommandDisabled(CommandsConfig.Instance, command) && !IsAuthorOwner(messageData))
                 {
                     return responseData;
                 }
@@ -695,6 +746,13 @@
                             { "serverId", messageData.Server },
                         };
                         this.AppInsights?.TrackEvent(command.ToLowerInvariant(), props);
+
+                        // extra processing on ".title" command
+                        if (command == "title" && messageData.Content.EndsWith("title") && urls.ContainsKey(messageData.Channel))
+                        {
+                            query += $" {urls[messageData.Channel]}";
+                        }
+
                         responseData = await this.BotApi.IssueRequestAsync(messageData, query);
                     }
                 }
@@ -708,7 +766,7 @@
                 string response = null;
                 if (mentionsBot)
                 {
-                    var responseValue = PhrasesConfig.Instance.PartialMentionPhrases.Where(kvp => messageData.Content.Contains(kvp.Key)).FirstOrDefault().Value;
+                    var responseValue = PhrasesConfig.Instance.PartialMentionPhrases.Where(kvp => messageData.Content.ToLowerInvariant().Contains(kvp.Key.ToLowerInvariant())).FirstOrDefault().Value;
                     if (!string.IsNullOrEmpty(responseValue))
                     { 
                         response = PhrasesConfig.Instance.Responses[responseValue].Random();
