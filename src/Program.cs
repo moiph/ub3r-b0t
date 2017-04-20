@@ -8,6 +8,7 @@
     using System.Linq;
     using System.Runtime.InteropServices;
     using System.Text;
+    using Newtonsoft.Json;
 
     class Program
     {
@@ -40,6 +41,25 @@
                 {
                     response = string.Join($",{Environment.NewLine}",
                         BotInstance.client.Guilds.OrderByDescending(g => g.Users.Count).Select(g => $"{g.Id} | {g.Name} | {g.Users.Count}"));
+                }
+                else if (!string.IsNullOrEmpty(context.Request.Query["guildId"]) && BotInstance != null)
+                {
+                    if (ulong.TryParse(context.Request.Query["guildId"], out ulong guildId))
+                    {
+                        var guild = BotInstance.client.GetGuild(guildId);
+                        if (guild != null)
+                        {
+                            var channelsResponse = new GuildPermisssionsData();
+
+                            var botGuildUser = guild.CurrentUser;
+                            foreach (var chan in guild.Channels)
+                            {
+                                var channelPermissions = botGuildUser.GetPermissions(chan);
+                                channelsResponse.Channels.Add(chan.Id, new ChannelPermissions { CanRead = channelPermissions.ReadMessages, CanSend = channelPermissions.SendMessages });
+                            }
+                            response = JsonConvert.SerializeObject(channelsResponse);
+                        }
+                    }
                 }
                 else
                 {

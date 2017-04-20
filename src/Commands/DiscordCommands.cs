@@ -548,22 +548,55 @@
             }
             else
             {
+                string[] advancedParts = message.Content.Split(new char[] { ' ' }, 2, StringSplitOptions.RemoveEmptyEntries);
                 // see if it's a multi roll
-                var match = Regex.Match(parts[1], "(\\d+)?d(\\d+)");
+                var match = Regex.Match(advancedParts[1], "(\\d+)?d(\\d+) ?(\\+|\\-|\\*)? ?(\\d+)?");
 
-                if (match.Success && match.Groups.Count == 3)
+                if (match.Success)
                 {
+                    if (match.Value != advancedParts[1])
+                    {
+                        return Task.FromResult(new CommandResponse { Text = "Invalid syntax; `.roll <count>d<sides>[+-*]<modifier>`" });
+                    }
+
                     string numDiceValue = string.IsNullOrEmpty(match.Groups[1].Value) ? "1" : match.Groups[1].Value;
                     if (int.TryParse(numDiceValue, out int numDice) && int.TryParse(match.Groups[2].Value, out int diceValue) && numDice <= 20)
                     {
                         long rollResult = 0;
-                        for (var i = 0; i < numDice; i++)
+                        try
                         {
-                            rollResult += r.Next(1, Math.Min(diceValue + 1, int.MaxValue));
-                        }
+                            for (var i = 0; i < numDice; i++)
+                            {
+                                rollResult += r.Next(1, Math.Min(diceValue + 1, int.MaxValue));
+                            }
 
-                        rolls.Add(rollResult);
-                        failed = false;
+                            var bonus = 0;
+                            var modifier = match.Groups[3].Value;
+                            int.TryParse(match.Groups[4].Value, out var amount);
+
+                            switch (modifier)
+                            {
+                                case "+":
+                                    rollResult += amount;
+                                    break;
+                                case "-":
+                                    rollResult -= amount;
+                                    break;
+                                case "*":
+                                    rollResult = rollResult * amount;
+                                    break;
+                                case "":
+                                default:
+                                    break;
+                            }
+
+                            rolls.Add(rollResult + bonus);
+                            failed = false;
+                        }
+                        catch (ArgumentOutOfRangeException)
+                        {
+                            // tsk tsk
+                        }
                     }
                 }
                 else if (parts.Length == 2 && parts[1].Contains("i"))

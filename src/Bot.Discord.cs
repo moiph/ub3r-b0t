@@ -45,6 +45,7 @@
             client.UserLeft += Discord_UserLeftAsync;
             client.JoinedGuild += Client_JoinedGuildAsync;
             client.LeftGuild += Discord_LeftGuildAsync;
+            client.ReactionAdded += Client_ReactionAdded;
             client.MessageDeleted += Client_MessageDeletedAsync;
             client.MessageUpdated += Client_MessageUpdatedAsync;
             client.UserBanned += Client_UserBannedAsync;
@@ -185,13 +186,13 @@
             {
                 try
                 {
-                    var result = await "https://discordbots.org/api/85614143951892480/stats"
+                    var result = await $"https://discordbots.org/api/bots/{client.CurrentUser.Id}/stats"
                         .WithHeader("Authorization", this.Config.Discord.DiscordBotsOrgKey)
                         .PostJsonAsync(new { shard_id = client.ShardId, shard_count = this.Config.Discord.ShardCount, server_count = client.Guilds.Count() });
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Failed ot update discordbots.org stats: {ex}");
+                    Console.WriteLine($"Failed to update discordbots.org stats: {ex}");
                 }
             }
         }
@@ -383,6 +384,19 @@
             }
         }
 
+        private async Task Client_ReactionAdded(Cacheable<IUserMessage, ulong> arg1, ISocketMessageChannel arg2, SocketReaction arg3)
+        {
+            // if an Eye emoji was added, let's process it
+            if ((arg3.Emoji.Name == "👁" || arg3.Emoji.Name == "🖼") && 
+                arg3.Message.IsSpecified && 
+                IsAuthorPatron(arg3.UserId) && 
+                string.IsNullOrEmpty(arg3.Message.Value.Content) && 
+                arg3.Message.Value.Attachments.Count > 0)
+            {
+                await this.HandleMessageAsync(arg3.Message.Value, arg3.Emoji.Name);
+            }
+        }
+
         private async Task Client_MessageUpdatedAsync(Cacheable<IMessage, ulong> arg1, SocketMessage arg2, ISocketMessageChannel arg3)
         {
             if (arg2 != null && arg2.Channel != null && arg2.Channel is IGuildChannel guildChannel)
@@ -481,26 +495,16 @@
                 {
                     Console.WriteLine(ex);
                     this.AppInsights?.TrackException(ex);
-
-                    if (this.Config.AlertEndpoint != null)
-                    {
-                        try
-                        {
-                            await this.Config.AlertEndpoint.ToString().PostJsonAsync(new { content = $":warning: shard {this.shard}: " + ex.ToString().Substring(0, Math.Min(ex.ToString().Length, 1950)) });
-                        }
-                        catch (Exception exx)
-                        {
-                            Console.WriteLine(exx);
-                        }
-                    }
+                    this.ReportError(LogSeverity.Error, $":warning: shard {this.shard}: " + ex.ToString().Substring(0, Math.Min(ex.ToString().Length, 1950)));
                 }
             }).Forget();
 
             return Task.CompletedTask;
         }
 
-        private async Task HandleMessageAsync(SocketMessage socketMessage)
-        { 
+        // TODO: this method is waaaaaaay too huge
+        private async Task HandleMessageAsync(SocketMessage socketMessage, string ocrType = null)
+        {
             messageCount++;
 
             // Ignore system and our own messages.
@@ -622,6 +626,53 @@
                 this.urls[message.Channel.Id.ToString()] = httpMatch.Value;
             }
 
+            string messageContent = message.Content;
+            // OCR for fun if requested (patrons only)
+            // TODO: need to drive this via config
+            if (!string.IsNullOrEmpty(ocrType) && string.IsNullOrEmpty(message.Content) && message.Attachments?.FirstOrDefault()?.Url is string attachmentUrl)
+            {
+                string newMessageContent = string.Empty;
+
+                if (ocrType == "👁")
+                {
+                    var result = await this.Config.OcrEndpoint.ToString()
+                    .WithHeader("Ocp-Apim-Subscription-Key", this.Config.VisionKey)
+                    .PostJsonAsync(new { url = attachmentUrl });
+
+                    if (result.IsSuccessStatusCode)
+                    {
+                        var response = await result.Content.ReadAsStringAsync();
+                        var ocrData = JsonConvert.DeserializeObject<OcrData>(response);
+                        if (!string.IsNullOrEmpty(ocrData.GetText()))
+                        {
+                            newMessageContent = ocrData.GetText();
+                        }
+                    }
+                }
+                else if (ocrType == "🖼")
+                {
+                    var analyzeResult = await this.Config.AnalyzeEndpoint.ToString()
+                        .WithHeader("Ocp-Apim-Subscription-Key", this.Config.VisionKey)
+                        .PostJsonAsync(new { url = attachmentUrl });
+
+                    if (analyzeResult.IsSuccessStatusCode)
+                    {
+                        var response = await analyzeResult.Content.ReadAsStringAsync();
+                        var analyzeData = JsonConvert.DeserializeObject<AnalyzeImageData>(response);
+                        if (analyzeData.Description.Tags.Contains("ball"))
+                        {
+                            newMessageContent = ".8ball foo";
+                        }
+                        else if (analyzeData.Description.Tags.Contains("outdoor"))
+                        {
+                            newMessageContent = ".fw";
+                        }
+                    }
+                }
+
+                messageContent = newMessageContent ?? messageContent;
+            }
+
             // TODO: Pull this out to common area to share with IRC
             if (settings.FunResponsesEnabled && !string.IsNullOrEmpty(message.Content))
             {
@@ -652,11 +703,11 @@
             int argPos = 0;
             if (message.HasMentionPrefix(client.CurrentUser, ref argPos))
             {
-                query = message.Content.Substring(argPos);
+                query = messageContent.Substring(argPos);
             }
-            else if (message.Content.StartsWith(settings.Prefix))
+            else if (messageContent.StartsWith(settings.Prefix))
             {
-                query = message.Content.Substring(settings.Prefix.Length);
+                query = messageContent.Substring(settings.Prefix.Length);
             }
 
             string command = query.Split(new[] { ' ' }, 2)?[0];
@@ -701,9 +752,12 @@
                     typingState = message.Channel.EnterTypingState();
                 }
 
+                var messageData = BotMessageData.Create(message, query, settings);
+                messageData.Content = messageContent;
+
                 try
                 {
-                    BotResponseData responseData = await this.ProcessMessageAsync(BotMessageData.Create(message, query, settings), settings);
+                    BotResponseData responseData = await this.ProcessMessageAsync(messageData, settings);
 
                     if (responseData.Embed != null)
                     {
@@ -924,17 +978,9 @@
                 return Task.CompletedTask;
             }
 
-            if (arg.Severity <= LogSeverity.Warning && arg.Message != null && !arg.Message.Contains("Preemptive Rate limit triggered") && !arg.Message.Contains("referenced an unknown"))
+            if (arg.Severity <= LogSeverity.Warning && arg.Message != null)
             {
-                try
-                {
-                    string messageContent = $":information_source: {arg.Severity} on shard {this.shard}: {arg.Message}";
-                    this.Config.AlertEndpoint.ToString().PostJsonAsync(new { content = messageContent });
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine("Error sending log data: " + ex);
-                }
+                this.ReportError(arg.Severity, arg.Message);
             }
 
             LogType logType = LogType.Debug;
@@ -962,6 +1008,26 @@
             this.consoleLogger.Log(logType, arg.ToString());
 
             return Task.CompletedTask;
+        }
+
+        private void ReportError(LogSeverity severity, string message)
+        {
+            if (!string.IsNullOrEmpty(message))
+            {
+                message = message.ToLowerInvariant();
+                if (!message.ToLowerInvariant().Contains("rate limit") && !message.Contains("referenced an unknown"))
+                {
+                    try
+                    {
+                        string messageContent = $":information_source: {severity} on shard {this.shard}: {message}";
+                        this.Config.AlertEndpoint?.ToString().PostJsonAsync(new { content = messageContent });
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine("Error sending log data: " + ex);
+                    }
+                }
+            }
         }
     }
 }

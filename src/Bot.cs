@@ -36,10 +36,10 @@
         private static Regex UrlRegex = new Regex("(https?://[^ ]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static Regex channelRegex = new Regex("#([a-zA-Z0-9\\-]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static Regex httpRegex = new Regex("https?://([^\\s]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        private static Regex timerRegex = new Regex(".*?remind (?<target>.+?) in (?<years>[0-9]+ year)?s? ?(?<weeks>[0-9]+ week)?s? ?(?<days>[0-9]+ day)?s? ?(?<hours>[0-9]+ hour)?s? ?(?<minutes>[0-9]+ minute)?s? ?(?<seconds>[0-9]+ seconds)?.*?(?<prep>[^ ]+) (?<reason>.+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        private static Regex timer2Regex = new Regex(".*?remind (?<target>.+?) (?<prep>[^ ]+) (?<reason>.+?) in (?<years>[0-9]+ year)?s? ?(?<weeks>[0-9]+ week)?s? ?(?<days>[0-9]+ day)?s? ?(?<hours>[0-9]+ hour)?s? ?(?<minutes>[0-9]+ minute)?s? ?(?<seconds>[0-9]+ seconds)?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        private static Regex timerOnRegex  = new Regex(".*?remind (?<target>.+?) (?<prep>[^ ]+) (?<reason>.+?) at (?<time>[0-9]+:[0-9]{2} ?(am|pm)? ?(\\+[0-9]+|\\-[0-9]+)?)( on (?<date>[0-9]+(/|-)[0-9]+(/|-)[0-9]+))?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        private static Regex timerOn2Regex = new Regex(".*?remind (?<target>.+?) at (?<time>[0-9]+:[0-9]{2} ?(am|pm)? ?(\\+[0-9]+|\\-[0-9]+)?)( on (?<date>[0-9]+(/|-)[0-9]+(/|-)[0-9]+))? ?(?<prep>[^ ]+) (?<reason>.+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static Regex timerRegex = new Regex(".*?remind (?<target>.+?) in (?<years>[0-9]+ year)?s? ?(?<weeks>[0-9]+ week)?s? ?(?<days>[0-9]+ day)?s? ?(?<hours>[0-9]+ hour)?s? ?(?<minutes>[0-9]+ minute)?s? ?(?<seconds>[0-9]+ seconds)?.*?(?<prep>[^ ]+) (?<reason>.+)", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        private static Regex timer2Regex = new Regex(".*?remind (?<target>.+?) (?<prep>[^ ]+) (?<reason>.+?) in (?<years>[0-9]+ year)?s? ?(?<weeks>[0-9]+ week)?s? ?(?<days>[0-9]+ day)?s? ?(?<hours>[0-9]+ hour)?s? ?(?<minutes>[0-9]+ minute)?s? ?(?<seconds>[0-9]+ seconds)?", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        private static Regex timerOnRegex  = new Regex(".*?remind (?<target>.+?) (?<prep>[^ ]+) (?<reason>.+?) at (?<time>[0-9]+:[0-9]{2} ?(am|pm)? ?(\\+[0-9]+|\\-[0-9]+)?)( on (?<date>[0-9]+(/|-)[0-9]+(/|-)[0-9]+))?", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        private static Regex timerOn2Regex = new Regex(".*?remind (?<target>.+?) at (?<time>[0-9]+:[0-9]{2} ?(am|pm)? ?(\\+[0-9]+|\\-[0-9]+)?)( on (?<date>[0-9]+(/|-)[0-9]+(/|-)[0-9]+))? ?(?<prep>[^ ]+) (?<reason>.+)", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
 
         private Timer notificationsTimer;
         private Timer remindersTimer;
@@ -227,12 +227,20 @@
                     heartbeatData.ServerCount = this.client.Guilds.Count();
                     heartbeatData.VoiceChannelCount = this.client.Guilds.Select(g => g.CurrentUser?.VoiceChannel).Where(v => v != null).Count();
                     heartbeatData.UserCount = this.client.Guilds.Sum(x => x.Users.Count);
+                    heartbeatData.ChannelCount = this.client.Guilds.Sum(x => x.TextChannels.Count);
                 }
             }
             else if (this.botType == BotType.Irc)
             {
                 heartbeatData.ServerCount = this.ircClients.Count;
                 heartbeatData.UserCount = this.GetIrcUserCount();
+                heartbeatData.ChannelCount = this.serverData.Values.Sum(i => i.Channels.Count);
+
+                // TODO: special case twitch until it becomes a first class type
+                if (this.ircClients.ContainsKey("irc.chat.twitch.tv"))
+                {
+                    heartbeatData.BotType = "Twitch";
+                }
             }
 
             if (this.Config.HeartbeatEndpoint != null && !this.Config.IsDevMode)
@@ -652,6 +660,11 @@
             return message.Author.Id == this.Config.Discord?.OwnerId;
         }
 
+        private bool IsAuthorPatron(ulong userId)
+        {
+            return this.Config.Discord.Patrons.Contains(userId);
+        }
+
         private async Task<BotResponseData> ProcessMessageAsync(BotMessageData messageData, Settings settings)
         {
             var responses = new List<string>();
@@ -748,7 +761,7 @@
                         this.AppInsights?.TrackEvent(command.ToLowerInvariant(), props);
 
                         // extra processing on ".title" command
-                        if (command == "title" && messageData.Content.EndsWith("title") && urls.ContainsKey(messageData.Channel))
+                        if ((command == "title" || command == "t") && messageData.Content.EndsWith(command) && urls.ContainsKey(messageData.Channel))
                         {
                             query += $" {urls[messageData.Channel]}";
                         }
@@ -760,8 +773,16 @@
 
             if (responseData.Responses.Count == 0 && responseData.Embed == null)
             {
-                bool mentionsBot = messageData.BotType == BotType.Discord ? messageData.DiscordMessageData.MentionedUsers.Count == 1 && messageData.DiscordMessageData.MentionedUsers.First().Id == client.CurrentUser.Id :
-                    (messageData.IrcMessageData.Text.Contains(this.Config.Name));
+                bool mentionsBot = false;
+                if (messageData.BotType == BotType.Discord)
+                {
+                    mentionsBot = messageData.DiscordMessageData.MentionedUsers.Count == 1 && messageData.DiscordMessageData.MentionedUsers.First().Id == client.CurrentUser.Id ||
+                        messageData.Content.ToLowerInvariant().Contains(this.Config.Name.ToLowerInvariant());
+                }
+                else
+                {
+                    mentionsBot = messageData.IrcMessageData.Text.Contains(this.Config.Name);
+                }
 
                 string response = null;
                 if (mentionsBot)

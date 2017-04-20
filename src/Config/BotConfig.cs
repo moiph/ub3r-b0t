@@ -31,6 +31,10 @@
         public Uri FaqEndpoint { get; set; }
         public string FaqKey { get; set; }
 
+        public string VisionKey { get; set; }
+        public Uri OcrEndpoint { get; set; }
+        public Uri AnalyzeEndpoint { get; set; }
+
         public DiscordConfig Discord { get; set; }
         public Irc Irc { get; set; }
 
@@ -61,6 +65,8 @@
         // Servers that are blocked from normal usage (owner being exempt)
         // Useful for things liek large test servers.
         public HashSet<ulong> BlockedServers { get; set; }
+
+        public HashSet<ulong> Patrons { get; set; }
 
         /// <summary>
         /// Key for statistics on https://www.carbonitex.net

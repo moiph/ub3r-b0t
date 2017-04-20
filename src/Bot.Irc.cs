@@ -1,7 +1,6 @@
 ﻿namespace UB3RB0T
 {
     using System;
-    using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Linq;
     using System.Text.RegularExpressions;
@@ -98,6 +97,11 @@
                 var channel = namesMatch.Groups[1].ToString().ToLowerInvariant();
                 var userList = namesMatch.Groups[2].ToString();
                 var users = userList.Split(new[] { ' ' });
+
+                if (!serverData[client.Host].Channels.ContainsKey(channel))
+                {
+                    serverData[client.Host].Channels[channel] = new ChannelData();
+                }
 
                 serverData[client.Host].Channels[channel].Users = new HashSet<string>(users);
             }

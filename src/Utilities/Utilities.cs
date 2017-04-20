@@ -297,9 +297,11 @@ namespace UB3RB0T
                 return null;
             }
 
+            // TODO: re-enable this once permissions errors are surfaced in admin panel
             try
             {
-                return await (await (await guild.GetOwnerAsync()).CreateDMChannelAsync()).SendMessageAsync(message);
+                return null;
+                // return await (await (await guild.GetOwnerAsync()).CreateDMChannelAsync()).SendMessageAsync(message);
             }
             catch (Exception ex)
             {
