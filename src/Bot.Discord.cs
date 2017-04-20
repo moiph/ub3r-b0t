@@ -258,10 +258,6 @@
                         modLogChannel.SendMessageAsync($"{guildUser.Username} joined voice channel {arg3.VoiceChannel.Name}").Forget();
                     }
                 }
-                else
-                {
-                    await guildUser.Guild.SendOwnerDMAsync($"Permissions error detected for {guildUser.Guild.Name} on voice channel updates: Can't send messages to configured mod logging channel.");
-                }
             }
         }
 
@@ -326,10 +322,6 @@
                                     await modLogChannel?.SendMessageAsync(roleText.Substring(0, Math.Min(roleText.Length, 2000)));
                                 }
                             }
-                            else
-                            {
-                                await guildUserBefore.Guild.SendOwnerDMAsync($"Permissions error detected for {guildUserBefore.Guild.Name} on user role updates: Can't send messages to configured mod logging channel.");
-                            }
                         }
                     }
 
@@ -354,10 +346,6 @@
                                     await modLogChannel.SendMessageAsync($"{guildUserAfter.Username}#{guildUserAfter.Discriminator} changed their nickname from {guildUserBefore.Nickname} to {guildUserAfter.Nickname}");
                                 }
                             }
-                            else
-                            {
-                                await guildUserBefore.Guild.SendOwnerDMAsync($"Permissions error detected for {guildUserBefore.Guild.Name} on user name updates: Can't send messages to configured mod logging channel.");
-                            }
                         }
                     }
                 }
@@ -376,10 +364,6 @@
                 if (arg2.CurrentUser.GetPermissions(modLogChannel).SendMessages)
                 {
                     await modLogChannel.SendMessageAsync(banText);
-                }
-                else
-                {
-                    await arg2.SendOwnerDMAsync($"Permissions error detected for {arg2.Name} on user bans: Can't send messages to configured mod logging channel.");
                 }
             }
         }
@@ -413,10 +397,6 @@
                         if (botUser != null && this.client.GetChannel(settings.Mod_LogId) is ITextChannel modLogChannel && botUser.GetPermissions(modLogChannel).SendMessages)
                         {
                             await modLogChannel.SendMessageAsync(editText.Substring(0, Math.Min(editText.Length, Discord.DiscordConfig.MaxMessageSize)));
-                        }
-                        else
-                        {
-                            await guildChannel.Guild.SendOwnerDMAsync($"Permissions error detected for {guildChannel.Guild.Name} on message updates: Can't send messages to configured mod logging channel.");
                         }
                     }
                 }
@@ -474,10 +454,6 @@
                     if (botUser != null && this.client.GetChannel(settings.Mod_LogId) is ITextChannel modLogChannel && botUser.GetPermissions(modLogChannel).SendMessages)
                     {
                         modLogChannel.SendMessageAsync(delText.Substring(0, Math.Min(delText.Length, Discord.DiscordConfig.MaxMessageSize))).Forget();
-                    }
-                    else
-                    {
-                        guildChannel.Guild.SendOwnerDMAsync($"Permissions error detected for {guildChannel.Guild.Name} on message deletes: Can't send messages to configured mod logging channel.").Forget();
                     }
                 }
             }
@@ -880,10 +856,6 @@
                 {
                     await farewellChannel.SendMessageAsync(farewell);
                 }
-                else
-                {
-                    await farewellChannel.Guild.SendOwnerDMAsync($"Permissions error detected for {farewellChannel.Guild.Name}: Can't send messages to configured farewell channel.");
-                }
             }
 
             // mod log
@@ -894,10 +866,6 @@
                 if (this.client.GetChannel(settings.Mod_LogId) is ITextChannel modLogChannel && botUser != null && botUser.GetPermissions(modLogChannel).SendMessages)
                 {
                     await modLogChannel.SendMessageAsync(leaveText);
-                }
-                else
-                {
-                    await arg.Guild.SendOwnerDMAsync($"Permissions error detected for {arg.Guild.Name} on user leave: Can't send messages to configured mod logging channel.");
                 }
             }
         }
@@ -929,10 +897,6 @@
                 {
                     await greetingChannel.SendMessageAsync(greeting);
                 }
-                else
-                {
-                    await greetingChannel.Guild.SendOwnerDMAsync($"Permissions error detected for {greetingChannel.Guild.Name}: Can't send messages to configured greeting channel.");
-                }
             }
 
             if (settings.JoinRoleId != 0 && arg.Guild.CurrentUser.GuildPermissions.ManageRoles)
@@ -962,10 +926,6 @@
                 if (this.client.GetChannel(settings.Mod_LogId) is ITextChannel modLogChannel && arg.Guild.CurrentUser.GetPermissions(modLogChannel).SendMessages)
                 {
                     await modLogChannel.SendMessageAsync(joinText);
-                }
-                else
-                {
-                    await arg.Guild.SendOwnerDMAsync($"Permissions error detected for {arg.Guild.Name} on user join: Can't send messages to configured mod logging channel.");
                 }
             }
         }

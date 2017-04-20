@@ -497,18 +497,6 @@
                                                 Console.WriteLine(ex);
                                             }
                                         }
-                                        else
-                                        {
-                                            try
-                                            {
-                                                await channel.Guild.SendOwnerDMAsync($"Permissions error detected for {channel.Guild.Name}: Notifications cannot be sent to {channel.Name}");
-                                            }
-                                            catch (Exception ex)
-                                            {
-                                                // somehow seeing 403s even if sendmessages is true?
-                                                Console.WriteLine(ex);
-                                            }
-                                        }
                                     }
                                 }
                                 else if (this.client.GetGuild(Convert.ToUInt64(notification.Server)) is IGuild guild)
