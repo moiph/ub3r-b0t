@@ -617,7 +617,7 @@
                     if (!unexpected)
                     {
                         var audioTask = this.audioManager?.LeaveAllAudioAsync();
-                        var timeoutTask = Task.Delay(15000);
+                        var timeoutTask = Task.Delay(20000);
                         await Task.WhenAny(audioTask, timeoutTask);
                     }
 

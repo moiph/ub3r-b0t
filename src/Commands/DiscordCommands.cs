@@ -46,7 +46,7 @@
             Commands.Add("debug", (message) =>
             {
                 var serverId = (message.Channel as IGuildChannel)?.GuildId.ToString() ?? "n/a";
-                var response = new CommandResponse { Text = $"```Server ID: {serverId} | Channel ID: {message.Channel.Id} | Your ID: {message.Author.Id} | Shard ID: {message.Discord.ShardId} | Discord.NET Version: {DiscordSocketConfig.Version}```"};
+                var response = new CommandResponse { Text = $"```Server ID: {serverId} | Channel ID: {message.Channel.Id} | Your ID: {message.Author.Id} | Shard ID: {client.ShardId} | Discord.NET Version: {DiscordSocketConfig.Version}```"};
                 return Task.FromResult(response);
             });
 
@@ -69,7 +69,7 @@
                     var targetUser = (await guildChannel.Guild.GetUsersAsync()).Find(parts[1]).FirstOrDefault();
                     if (targetUser != null)
                     {
-                        if (targetUser.Id == message.Discord.CurrentUser.Id)
+                        if (targetUser.Id == client.CurrentUser.Id)
                         {
                             return new CommandResponse { Text = $"I was last seen...wait...seriously? Ain't no one got time for your shit, {message.Author.Username}." };
                         }
@@ -235,7 +235,7 @@
                     }
                 }
 
-                var botGuildUser = await (message.Channel as IGuildChannel).GetUserAsync(message.Discord.CurrentUser.Id);
+                var botGuildUser = await (message.Channel as IGuildChannel).GetUserAsync(client.CurrentUser.Id);
                 bool botOnly = deletionUser == botGuildUser;
 
                 if (!botOnly && !botGuildUser.GetPermissions(message.Channel as IGuildChannel).ManageMessages)
@@ -255,7 +255,6 @@
                         count = Math.Min(100, count);
                     }
 
-                    var minimum = Utilities.ToSnowflake(DateTimeOffset.Now.Subtract(TimeSpan.FromMilliseconds(1209540000)));
                     // download messages until we've hit the limit
                     var msgsToDelete = new List<IMessage>();
                     var msgsToDeleteCount = 0;
@@ -374,12 +373,15 @@
                     field.Value = $"{targetUser.GetCreatedDate().ToString("dd MMM yyyy")} {targetUser.GetCreatedDate().ToString("hh:mm:ss tt")} UTC";
                 });
 
-                embedBuilder.AddField((field) =>
+                if (guildUser.JoinedAt.HasValue)
                 {
-                    field.IsInline = true;
-                    field.Name = "joined";
-                    field.Value = $"{guildUser.JoinedAt.Value.ToString("dd MMM yyyy")} {guildUser.JoinedAt.Value.ToString("hh:mm:ss tt")} UTC";
-                });
+                    embedBuilder.AddField((field) =>
+                    {
+                        field.IsInline = true;
+                        field.Name = "joined";
+                        field.Value = $"{guildUser.JoinedAt.Value.ToString("dd MMM yyyy")} {guildUser.JoinedAt.Value.ToString("hh:mm:ss tt")} UTC";
+                    });
+                }
 
                 var roles = new List<string>();
                 foreach (ulong roleId in guildUser.RoleIds)
@@ -526,7 +528,7 @@
                 }
                 catch (HttpException ex) when (ex.HttpCode == HttpStatusCode.Forbidden)
                 {
-                    return new CommandResponse { Text = "...it seems I cannot actually modify that role. yell at management" };
+                    return new CommandResponse { Text = "...it seems I cannot actually modify that role. yell at management (verify the role orders, bot's role needs to be above the ones being managed)" };
                 }
             }
 
