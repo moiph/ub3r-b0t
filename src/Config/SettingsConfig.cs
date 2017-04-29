@@ -103,14 +103,18 @@
         public bool SeenEnabled { get; set; }
 
         public bool PreferEmbeds { get; set; } = true;
-        public bool TwitterEmbed { get; set; } = false;
-        public bool RssEmbed { get; set; } = false;
+        public NotificationType Notif_EmbedOptions { get; set; }
 
         public bool DisableLinkParsing { get; set; }
 
         public bool HasFlag(ModOptions flag)
         {
             return (this.Mod_LogOptions & flag) == flag;
+        }
+
+        public bool HasFlag(NotificationType flag)
+        {
+            return (this.Notif_EmbedOptions & flag) == flag;
         }
 
         public bool IsCommandDisabled(CommandsConfig commandsConfig, string command)

@@ -1,12 +1,16 @@
 ﻿namespace UB3RB0T
 {
+    using System;
+
+    [Flags]
     public enum NotificationType
     {
-        Rss,
-        Twitter,
-        Twitch,
-        Beam,
-        Trello,
+        Rss = 1,
+        Twitter = 2,
+        Twitch = 4,
+        Beam = 8,
+        Trello = 16,
+        Picarto = 32,
     }
 
     public class NotificationData

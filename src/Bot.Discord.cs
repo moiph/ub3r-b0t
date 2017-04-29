@@ -81,7 +81,6 @@
 
         private Task Client_Disconnected(Exception arg)
         {
-            this.isReady = false;
             return Task.CompletedTask;
         }
 
@@ -379,6 +378,17 @@
             {
                 await this.HandleMessageAsync(arg3.Message.Value, arg3.Emoji.Name);
             }
+
+            if ((arg3.Emoji.Name == "💬" || arg3.Emoji.Name == "🗨️") && arg3.Message.IsSpecified && !string.IsNullOrEmpty(arg3.Message.Value.Content))
+            {
+                // if the reaction already exists, don't re-process.
+                if (arg3.Message.Value.Reactions.Any(r => r.Key.Name == "💬" && r.Value.ReactionCount > 1) || arg3.Message.Value.Reactions.Any(r => r.Key.Name == "🗨️" && r.Value.ReactionCount > 1))
+                {
+                    return;
+                }
+
+                await this.HandleMessageAsync(arg3.Message.Value, arg3.Emoji.Name, arg3.User.Value);
+            }
         }
 
         private async Task Client_MessageUpdatedAsync(Cacheable<IMessage, ulong> arg1, SocketMessage arg2, ISocketMessageChannel arg3)
@@ -479,7 +489,7 @@
         }
 
         // TODO: this method is waaaaaaay too huge
-        private async Task HandleMessageAsync(SocketMessage socketMessage, string ocrType = null)
+        private async Task HandleMessageAsync(SocketMessage socketMessage, string reactionType = null, IUser reactionUser = null)
         {
             messageCount++;
 
@@ -508,7 +518,7 @@
             }
 
             // grab the settings for this server
-            var botGuildUser = (message.Channel is IGuildChannel guildChannel) ? await guildChannel.GetUserAsync(client.CurrentUser.Id) : null;
+            var botGuildUser = (message.Channel is IGuildChannel guildChannel) ? await guildChannel.Guild.GetCurrentUserAsync() : null;
             var guildUser = message.Author as IGuildUser;
             var guildId = (guildUser != null && guildUser.IsWebhook) ? null : guildUser?.GuildId;
             var settings = SettingsConfig.GetSettings(guildId?.ToString());
@@ -605,43 +615,53 @@
             string messageContent = message.Content;
             // OCR for fun if requested (patrons only)
             // TODO: need to drive this via config
-            if (!string.IsNullOrEmpty(ocrType) && string.IsNullOrEmpty(message.Content) && message.Attachments?.FirstOrDefault()?.Url is string attachmentUrl)
+            // TODO: Need to generalize even further due to more reaction types
+            // TODO: oh my god stop writing TODOs and just make the code less awful
+            if (!string.IsNullOrEmpty(reactionType))
             {
                 string newMessageContent = string.Empty;
 
-                if (ocrType == "👁")
+                if (reactionType == "💬" || reactionType == "🗨️")
                 {
-                    var result = await this.Config.OcrEndpoint.ToString()
-                    .WithHeader("Ocp-Apim-Subscription-Key", this.Config.VisionKey)
-                    .PostJsonAsync(new { url = attachmentUrl });
-
-                    if (result.IsSuccessStatusCode)
-                    {
-                        var response = await result.Content.ReadAsStringAsync();
-                        var ocrData = JsonConvert.DeserializeObject<OcrData>(response);
-                        if (!string.IsNullOrEmpty(ocrData.GetText()))
-                        {
-                            newMessageContent = ocrData.GetText();
-                        }
-                    }
+                    newMessageContent = $".quote add \"{messageContent}\" - userid:{message.Author.Id} {message.Author.Username}";
+                    await message.AddReactionAsync("💬");
                 }
-                else if (ocrType == "🖼")
+                else if (string.IsNullOrEmpty(message.Content) && message.Attachments?.FirstOrDefault()?.Url is string attachmentUrl)
                 {
-                    var analyzeResult = await this.Config.AnalyzeEndpoint.ToString()
+                    if (reactionType == "👁")
+                    {
+                        var result = await this.Config.OcrEndpoint.ToString()
                         .WithHeader("Ocp-Apim-Subscription-Key", this.Config.VisionKey)
                         .PostJsonAsync(new { url = attachmentUrl });
 
-                    if (analyzeResult.IsSuccessStatusCode)
-                    {
-                        var response = await analyzeResult.Content.ReadAsStringAsync();
-                        var analyzeData = JsonConvert.DeserializeObject<AnalyzeImageData>(response);
-                        if (analyzeData.Description.Tags.Contains("ball"))
+                        if (result.IsSuccessStatusCode)
                         {
-                            newMessageContent = ".8ball foo";
+                            var response = await result.Content.ReadAsStringAsync();
+                            var ocrData = JsonConvert.DeserializeObject<OcrData>(response);
+                            if (!string.IsNullOrEmpty(ocrData.GetText()))
+                            {
+                                newMessageContent = ocrData.GetText();
+                            }
                         }
-                        else if (analyzeData.Description.Tags.Contains("outdoor"))
+                    }
+                    else if (reactionType == "🖼")
+                    {
+                        var analyzeResult = await this.Config.AnalyzeEndpoint.ToString()
+                            .WithHeader("Ocp-Apim-Subscription-Key", this.Config.VisionKey)
+                            .PostJsonAsync(new { url = attachmentUrl });
+
+                        if (analyzeResult.IsSuccessStatusCode)
                         {
-                            newMessageContent = ".fw";
+                            var response = await analyzeResult.Content.ReadAsStringAsync();
+                            var analyzeData = JsonConvert.DeserializeObject<AnalyzeImageData>(response);
+                            if (analyzeData.Description.Tags.Contains("ball"))
+                            {
+                                newMessageContent = ".8ball foo";
+                            }
+                            else if (analyzeData.Description.Tags.Contains("outdoor"))
+                            {
+                                newMessageContent = ".fw";
+                            }
                         }
                     }
                 }
@@ -730,6 +750,11 @@
 
                 var messageData = BotMessageData.Create(message, query, settings);
                 messageData.Content = messageContent;
+
+                if (messageData.Command == "quote" && reactionUser != null)
+                {
+                    messageData.UserName = reactionUser.Username;
+                }
 
                 try
                 {

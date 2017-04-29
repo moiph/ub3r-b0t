@@ -480,11 +480,17 @@
 
                                             try
                                             {
-                                                if (notification.Embed != null &&
-                                                    ((settings.TwitterEmbed && notification.Type == NotificationType.Twitter) ||
-                                                    (settings.RssEmbed && notification.Type == NotificationType.Rss)))
+                                                if (notification.Embed != null && settings.HasFlag(notification.Type))
                                                 {
-                                                    await channel.SendMessageAsync(string.Empty, false, notification.Embed.CreateEmbedBuilder());
+                                                    // TODO: discord handles twitter embeds nicely; should adjust the notification data accordingly so we don't need this explicit check here
+                                                    if (notification.Type == NotificationType.Twitter)
+                                                    {
+                                                        await channel.SendMessageAsync(notification.Embed.Url);
+                                                    }
+                                                    else
+                                                    {
+                                                        await channel.SendMessageAsync($"<{notification.Embed.Url}>", false, notification.Embed.CreateEmbedBuilder());
+                                                    }
                                                 }
                                                 else
                                                 {
@@ -531,7 +537,14 @@
 
                     if (notificationsToDelete.Count > 0)
                     {
-                        await CommandsConfig.Instance.NotificationsEndpoint.ToString().PostJsonAsync(new { ids = string.Join(",", notificationsToDelete)});
+                        try
+                        {
+                            await CommandsConfig.Instance.NotificationsEndpoint.ToString().PostJsonAsync(new { ids = string.Join(",", notificationsToDelete) });
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine(ex);
+                        }
                     }
                 }
             }
@@ -699,6 +712,13 @@
 
                     if (string.IsNullOrEmpty(command))
                     {
+                        // match fun
+                        bool mentionsBot = messageData.MentionsBot(this.Config.Name, this.client?.CurrentUser.Id);
+                        CommandsConfig.Instance.TryParseForCommand(messageData.Content, mentionsBot, out command, out query);
+                    }
+
+                    if (string.IsNullOrEmpty(command))
+                    {
                         if (settings.AutoTitlesEnabled && CommandsConfig.Instance.AutoTitleMatches.Any(t => messageData.Content.Contains(t)))
                         {
                             Match match = httpRegex.Match(messageData.Content);
@@ -761,19 +781,8 @@
 
             if (responseData.Responses.Count == 0 && responseData.Embed == null)
             {
-                bool mentionsBot = false;
-                if (messageData.BotType == BotType.Discord)
-                {
-                    mentionsBot = messageData.DiscordMessageData.MentionedUsers.Count == 1 && messageData.DiscordMessageData.MentionedUsers.First().Id == client.CurrentUser.Id ||
-                        messageData.Content.ToLowerInvariant().Contains(this.Config.Name.ToLowerInvariant());
-                }
-                else
-                {
-                    mentionsBot = messageData.IrcMessageData.Text.Contains(this.Config.Name);
-                }
-
                 string response = null;
-                if (mentionsBot)
+                if (messageData.MentionsBot(this.Config.Name, this.client?.CurrentUser.Id))
                 {
                     var responseValue = PhrasesConfig.Instance.PartialMentionPhrases.Where(kvp => messageData.Content.ToLowerInvariant().Contains(kvp.Key.ToLowerInvariant())).FirstOrDefault().Value;
                     if (!string.IsNullOrEmpty(responseValue))

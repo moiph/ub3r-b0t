@@ -14,6 +14,8 @@
 
         public string ThumbnailUrl { get; set; }
 
+        public string Color { get; set; }
+
         public EmbedFieldData[] EmbedFields { get; set; }
     }
 

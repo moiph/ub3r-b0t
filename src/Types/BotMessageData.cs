@@ -1,5 +1,6 @@
 ﻿namespace UB3RB0T
 {
+    using System.Linq;
     using Discord;
     using Discord.WebSocket;
     using UB3RIRC;
@@ -27,6 +28,17 @@
         public BotMessageData(BotType botType)
         {
             this.BotType = botType;
+        }
+
+        public bool MentionsBot(string botName, ulong? id)
+        {
+            if (this.BotType == BotType.Discord)
+            {
+                return this.DiscordMessageData.MentionedUsers.Count == 1 && this.DiscordMessageData.MentionedUsers.First().Id == id ||
+                    this.Content.ToLowerInvariant().Contains(botName.ToLowerInvariant());
+            }
+
+            return this.IrcMessageData.Text.Contains(botName);
         }
 
         public static BotMessageData Create(MessageData ircMessageData, string query, IrcClient ircClient)

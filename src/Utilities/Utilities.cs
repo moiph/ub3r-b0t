@@ -58,6 +58,15 @@ namespace UB3RB0T
                 };
             }
 
+            if (!string.IsNullOrEmpty(embedData.Color))
+            {
+                var red = Convert.ToInt32(embedData.Color.Substring(0, 2), 16);
+                var green = Convert.ToInt32(embedData.Color.Substring(2, 2), 16);
+                var blue = Convert.ToInt32(embedData.Color.Substring(4, 2), 16);
+
+                embedBuilder.Color = new Color(red / 255.0f, green / 255.0f, blue / 255.0f);
+            }
+
             if (!string.IsNullOrEmpty(embedData.Footer))
             {
                 embedBuilder.Footer = new EmbedFooterBuilder
