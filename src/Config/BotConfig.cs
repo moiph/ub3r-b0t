@@ -48,6 +48,8 @@
 
         // Instrumentation key for application insights
         public string InstrumentationKey { get; set; }
+
+        public string CertThumbprint { get; set; }
     }
 
     public class DiscordConfig

@@ -15,6 +15,7 @@
     using Microsoft.ApplicationInsights.DataContracts;
     using Flurl.Http;
     using Microsoft.AspNetCore.Hosting;
+    using System.Security.Cryptography.X509Certificates;
 
     public partial class Bot : IDisposable
     {
@@ -125,7 +126,7 @@
             this.StartTimers();
             this.StartWebListener();
             this.StartConsoleListener();
-    
+
             while (this.exitCode == 0)
             {
                 await Task.Delay(10000);
@@ -184,8 +185,23 @@
                     port += 10 + shard;
                 }
 
+                X509Certificate2 cert = null;
+                if (!string.IsNullOrEmpty(this.Config.CertThumbprint))
+                {
+                    var store = new X509Store(StoreName.My, StoreLocation.LocalMachine);
+                    store.Open(OpenFlags.ReadOnly);
+                    var certificates = store.Certificates.Find(X509FindType.FindByThumbprint, this.Config.CertThumbprint, validOnly: false);
+                    cert = certificates?[0];
+                }
+
                 this.listenerHost = new WebHostBuilder()
-                    .UseKestrel()
+                    .UseKestrel(options =>
+                    {
+                        if (cert != null)
+                        {
+                            options.UseHttps(cert);
+                        }
+                    })
                     .UseUrls($"http://localhost:{port}", $"http://{this.Config.WebListenerHostName}:{port}")
                     .UseStartup<Program>()
                     .Build();
@@ -748,7 +764,7 @@
                     return responseData;
                 }
 
-                if (!string.IsNullOrEmpty(command) && CommandsConfig.Instance.Commands.ContainsKey(command))
+                if (!messageData.RateLimitChecked && CommandsConfig.Instance.Commands.ContainsKey(command))
                 {
                     // make sure we're not rate limited
                     var commandKey = command + messageData.Server;
@@ -757,7 +773,11 @@
                         return val + 1;
                     });
 
-                    if (commandCount > 10)
+                    if (commandCount > 12)
+                    {
+                        return responseData;
+                    }
+                    else  if (commandCount > 10)
                     {
                         responses.Add("rate limited try later");
                     }

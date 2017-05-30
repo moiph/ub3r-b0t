@@ -706,7 +706,7 @@
                 query = messageContent.Substring(settings.Prefix.Length);
             }
 
-            string command = query.Split(new[] { ' ' }, 2)?[0];
+            string command = query.Split(new[] { ' ' }, 2)[0];
 
             // if it's a blocked command, bail
             if (settings.IsCommandDisabled(CommandsConfig.Instance, command) && !IsAuthorOwner(message))
@@ -714,8 +714,8 @@
                 return;
             }
 
-            // Check discord specific commands prior to general ones.
-            if (!string.IsNullOrEmpty(command) && discordCommands.Commands.ContainsKey(command))
+            // TODO: This is duplicated between core and discord sections... needs to be consolidated.
+            if (CommandsConfig.Instance.Commands.ContainsKey(command) || CommandsConfig.Instance.Commands.ContainsKey(command))
             {
                 // make sure we're not rate limited
                 var commandKey = command + guildId;
@@ -724,18 +724,25 @@
                     return val + 1;
                 });
 
-                if (commandCount > 10)
+                if (commandCount > 12)
+                {
+                    return;
+                }
+                else if (commandCount > 10)
                 {
                     await this.RespondAsync(message, "rate limited try later");
+                    return;
                 }
-                else
+            }
+
+            // Check discord specific commands prior to general ones.
+            if (discordCommands.Commands.ContainsKey(command))
+            {
+                var response = await discordCommands.Commands[command].Invoke(message).ConfigureAwait(false);
+                if (response != null && (!string.IsNullOrEmpty(response.Text) || response.Embed != null))
                 {
-                    var response = await discordCommands.Commands[command].Invoke(message).ConfigureAwait(false);
-                    if (response != null && (!string.IsNullOrEmpty(response.Text) || response.Embed != null))
-                    {
-                        var sentMessage = await this.RespondAsync(message, response.Text, response.Embed);
-                        this.botResponsesCache.Add(message.Id, sentMessage);
-                    }
+                    var sentMessage = await this.RespondAsync(message, response.Text, response.Embed);
+                    this.botResponsesCache.Add(message.Id, sentMessage);
                 }
             }
             else
@@ -750,6 +757,7 @@
 
                 var messageData = BotMessageData.Create(message, query, settings);
                 messageData.Content = messageContent;
+                messageData.RateLimitChecked = true;
 
                 if (messageData.Command == "quote" && reactionUser != null)
                 {

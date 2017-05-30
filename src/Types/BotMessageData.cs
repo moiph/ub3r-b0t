@@ -24,6 +24,7 @@
         public string Command { get; set; } // the parse command out of the message
         public string Query { get; set; }
         public string Format { get; set; }
+        public bool RateLimitChecked { get; set; }
 
         public BotMessageData(BotType botType)
         {
