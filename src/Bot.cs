@@ -44,7 +44,6 @@
 
         private Timer notificationsTimer;
         private Timer remindersTimer;
-        private Timer packagesTimer;
         private Timer heartbeatTimer;
         private Timer seenTimer;
 
@@ -216,7 +215,6 @@
             remindersTimer = new Timer(CheckRemindersAsync, null, 10000, 10000);
             heartbeatTimer = new Timer(HeartbeatTimerAsync, null, 60000, 60000);
             seenTimer = new Timer(SeenTimerAsync, null, 60000, 60000);
-            packagesTimer = new Timer(CheckPackagesAsync, null, 1800000, 1800000);
         }
 
         private async Task HeartbeatAsync()
@@ -567,70 +565,7 @@
 
             processingnotifications = false;
         }
-
-        private async void CheckPackagesAsync(object state)
-        {
-            if (CommandsConfig.Instance.PackagesEndpoint != null)
-            {
-                var packages = await Utilities.GetApiResponseAsync<PackageData[]>(CommandsConfig.Instance.PackagesEndpoint);
-                if (packages != null)
-                {
-                    foreach (var package in packages.Where(t => t.BotType == this.botType))
-                    {
-                        string query = $"ups bot {package.Tracking}";
-                        var messageData = new BotMessageData(this.botType)
-                        {
-                            UserName = package.Nick,
-                            Channel = package.Channel,
-                            Server = package.Server,
-                            UserId = string.Empty,
-                        };
-
-                        if (this.botType == BotType.Irc)
-                        {
-                            var apiResponse = await this.BotApi.IssueRequestAsync(messageData, query);
-
-                            foreach (var response in apiResponse.Responses)
-                            {
-                                this.ircClients[package.Server]?.Command("PRIVMSG", package.Channel, response);
-                            }
-                        }
-                        else if (this.client != null)
-                        {
-                            if (this.client.GetChannel(Convert.ToUInt64(package.Channel)) is ITextChannel channel)
-                            {
-                                var botResponse = await this.BotApi.IssueRequestAsync(messageData, query);
-
-                                if ((channel.Guild as SocketGuild).CurrentUser.GetPermissions(channel).SendMessages)
-                                {
-                                    if (botResponse.Responses.Count > 0 && !string.IsNullOrEmpty(botResponse.Responses[0]))
-                                    {
-                                        string senderNick = package.Nick;
-                                        var user = (await channel.Guild.GetUsersAsync().ConfigureAwait(false)).Find(package.Nick).FirstOrDefault();
-                                        if (user != null)
-                                        {
-                                            senderNick = user.Mention;
-                                        }
-
-                                        await channel.SendMessageAsync($"{senderNick} oshi- an upsdate!");
-
-                                        foreach (var response in botResponse.Responses)
-                                        {
-                                            if (!string.IsNullOrEmpty(response))
-                                            {
-
-                                                await channel.SendMessageAsync(response);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
+        
         /// <summary>
         ///  Handles shutdown tasks
         /// </summary>
@@ -849,7 +784,6 @@
         {
             Console.WriteLine("dispose start");
             settingsUpdateTimer?.Dispose();
-            packagesTimer?.Dispose();
             remindersTimer?.Dispose();
             heartbeatTimer?.Dispose();
             statsTimer?.Dispose();

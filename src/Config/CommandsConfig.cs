@@ -15,8 +15,6 @@
 
         public Uri NotificationsEndpoint { get; set; }
 
-        public Uri PackagesEndpoint { get; set; }
-
         public string[] UserInfoSnippets { get; set; }
 
         public string[] AutoTitleMatches { get; set; }
