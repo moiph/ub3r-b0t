@@ -2,6 +2,8 @@
 {
     using System;
     using System.Collections.Generic;
+    using System.Linq;
+    using System.Text.RegularExpressions;
     using System.Threading.Tasks;
 
     /// <summary>
@@ -77,6 +79,8 @@
 
     public class Settings
     {
+        private List<Regex> regexWordCensors;
+
         public ulong Id { get; set; }
 
         public string Greeting { get; set; }
@@ -88,6 +92,7 @@
         public ulong JoinRoleId { get; set; }
 
         public HashSet<string> WordCensors { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        public HashSet<string> RegexCensors { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         public HashSet<ulong> SelfRoles { get; set; } = new HashSet<ulong>();
         public HashSet<string> DisabledCommands { get; set; } = new HashSet<string>();
@@ -125,6 +130,46 @@
             }
 
             return commandsConfig.Commands.ContainsKey(command) && this.DisabledCommands.Contains(commandsConfig.Commands[command]);
+        }
+
+        public bool TriggersCensor(string text, out string offendingWord)
+        {
+            offendingWord = null;
+            // check boring word censors first, then regex
+            if (this.WordCensors.Count > 0)
+            {
+                var words = text.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                offendingWord = words.FirstOrDefault(w => this.WordCensors.Contains(w, StringComparer.OrdinalIgnoreCase));
+
+                if (!string.IsNullOrEmpty(offendingWord))
+                {
+                    return true;
+                }
+            }
+
+            if (this.RegexCensors.Count > 0)
+            {
+                if (this.regexWordCensors == null)
+                {
+                }
+
+                return this.regexWordCensors.Any(r =>
+                {
+                    try
+                    {
+                        return r.IsMatch(text);
+                    }
+                    catch (RegexMatchTimeoutException)
+                    {
+                        // TODO: Handle logging to alert server owner
+                        Console.WriteLine($"Timeout on {this.Id} for {r}");
+                    }
+
+                    return false;
+                });
+            }
+
+            return false;
         }
     }
 }

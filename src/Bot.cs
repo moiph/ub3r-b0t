@@ -190,7 +190,10 @@
                     var store = new X509Store(StoreName.My, StoreLocation.LocalMachine);
                     store.Open(OpenFlags.ReadOnly);
                     var certificates = store.Certificates.Find(X509FindType.FindByThumbprint, this.Config.CertThumbprint, validOnly: false);
-                    cert = certificates?[0];
+                    if (certificates?.Count > 0)
+                    {
+                        cert = certificates[0];
+                    }
                 }
 
                 this.listenerHost = new WebHostBuilder()
@@ -699,38 +702,40 @@
                     return responseData;
                 }
 
-                if (!messageData.RateLimitChecked && CommandsConfig.Instance.Commands.ContainsKey(command))
+                if (CommandsConfig.Instance.Commands.ContainsKey(command))
                 {
-                    // make sure we're not rate limited
-                    var commandKey = command + messageData.Server;
-                    var commandCount = this.commandsIssued.AddOrUpdate(commandKey, 1, (key, val) =>
+                    if (!messageData.RateLimitChecked)
                     {
-                        return val + 1;
-                    });
-
-                    if (commandCount > 12)
-                    {
-                        return responseData;
-                    }
-                    else  if (commandCount > 10)
-                    {
-                        responses.Add("rate limited try later");
-                    }
-                    else
-                    {
-                        var props = new Dictionary<string, string> {
-                            { "serverId", messageData.Server },
-                        };
-                        this.AppInsights?.TrackEvent(command.ToLowerInvariant(), props);
-
-                        // extra processing on ".title" command
-                        if ((command == "title" || command == "t") && messageData.Content.EndsWith(command) && urls.ContainsKey(messageData.Channel))
+                        // make sure we're not rate limited
+                        var commandKey = command + messageData.Server;
+                        var commandCount = this.commandsIssued.AddOrUpdate(commandKey, 1, (key, val) =>
                         {
-                            query += $" {urls[messageData.Channel]}";
-                        }
+                            return val + 1;
+                        });
 
-                        responseData = await this.BotApi.IssueRequestAsync(messageData, query);
+                        if (commandCount > 12)
+                        {
+                            return responseData;
+                        }
+                        else if (commandCount > 10)
+                        {
+                            responses.Add("rate limited try later");
+                            return responseData;
+                        }
                     }
+                    
+                    var props = new Dictionary<string, string> {
+                        { "serverId", messageData.Server },
+                    };
+                    this.AppInsights?.TrackEvent(command.ToLowerInvariant(), props);
+
+                    // extra processing on ".title" command
+                    if ((command == "title" || command == "t") && messageData.Content.EndsWith(command) && urls.ContainsKey(messageData.Channel))
+                    {
+                        query += $" {urls[messageData.Channel]}";
+                    }
+
+                    responseData = await this.BotApi.IssueRequestAsync(messageData, query);
                 }
             }
 

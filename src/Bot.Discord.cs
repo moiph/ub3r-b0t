@@ -88,32 +88,6 @@
         {
             this.isReady = true;
             this.client.SetGameAsync(this.Config.Discord.Status);
-
-            /*Task.Run(async () =>
-            {
-                await Task.Delay(10000);
-                foreach (var guildSetting in SettingsConfig.Instance.Settings)
-                {
-                    if (guildSetting.Value.VoiceId != 0)
-                    {
-                        try
-                        {
-                            var guild = this.client.GetGuild(Convert.ToUInt64(guildSetting.Key));
-                            var voiceChannel = guild != null ? await guild.GetVoiceChannelAsync(guildSetting.Value.VoiceId) : null;
-                            if (voiceChannel != null)
-                            {
-                                await this.audioManager.JoinAudioAsync(voiceChannel);
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            // TODO: proper logging
-                            Console.WriteLine(ex);
-                        }
-                    }
-                }
-            }).Forget();*/
-
             return Task.CompletedTask;
         }
 
@@ -324,7 +298,7 @@
                         }
                     }
 
-                    if (settings.Mod_LogId != 0 && settings.HasFlag(ModOptions.Mod_LogUserNick))
+                    if (settings.HasFlag(ModOptions.Mod_LogUserNick))
                     {
                         if (guildUserAfter.Nickname != guildUserBefore.Nickname)
                         {
@@ -446,16 +420,9 @@
                 {
                     string delText = "";
 
-                    if (settings.WordCensors.Count() > 0)
+                    if (settings.TriggersCensor(message.Content, out _))
                     {
-                        var messageWords = message.Content.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                        foreach (var word in messageWords)
-                        {
-                            if (settings.WordCensors.Contains(word, StringComparer.OrdinalIgnoreCase))
-                            {
-                                delText = "```Word Censor Triggered```";
-                            }
-                        }
+                        delText = "```Word Censor Triggered```";
                     }
 
                     delText += $"**{message.Author.Username}#{message.Author.Discriminator}** deleted in {textChannel.Mention}: {message.Content}";
@@ -544,18 +511,13 @@
             }
 
             // check for word censors
-            if (settings.WordCensors.Count() > 0 && botGuildUser != null && botGuildUser.GuildPermissions.ManageMessages)
+            if (botGuildUser?.GuildPermissions.ManageMessages ?? false)
             {
-                var messageWords = message.Content.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                foreach (var word in messageWords)
+                if (settings.TriggersCensor(message.Content, out string offendingWord))
                 {
-                    if (settings.WordCensors.Contains(word, StringComparer.OrdinalIgnoreCase))
-                    {
-                        await message.DeleteAsync();
-                        var dmChannel = await message.Author.CreateDMChannelAsync();
-                        await dmChannel.SendMessageAsync($"hi uh sorry but your most recent message was tripped up by the word `{word}` and thusly was deleted. complain to management, i'm just the enforcer");
-                        return;
-                    }
+                    await message.DeleteAsync();
+                    var dmChannel = await message.Author.CreateDMChannelAsync();
+                    return;
                 }
             }
 
