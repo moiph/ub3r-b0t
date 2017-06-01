@@ -515,8 +515,10 @@
             {
                 if (settings.TriggersCensor(message.Content, out string offendingWord))
                 {
+                    offendingWord = offendingWord != null ? $"`{offendingWord}`" : "*FANCY lanuage filters*";
                     await message.DeleteAsync();
                     var dmChannel = await message.Author.CreateDMChannelAsync();
+                    await dmChannel.SendMessageAsync($"hi uh sorry but your most recent message was tripped up by {offendingWord} and thusly was deleted. complain to management, i'm just the enforcer");
                     return;
                 }
             }

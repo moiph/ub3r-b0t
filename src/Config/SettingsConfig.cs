@@ -151,6 +151,7 @@
             {
                 if (this.regexWordCensors == null)
                 {
+                    this.regexWordCensors = this.RegexCensors.Where(r => !string.IsNullOrWhiteSpace(r)).Select(r => { return new Regex(r, RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(250)); }).ToList();
                 }
 
                 return this.regexWordCensors.Any(r =>
