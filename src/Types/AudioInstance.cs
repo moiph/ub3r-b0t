@@ -26,7 +26,8 @@
             {
                 this.isDisposed = true;
 
-                this.streamLock.Wait();
+                // wait up to 5 seconds in case we're already flushing a stream.
+                this.streamLock.Wait(5000);
 
                 try
                 {

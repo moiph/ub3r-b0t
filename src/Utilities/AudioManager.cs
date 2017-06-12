@@ -25,7 +25,6 @@
                 };
 
                 audioInstances[voiceChannel.GuildId] = audioInstance;
-                audioInstance.Stream = audioInstance.AudioClient.CreatePCMStream(Discord.Audio.AudioApplication.Voice);
             }
             else
             {

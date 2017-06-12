@@ -4,10 +4,10 @@ namespace UB3RB0T
 {
     public class GuildPermisssionsData
     {
-        public Dictionary<ulong, ChannelPermissions> Channels { get; set; } = new Dictionary<ulong, ChannelPermissions>();
+        public Dictionary<ulong, GuildChannelPermissions> Channels { get; set; } = new Dictionary<ulong, GuildChannelPermissions>();
     }
 
-    public class ChannelPermissions
+    public class GuildChannelPermissions
     {
         public bool CanSend { get; set; }
         public bool CanRead { get; set; }

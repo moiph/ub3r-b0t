@@ -13,6 +13,14 @@
         public string Recurring { get; set; }
         public string Server { get; set; }
         public BotType BotType { get; set; }
+
+        public string RequestedBy
+        {
+            get
+            {
+                return string.IsNullOrEmpty(this.Requestor) ? string.Empty : "[Requested by " + this.Requestor + "]";
+            }
+        }
     }
 }
 

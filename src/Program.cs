@@ -10,15 +10,15 @@
     using System.Text;
     using Newtonsoft.Json;
 
+    public enum ExitCode : int
+    {
+        Success = 0,
+        UnexpectedError = 1,
+        ExpectedShutdown = 2,
+    }
+
     class Program
     {
-        public enum ExitCode : int
-        {
-            Success = 0,
-            UnexpectedError = 1,
-            ExpectedShutdown = 2,
-        }
-
         public enum CtrlType
         {
             CTRL_C_EVENT = 0,
@@ -37,31 +37,36 @@
             app.Run(async context =>
             {
                 string response = string.Empty;
-                if (context.Request.Query["guilds"] == "1" && BotInstance != null)
+                if (BotInstance is DiscordBot discordBot)
                 {
-                    response = string.Join($",{Environment.NewLine}",
-                        BotInstance.client.Guilds.OrderByDescending(g => g.Users.Count).Select(g => $"{g.Id} | {g.Name} | {g.Users.Count}"));
-                }
-                else if (!string.IsNullOrEmpty(context.Request.Query["guildId"]) && BotInstance != null)
-                {
-                    if (ulong.TryParse(context.Request.Query["guildId"], out ulong guildId))
+                    if (context.Request.Query["guilds"] == "1" && BotInstance != null)
                     {
-                        var guild = BotInstance.client.GetGuild(guildId);
-                        if (guild != null)
+                        response = string.Join($",{Environment.NewLine}",
+                            discordBot.Client.Guilds.OrderByDescending(g => g.Users.Count).Select(g => $"{g.Id} | {g.Name} | {g.Users.Count}"));
+                    }
+                    else if (!string.IsNullOrEmpty(context.Request.Query["guildId"]) && BotInstance != null)
+                    {
+                        if (ulong.TryParse(context.Request.Query["guildId"], out ulong guildId))
                         {
-                            var channelsResponse = new GuildPermisssionsData();
-
-                            var botGuildUser = guild.CurrentUser;
-                            foreach (var chan in guild.Channels)
+                            var guild = discordBot.Client.GetGuild(guildId);
+                            if (guild != null)
                             {
-                                var channelPermissions = botGuildUser.GetPermissions(chan);
-                                channelsResponse.Channels.Add(chan.Id, new ChannelPermissions { CanRead = channelPermissions.ReadMessages, CanSend = channelPermissions.SendMessages });
+                                var channelsResponse = new GuildPermisssionsData();
+
+                                var botGuildUser = guild.CurrentUser;
+                                foreach (var chan in guild.Channels)
+                                {
+                                    var channelPermissions = botGuildUser.GetPermissions(chan);
+                                    channelsResponse.Channels.Add(chan.Id, new GuildChannelPermissions { CanRead = channelPermissions.ReadMessages, CanSend = channelPermissions.SendMessages });
+                                }
+                                response = JsonConvert.SerializeObject(channelsResponse);
                             }
-                            response = JsonConvert.SerializeObject(channelsResponse);
                         }
                     }
                 }
-                else
+
+                // if empty, response was not handled
+                if (string.IsNullOrEmpty(response))
                 {
                     response = $"Online{Environment.NewLine}";
                 }
@@ -128,17 +133,17 @@
             {
                 try
                 {
-                    using (var bot = new Bot(botType, shard, instanceCount))
+                    using (var bot = Bot.Create(botType, shard, instanceCount))
                     {
                         BotInstance = bot;
                         // Handle clean shutdown when possible
                         SetConsoleCtrlHandler((ctrlType) =>
                         {
-                            bot.ShutdownAsync().GetAwaiter().GetResult();
+                            bot.StopAsync().GetAwaiter().GetResult();
                             return true;
                         }, true);
 
-                        exitCode = bot.RunAsync().GetAwaiter().GetResult();
+                        exitCode = bot.StartAsync().GetAwaiter().GetResult();
                     }
                 }
                 catch (Exception ex)

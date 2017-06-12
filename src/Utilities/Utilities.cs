@@ -3,6 +3,7 @@ namespace UB3RB0T
 {
     using Discord;
     using Discord.WebSocket;
+    using Flurl.Http;
     using Microsoft.AspNetCore.WebUtilities;
     using Newtonsoft.Json;
     using System;
@@ -11,6 +12,7 @@ namespace UB3RB0T
     using System.IO;
     using System.Linq;
     using System.Net;
+    using System.Net.Http;
     using System.Text.RegularExpressions;
     using System.Threading.Tasks;
 
@@ -31,6 +33,11 @@ namespace UB3RB0T
         {
             var newQueryParams = new Dictionary<string, string> { { key, value } };
             return new Uri(QueryHelpers.AddQueryString(uri.ToString(), newQueryParams)); 
+        }
+
+        public static Task<HttpResponseMessage> PostJsonAsync(this Uri uri, object data)
+        {
+            return uri.ToString().PostJsonAsync(data);
         }
 
         public static long ToUnixMilliseconds(DateTimeOffset dto)
@@ -294,6 +301,10 @@ namespace UB3RB0T
             query = $"timer for:\"{to}\" {durationStr} {reason}";
 
             return true;
+        }
+
+        public static ChannelPermissions GetCurrentUserPermissions(this ITextChannel channel)
+        {
         }
 
         public static async Task<IUserMessage> SendOwnerDMAsync(this IGuild guild, string message)
