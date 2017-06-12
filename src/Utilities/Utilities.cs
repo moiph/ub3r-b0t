@@ -305,6 +305,7 @@ namespace UB3RB0T
 
         public static ChannelPermissions GetCurrentUserPermissions(this ITextChannel channel)
         {
+            return (channel as SocketGuildChannel)?.Guild?.CurrentUser?.GetPermissions(channel) ?? new ChannelPermissions();
         }
 
         public static async Task<IUserMessage> SendOwnerDMAsync(this IGuild guild, string message)
