@@ -54,6 +54,7 @@ namespace UB3RB0T
         {
             var embedBuilder = new EmbedBuilder
             {
+                Title = embedData.Title?.SubstringUpTo(256),
                 ThumbnailUrl = embedData.ThumbnailUrl,
                 Description = embedData.Description,
                 Url = Uri.IsWellFormedUriString(embedData.Url, UriKind.Absolute) ? embedData.Url : null,
