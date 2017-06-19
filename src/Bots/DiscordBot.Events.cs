@@ -360,7 +360,8 @@ namespace UB3RB0T
             var settings = SettingsConfig.GetSettings(guild.Id);
             if (settings.HasFlag(ModOptions.Mod_LogUserBan) && this.Client.GetChannel(settings.Mod_LogId) is ITextChannel modLogChannel && modLogChannel.GetCurrentUserPermissions().SendMessages)
             {
-                await modLogChannel.SendMessageAsync($"{user.Username}#{user.Discriminator} was banned.");
+                string userIdentifier = user != null ? $"{user.Username}#{user.Discriminator}" : "Unknown user";
+                await modLogChannel.SendMessageAsync($"{userIdentifier} was banned.");
             }
         }
 
@@ -659,7 +660,7 @@ namespace UB3RB0T
                     }
 
                     delText += $"**{message.Author.Username}#{message.Author.Discriminator}** deleted in {textChannel.Mention}: {message.Content}";
-                    await modLogChannel.SendMessageAsync(delText);
+                    await modLogChannel.SendMessageAsync(delText.SubstringUpTo(2000));
                 }
             }
         }

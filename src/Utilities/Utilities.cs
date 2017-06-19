@@ -45,14 +45,18 @@ namespace UB3RB0T
             return (dto.UtcDateTime.Ticks / TimeSpan.TicksPerMillisecond) - 62135596800;
         }
 
+        public static string SubstringUpTo(this string value, int maxLength)
+        {
+            return value.Substring(0, Math.Min(value.Length, maxLength));
+        }
+
         public static EmbedBuilder CreateEmbedBuilder(this EmbedData embedData)
         {
             var embedBuilder = new EmbedBuilder
             {
-                Title = embedData.Title,
                 ThumbnailUrl = embedData.ThumbnailUrl,
                 Description = embedData.Description,
-                Url = embedData.Url,
+                Url = Uri.IsWellFormedUriString(embedData.Url, UriKind.Absolute) ? embedData.Url : null,
             };
 
             if (!string.IsNullOrEmpty(embedData.Author))
