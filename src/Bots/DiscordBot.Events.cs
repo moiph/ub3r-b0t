@@ -145,9 +145,9 @@ namespace UB3RB0T
 
                 // if it's a bot farm, bail out.
                 await guild.DownloadUsersAsync();
-                Client.Guilds.Count(g => ((double)g.Users.Count(u => u.IsBot) / g.Users.Count) > .5);
+
                 var botCount = guild.Users.Count(u => u.IsBot);
-                var botRatio = Math.Round((double)(botCount / guild.Users.Count));
+                var botRatio = (double)botCount / guild.Users.Count;
                 if (botCount > 30 && botRatio > .5)
                 {
                     this.Logger.Log(LogType.Warn, $"Auto bailed on a bot farm: {guild.Name} (#{guild.Id})");
