@@ -89,7 +89,7 @@ namespace UB3RB0T
         {
             base.Dispose(disposing);
 
-            this.statsTimer.Dispose();
+            this.statsTimer?.Dispose();
             this.Logger.Log(LogType.Debug, "disposing of client");
             this.Client.Dispose();
             this.Logger.Log(LogType.Debug, "disposing of audio manager");

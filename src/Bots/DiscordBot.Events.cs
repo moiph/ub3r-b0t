@@ -143,6 +143,18 @@ namespace UB3RB0T
             {
                 this.AppInsights?.TrackEvent("serverJoin");
 
+                // if it's a bot farm, bail out.
+                await guild.DownloadUsersAsync();
+                Client.Guilds.Count(g => ((double)g.Users.Count(u => u.IsBot) / g.Users.Count) > .5);
+                var botCount = guild.Users.Count(u => u.IsBot);
+                var botRatio = Math.Round((double)(botCount / guild.Users.Count));
+                if (botCount > 30 && botRatio > .5)
+                {
+                    this.Logger.Log(LogType.Warn, $"Auto bailed on a bot farm: {guild.Name} (#{guild.Id})");
+                    await guild.LeaveAsync();
+                    return;
+                }
+
                 var defaultChannel = guild.DefaultChannel;
                 var owner = guild.Owner;
                 if (guild.CurrentUser.GetPermissions(defaultChannel).SendMessages)
@@ -392,6 +404,12 @@ namespace UB3RB0T
                     }
                 }
 
+                return;
+            }
+            
+            // Ignore other bots
+            if (message.Author.IsBot)
+            {
                 return;
             }
 

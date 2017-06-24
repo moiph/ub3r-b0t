@@ -149,6 +149,7 @@
                     Arguments = $"-i {filePath} -f s16le -ar 48000 -ac 2 pipe:1 -loglevel error",
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
+                    RedirectStandardInput = true,
                 });
             }
             else
@@ -190,7 +191,7 @@
                         await memoryStream.CopyToAsync(audioInstance.Stream);
                     }
 
-                    p?.WaitForExit();
+                    p?.WaitForExit(8000);
                     var flushTask = audioInstance.Stream.FlushAsync();
                     var timeoutTask = Task.Delay(8000);
 

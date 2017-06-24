@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26228.10
+VisualStudioVersion = 15.0.26430.14
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UB3R-B0T", "src\UB3R-B0T.csproj", "{EE8843DB-5723-455B-829B-10DD817E675C}"
 EndProject
@@ -30,5 +30,12 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		BuildVersion_AssemblyInfoFilename = src\AssemblyInfo.cs
+		BuildVersion_BuildVersioningStyle = DeltaBaseYear.Office.YearMonthStamp.Increment
+		BuildVersion_UpdateFileVersion = True
+		BuildVersion_UpdateAssemblyVersion = True
+		BuildVersion_StartDate = 2016/1/1
 	EndGlobalSection
 EndGlobal

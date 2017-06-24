@@ -1,20 +1,20 @@
 ﻿namespace UB3RB0T
 {
     using Discord;
-    using Discord.WebSocket;
-    using System;
-    using System.Linq;
-    using System.Collections.Generic;
-    using System.Threading.Tasks;
-    using Microsoft.CodeAnalysis.Scripting;
-    using Microsoft.CodeAnalysis.CSharp.Scripting;
-    using System.Reflection;
-    using System.Net;
-    using System.Text.RegularExpressions;
-    using System.Text;
-    using Microsoft.CodeAnalysis;
-    using System.IO;
     using Discord.Net;
+    using Discord.WebSocket;
+    using Microsoft.CodeAnalysis;
+    using Microsoft.CodeAnalysis.CSharp.Scripting;
+    using Microsoft.CodeAnalysis.Scripting;
+    using System;
+    using System.Collections.Generic;
+    using System.IO;
+    using System.Linq;
+    using System.Net;
+    using System.Reflection;
+    using System.Text;
+    using System.Text.RegularExpressions;
+    using System.Threading.Tasks;
 
     public class DiscordCommands
     {
@@ -46,7 +46,8 @@
             Commands.Add("debug", (message) =>
             {
                 var serverId = (message.Channel as IGuildChannel)?.GuildId.ToString() ?? "n/a";
-                var response = new CommandResponse { Text = $"```Server ID: {serverId} | Channel ID: {message.Channel.Id} | Your ID: {message.Author.Id} | Shard ID: {client.ShardId} | Discord.NET Version: {DiscordSocketConfig.Version}```"};
+                var botVersion = Assembly.GetEntryAssembly().GetName().Version.ToString();
+                var response = new CommandResponse { Text = $"```Server ID: {serverId} | Channel ID: {message.Channel.Id} | Your ID: {message.Author.Id} | Shard ID: {client.ShardId} | Version: {botVersion} | Discord.NET Version: {DiscordSocketConfig.Version}```"};
                 return Task.FromResult(response);
             });
 
@@ -350,60 +351,182 @@
                     return null;
                 }
 
-                var embedBuilder = new EmbedBuilder
+                var userInfo = new
                 {
                     Title = $"UserInfo for {targetUser.Username}#{targetUser.Discriminator}",
-                    ThumbnailUrl = targetUser.GetAvatarUrl()
+                    AvatarUrl = targetUser.GetAvatarUrl(),
+                    NicknameInfo = !string.IsNullOrEmpty(guildUser.Nickname) ? $" aka {guildUser.Nickname}" : "",
+                    Footnote = CommandsConfig.Instance.UserInfoSnippets.Random(),
+                    Created = $"{targetUser.GetCreatedDate().ToString("dd MMM yyyy")} {targetUser.GetCreatedDate().ToString("hh:mm:ss tt")} UTC",
+                    Joined = $"{guildUser.JoinedAt.Value.ToString("dd MMM yyyy")} {guildUser.JoinedAt.Value.ToString("hh:mm:ss tt")} UTC",
+                    Id = targetUser.Id.ToString(),
                 };
 
-                if (!string.IsNullOrEmpty(guildUser.Nickname))
-                {
-                    embedBuilder.Description = $"aka {guildUser.Nickname}";
-                }
+                EmbedBuilder embedBuilder = null;
+                string text = string.Empty;
 
-                embedBuilder.Footer = new EmbedFooterBuilder
+                if ((message.Channel as ITextChannel).GetCurrentUserPermissions().EmbedLinks)
                 {
-                    Text = CommandsConfig.Instance.UserInfoSnippets.Random()
-                };
+                    embedBuilder = new EmbedBuilder
+                    {
+                        Title = userInfo.Title,
+                        ThumbnailUrl = userInfo.AvatarUrl,
+                    };
 
-                embedBuilder.AddField((field) =>
-                {
-                    field.IsInline = true;
-                    field.Name = "created";
-                    field.Value = $"{targetUser.GetCreatedDate().ToString("dd MMM yyyy")} {targetUser.GetCreatedDate().ToString("hh:mm:ss tt")} UTC";
-                });
+                    if (!string.IsNullOrEmpty(userInfo.NicknameInfo))
+                    {
+                        embedBuilder.Description = userInfo.NicknameInfo;
+                    }
 
-                if (guildUser.JoinedAt.HasValue)
-                {
+                    embedBuilder.Footer = new EmbedFooterBuilder
+                    {
+                        Text = userInfo.Footnote,
+                    };
+
                     embedBuilder.AddField((field) =>
                     {
                         field.IsInline = true;
-                        field.Name = "joined";
-                        field.Value = $"{guildUser.JoinedAt.Value.ToString("dd MMM yyyy")} {guildUser.JoinedAt.Value.ToString("hh:mm:ss tt")} UTC";
+                        field.Name = "created";
+                        field.Value = userInfo.Created;
+                    });
+
+                    if (guildUser.JoinedAt.HasValue)
+                    {
+                        embedBuilder.AddField((field) =>
+                        {
+                            field.IsInline = true;
+                            field.Name = "joined";
+                            field.Value = userInfo.Joined;
+                        });
+                    }
+
+                    var roles = new List<string>();
+                    foreach (ulong roleId in guildUser.RoleIds)
+                    {
+                        roles.Add(guildUser.Guild.Roles.First(g => g.Id == roleId).Name.TrimStart('@'));
+                    }
+
+                    embedBuilder.AddField((field) =>
+                    {
+                        field.IsInline = false;
+                        field.Name = "roles";
+                        field.Value = string.Join(", ", roles);
+                    });
+
+                    embedBuilder.AddField((field) =>
+                    {
+                        field.IsInline = true;
+                        field.Name = "Id";
+                        field.Value = userInfo.Id;
                     });
                 }
-
-                var roles = new List<string>();
-                foreach (ulong roleId in guildUser.RoleIds)
+                else
                 {
-                    roles.Add(guildUser.Guild.Roles.First(g => g.Id == roleId).Name.TrimStart('@'));
+                    text = $"{userInfo.Title}{userInfo.NicknameInfo}: ID: {userInfo.Id} | Created: {userInfo.Created} | Joined: {userInfo.Joined} | word on the street: {userInfo.Footnote}";
                 }
 
-                embedBuilder.AddField((field) =>
-                {
-                    field.IsInline = false;
-                    field.Name = "roles";
-                    field.Value = string.Join(", ", roles);
-                });
+                return new CommandResponse { Text = text, Embed = embedBuilder };
+            });
 
-                embedBuilder.AddField((field) =>
-                {
-                    field.IsInline = true;
-                    field.Name = "Id";
-                    field.Value = targetUser.Id.ToString();
-                });
+            Commands.Add("serverinfo", async (message) =>
+            {
+                EmbedBuilder embedBuilder = null;
+                string text = string.Empty;
 
-                return new CommandResponse { Text = string.Empty, Embed = embedBuilder };
+                if (message.Channel is IGuildChannel guildChannel && message.Channel is ITextChannel textChannel)
+                {
+                    var guild = guildChannel.Guild;
+                    var emojiCount = guild.Emojis.Count();
+                    var emojiText = "no custom emojis? I am ASHAMED to be here";
+                    if (emojiCount >= 50)
+                    {
+                        emojiText = "wow 50 custom emojis! that's the max";
+                    }
+                    else if (emojiCount >= 40)
+                    {
+                        emojiText = $"{emojiCount} custom emojis in here. impressive...most impressive...";
+                    }
+                    else if (emojiCount > 25)
+                    {
+                        emojiText = $"the custom emoji force is strong with this guild. {emojiCount} is over halfway to the max.";
+                    }
+                    else if (emojiCount > 10)
+                    {
+                        emojiText = $"{emojiCount} custom emoji is...passable";
+                    }
+                    else if (emojiCount > 0)
+                    {
+                        emojiText = $"really, only {emojiCount} custom emoji? tsk tsk.";
+                    }
+
+                    await (message.Channel as SocketGuildChannel).Guild.DownloadUsersAsync();
+                    var serverInfo = new
+                    {
+                        Title = $"Server Info for {guild.Name}",
+                        UserCount = (await guild.GetUsersAsync()).Count(),
+                        Owner = (await guild.GetOwnerAsync()).Username,
+                        Created = $"{guild.CreatedAt.ToString("dd MMM yyyy")} {guild.CreatedAt.ToString("hh:mm:ss tt")} UTC",
+                        EmojiText = emojiText,
+                    };
+
+                    if (textChannel.GetCurrentUserPermissions().EmbedLinks)
+                    {
+                        embedBuilder = new EmbedBuilder
+                        {
+                            Title = serverInfo.Title,
+                            ThumbnailUrl = guildChannel.Guild.IconUrl,
+                        };
+
+                        embedBuilder.AddField((field) =>
+                        {
+                            field.IsInline = true;
+                            field.Name = "Users";
+                            field.Value = serverInfo.UserCount;
+                        });
+
+                        embedBuilder.AddField((field) =>
+                        {
+                            field.IsInline = true;
+                            field.Name = "Owner";
+                            field.Value = serverInfo.Owner;
+                        });
+
+                        embedBuilder.AddField((field) =>
+                        {
+                            field.IsInline = true;
+                            field.Name = "Id";
+                            field.Value = guild.Id;
+                        });
+
+                        embedBuilder.AddField((field) =>
+                        {
+                            field.IsInline = true;
+                            field.Name = "created";
+                            field.Value = serverInfo.Created;
+                        });
+
+                        embedBuilder.Footer = new EmbedFooterBuilder
+                        {
+                            Text = serverInfo.EmojiText,
+                        };
+
+                        if (!string.IsNullOrEmpty(guild.SplashUrl))
+                        {
+                            embedBuilder.Footer.IconUrl = guild.SplashUrl;
+                        }
+                    }
+                    else
+                    {
+                        text = $"{serverInfo.Title}: Users: {serverInfo.UserCount} | Owner: {serverInfo.Owner} | Id: {guild.Id} | Created: {serverInfo.Created} | {serverInfo.EmojiText}";
+                    }
+                }
+                else
+                {
+                    text = "This command only works in servers, you scoundrel";
+                }
+
+
+                return new CommandResponse { Text = text, Embed = embedBuilder };
             });
 
             Commands.Add("role", async (message) =>

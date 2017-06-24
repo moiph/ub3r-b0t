@@ -59,7 +59,14 @@ namespace UB3RB0T
             if (!string.IsNullOrEmpty(message))
             {
                 message = message.ToLowerInvariant();
-                if (!message.ToLowerInvariant().Contains("rate limit") && !message.Contains("referenced an unknown") && !message.Contains("unknown user"))
+                // TODO:
+                // need a better way to classify these errors.
+                // Don't want to dismiss Warning severity as a whole (yet? Maybe?), but a lot of it is inactionable from the client perpsective.
+                if (!message.ToLowerInvariant().Contains("rate limit") &&
+                    !message.Contains("referenced an unknown") && 
+                    !message.Contains("unknown user") &&
+                    !message.Contains("unknown channel") &&
+                    !message.Contains("unknown guild"))
                 {
                     string iconType = "\U00002139";
                     switch (severity)

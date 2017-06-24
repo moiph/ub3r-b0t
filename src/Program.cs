@@ -155,7 +155,6 @@
             } while (exitCode == (int)ExitCode.UnexpectedError); // re-create the bot on failures.  Only exit if a clean shutdown occurs.
 
             Console.WriteLine("Game over man, game over!");
-            Console.ReadLine();
         }
     }
 }
