@@ -292,10 +292,11 @@ namespace UB3RB0T
                         if (settings.AutoTitlesEnabled && CommandsConfig.Instance.AutoTitleMatches.Any(t => messageData.Content.Contains(t)))
                         {
                             Match match = Consts.HttpRegex.Match(messageData.Content);
-                            if (match != null)
+                            string matchValue = !string.IsNullOrEmpty(match.Value) ? match.Value : Consts.RedditRegex.Match(messageData.Content).Value;
+                            if (!string.IsNullOrEmpty(matchValue))
                             {
                                 command = "title";
-                                query = $"{command} {match.Value}";
+                                query = $"{command} {matchValue}";
                             }
                         }
                         else if ((settings.FunResponsesEnabled || IsAuthorOwner(messageData)) && contentParts.Length > 1 && contentParts[1] == "face")
