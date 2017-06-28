@@ -236,6 +236,22 @@ namespace UB3RB0T
                     repeat.Reset(messageData.UserId ?? messageData.UserName, messageData.Content);
                 }
             }
+
+            if (!CommandsConfig.Instance.Commands.ContainsKey(messageData.Command))
+            {
+                messageData.Command = string.Empty;
+            }
+
+            if (string.IsNullOrEmpty(messageData.Command))
+            {
+                // match fun
+                bool mentionsBot = messageData.MentionsBot(this.Config.Name, Convert.ToUInt64(this.UserId));
+                if (CommandsConfig.Instance.TryParseForCommand(messageData.Content, mentionsBot, out string command, out string query))
+                {
+                    messageData.Command = command;
+                    messageData.Query = query;
+                }
+            }
         }
 
         protected abstract Task RespondAsync(BotMessageData messageData, string text);
@@ -249,7 +265,8 @@ namespace UB3RB0T
             {
                 // if an explicit command is being used, it wins out over any implicitly parsed command
                 string query = messageData.Query;
-                string command = CommandsConfig.Instance.Commands.ContainsKey(messageData.Command) ? messageData.Command : string.Empty;
+                string command = messageData.Command;
+
                 string[] contentParts = messageData.Content.Split(new[] { ' ' });
 
                 if (string.IsNullOrEmpty(command))
@@ -278,13 +295,6 @@ namespace UB3RB0T
                                 }
                             }
                         }
-                    }
-
-                    if (string.IsNullOrEmpty(command))
-                    {
-                        // match fun
-                        bool mentionsBot = messageData.MentionsBot(this.Config.Name, Convert.ToUInt64(this.UserId));
-                        CommandsConfig.Instance.TryParseForCommand(messageData.Content, mentionsBot, out command, out query);
                     }
 
                     if (string.IsNullOrEmpty(command))

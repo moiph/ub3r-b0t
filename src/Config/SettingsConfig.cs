@@ -60,6 +60,11 @@
 
             return settings;
         }
+
+        public static void RemoveSettings(string serverId)
+        {
+            SettingsConfig.Instance.Settings.Remove(serverId);
+        }
     }
 
     // TODO: Remove moderation logging functionality once Discord audit log features are complete

@@ -171,6 +171,8 @@ namespace UB3RB0T
         {
             this.AppInsights?.TrackEvent("serverLeave");
 
+            SettingsConfig.RemoveSettings(guild.Id.ToString());
+
             if (this.Config.PruneEndpoint != null)
             {
                 var req = WebRequest.Create($"{this.Config.PruneEndpoint}?id={guild.Id}");
@@ -550,11 +552,16 @@ namespace UB3RB0T
                 query = messageContent.Substring(settings.Prefix.Length);
             }
 
-            string command = query.Split(new[] { ' ' }, 2)[0];
-
             var messageData = BotMessageData.Create(message, query, settings);
             messageData.Content = messageContent;
             await this.PreProcessMessage(messageData, settings);
+
+            string command = messageData.Command;
+
+            if (message.Attachments.FirstOrDefault() is Attachment attachment)
+            {
+                imageUrls[messageData.Channel] = attachment;
+            }
 
             // if it's a blocked command, bail
             if (settings.IsCommandDisabled(CommandsConfig.Instance, command) && !IsAuthorOwner(message))
@@ -566,10 +573,18 @@ namespace UB3RB0T
             if (discordCommands.Commands.ContainsKey(command))
             {
                 var response = await discordCommands.Commands[command].Invoke(message).ConfigureAwait(false);
-                if (response != null && (!string.IsNullOrEmpty(response.Text) || response.Embed != null))
+                if (response != null)
                 {
-                    var sentMessage = await this.RespondAsync(message, response.Text, response.Embed);
-                    this.botResponsesCache.Add(message.Id, sentMessage);
+                    if (response.Attachment != null)
+                    {
+                        var sentMessage = await message.Channel.SendFileAsync(response.Attachment.Stream, response.Attachment.Name, response.Text);
+                        this.botResponsesCache.Add(message.Id, sentMessage);
+                    }
+                    else if (!string.IsNullOrEmpty(response.Text) || response.Embed != null)
+                    {
+                        var sentMessage = await this.RespondAsync(message, response.Text, response.Embed);
+                        this.botResponsesCache.Add(message.Id, sentMessage);
+                    }
                 }
             }
             else

@@ -2,6 +2,7 @@
 namespace UB3RB0T
 {
     using System;
+    using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Linq;
     using System.Net.Http;
@@ -11,8 +12,8 @@ namespace UB3RB0T
     using Discord;
     using Discord.WebSocket;
     using Flurl.Http;
-    using UB3RIRC;
     using Newtonsoft.Json;
+    using UB3RIRC;
 
     public partial class DiscordBot : Bot
     {
@@ -27,6 +28,8 @@ namespace UB3RB0T
         protected override string UserId => this.Client.CurrentUser.Id.ToString();
 
         public DiscordSocketClient Client { get; private set; }
+
+        public static ConcurrentDictionary<string, Attachment> imageUrls = new ConcurrentDictionary<string, Attachment>();
 
         public override BotType BotType => BotType.Discord;
 

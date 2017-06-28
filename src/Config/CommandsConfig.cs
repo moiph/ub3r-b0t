@@ -15,6 +15,8 @@
 
         public Uri NotificationsEndpoint { get; set; }
 
+        public Uri JpegEndpoint { get; set; }
+
         public string[] UserInfoSnippets { get; set; }
 
         public string[] AutoTitleMatches { get; set; }
