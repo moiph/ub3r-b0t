@@ -94,9 +94,9 @@ namespace UB3RB0T
 
             this.statsTimer?.Dispose();
             this.Logger.Log(LogType.Debug, "disposing of client");
-            this.Client.Dispose();
+            this.Client?.Dispose();
             this.Logger.Log(LogType.Debug, "disposing of audio manager");
-            this.audioManager.Dispose();
+            this.audioManager?.Dispose();
         }
 
         /// <inheritdoc />
@@ -109,7 +109,7 @@ namespace UB3RB0T
             var user = this.Client.GetUser(Convert.ToUInt64(reminder.UserId));
             if (channel == null && user != null && reminder.Server == "private")
             {
-                channel = await user.CreateDMChannelAsync() as IDMChannel;
+                channel = await user.GetOrCreateDMChannelAsync() as IDMChannel;
             }
 
             // if neither guild nor user was found, it belongs to another shard.
@@ -137,7 +137,7 @@ namespace UB3RB0T
                 // channel doesn't exist / missing permissions; so PM them instead.
                 try
                 {
-                    channel = await user.CreateDMChannelAsync();
+                    channel = await user.GetOrCreateDMChannelAsync();
                 }
                 catch (Exception)
                 {

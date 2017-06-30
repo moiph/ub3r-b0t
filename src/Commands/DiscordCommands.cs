@@ -484,7 +484,7 @@
                 if (message.Channel is IGuildChannel guildChannel && message.Channel is ITextChannel textChannel)
                 {
                     var guild = guildChannel.Guild;
-                    var emojiCount = guild.Emojis.Count();
+                    var emojiCount = guild.Emotes.Count();
                     var emojiText = "no custom emojis? I am ASHAMED to be here";
                     if (emojiCount > 50)
                     {

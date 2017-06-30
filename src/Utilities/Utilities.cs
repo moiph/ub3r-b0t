@@ -322,7 +322,7 @@ namespace UB3RB0T
 
             try
             {
-                return await (await (await guild.GetOwnerAsync()).CreateDMChannelAsync()).SendMessageAsync(message);
+                return await (await (await guild.GetOwnerAsync()).GetOrCreateDMChannelAsync()).SendMessageAsync(message);
             }
             catch (Exception ex)
             {

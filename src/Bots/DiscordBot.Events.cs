@@ -448,7 +448,7 @@ namespace UB3RB0T
                 {
                     offendingWord = offendingWord != null ? $"`{offendingWord}`" : "*FANCY lanuage filters*";
                     await message.DeleteAsync();
-                    var dmChannel = await message.Author.CreateDMChannelAsync();
+                    var dmChannel = await message.Author.GetOrCreateDMChannelAsync();
                     await dmChannel.SendMessageAsync($"hi uh sorry but your most recent message was tripped up by {offendingWord} and thusly was deleted. complain to management, i'm just the enforcer");
                     return;
                 }
@@ -493,7 +493,7 @@ namespace UB3RB0T
                 if (reactionType == "💬" || reactionType == "🗨️")
                 {
                     newMessageContent = $".quote add \"{messageContent}\" - userid:{message.Author.Id} {message.Author.Username}";
-                    await message.AddReactionAsync("💬");
+                    await message.AddReactionAsync(new Emoji("💬"));
                 }
                 else if (string.IsNullOrEmpty(message.Content) && message.Attachments?.FirstOrDefault()?.Url is string attachmentUrl)
                 {
@@ -701,16 +701,16 @@ namespace UB3RB0T
         private async Task HandleReactionAdded(Cacheable<IUserMessage, ulong> message, ISocketMessageChannel channel, SocketReaction reaction)
         {
             // if an Eye emoji was added, let's process it
-            if ((reaction.Emoji.Name == "👁" || reaction.Emoji.Name == "🖼") &&
+            if ((reaction.Emote.Name == "👁" || reaction.Emote.Name == "🖼") &&
                 reaction.Message.IsSpecified &&
                 IsAuthorPatron(reaction.UserId) &&
                 string.IsNullOrEmpty(reaction.Message.Value.Content) &&
                 reaction.Message.Value.Attachments.Count > 0)
             {
-                await this.HandleMessageReceivedAsync(reaction.Message.Value, reaction.Emoji.Name);
+                await this.HandleMessageReceivedAsync(reaction.Message.Value, reaction.Emote.Name);
             }
 
-            if ((reaction.Emoji.Name == "💬" || reaction.Emoji.Name == "🗨️") && reaction.Message.IsSpecified && !string.IsNullOrEmpty(reaction.Message.Value?.Content))
+            if ((reaction.Emote.Name == "💬" || reaction.Emote.Name == "🗨️") && reaction.Message.IsSpecified && !string.IsNullOrEmpty(reaction.Message.Value?.Content))
             {
                 // if the reaction already exists, don't re-process.
                 if (reaction.Message.Value.Reactions.Any(r => r.Key.Name == "💬" && r.Value.ReactionCount > 1) || reaction.Message.Value.Reactions.Any(r => r.Key.Name == "🗨️" && r.Value.ReactionCount > 1))
@@ -718,7 +718,7 @@ namespace UB3RB0T
                     return;
                 }
 
-                await this.HandleMessageReceivedAsync(reaction.Message.Value, reaction.Emoji.Name, reaction.User.Value);
+                await this.HandleMessageReceivedAsync(reaction.Message.Value, reaction.Emote.Name, reaction.User.Value);
             }
         }
 
