@@ -112,7 +112,7 @@
         public bool AutoTitlesEnabled { get; set; }
         public bool SeenEnabled { get; set; }
 
-        public bool PreferEmbeds { get; set; } = true;
+        public bool PreferEmbeds { get; set; }
         public NotificationType Notif_EmbedOptions { get; set; }
 
         public bool DisableLinkParsing { get; set; }

@@ -192,6 +192,7 @@ namespace UB3RB0T
             if (!string.IsNullOrEmpty(settings.Greeting))
             {
                 var greeting = settings.Greeting.Replace("%user%", guildUser.Mention);
+                greeting = greeting.Replace("%username%", $"{guildUser.Username}#{guildUser.Discriminator}");
 
                 greeting = Consts.ChannelRegex.Replace(greeting, new MatchEvaluator((Match chanMatch) =>
                 {
@@ -241,22 +242,23 @@ namespace UB3RB0T
         /// <summary>
         /// Sends farewells and mod log messages, if configured.
         /// </summary>
-        private async Task HandleUserLeftAsync(SocketGuildUser arg)
+        private async Task HandleUserLeftAsync(SocketGuildUser guildUser)
         {
-            var settings = SettingsConfig.GetSettings(arg.Guild.Id);
+            var settings = SettingsConfig.GetSettings(guildUser.Guild.Id);
 
             if (!string.IsNullOrEmpty(settings.Farewell))
             {
-                var farewell = settings.Farewell.Replace("%user%", arg.Mention);
+                var farewell = settings.Farewell.Replace("%user%", guildUser.Mention);
+                farewell = farewell.Replace("%username%", $"{guildUser.Username}#{guildUser.Discriminator}");
 
                 farewell = Consts.ChannelRegex.Replace(farewell, new MatchEvaluator((Match chanMatch) =>
                 {
                     string channelName = chanMatch.Captures[0].Value;
-                    var channel = arg.Guild.Channels.Where(c => c is ITextChannel && c.Name.Equals(channelName, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+                    var channel = guildUser.Guild.Channels.Where(c => c is ITextChannel && c.Name.Equals(channelName, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
                     return (channel as ITextChannel)?.Mention ?? channelName;
                 }));
 
-                var farewellChannel = this.Client.GetChannel(settings.FarewellId) as ITextChannel ?? arg.Guild.DefaultChannel;
+                var farewellChannel = this.Client.GetChannel(settings.FarewellId) as ITextChannel ?? guildUser.Guild.DefaultChannel;
                 if (farewellChannel.GetCurrentUserPermissions().SendMessages)
                 {
                     await farewellChannel.SendMessageAsync(farewell);
@@ -266,7 +268,7 @@ namespace UB3RB0T
             // mod log
             if (settings.HasFlag(ModOptions.Mod_LogUserLeave) && this.Client.GetChannel(settings.Mod_LogId) is ITextChannel modLogChannel && modLogChannel.GetCurrentUserPermissions().SendMessages)
             {
-                await modLogChannel.SendMessageAsync($"{arg.Username}#{arg.Discriminator} left.");
+                await modLogChannel.SendMessageAsync($"{guildUser.Username}#{guildUser.Discriminator} left.");
             }
         }
 

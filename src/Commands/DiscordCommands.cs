@@ -413,7 +413,9 @@
                 EmbedBuilder embedBuilder = null;
                 string text = string.Empty;
 
-                if ((message.Channel as ITextChannel).GetCurrentUserPermissions().EmbedLinks)
+                var settings = SettingsConfig.GetSettings(guildUser.GuildId.ToString());
+
+                if ((message.Channel as ITextChannel).GetCurrentUserPermissions().EmbedLinks && settings.PreferEmbeds)
                 {
                     embedBuilder = new EmbedBuilder
                     {
@@ -521,7 +523,9 @@
                         EmojiText = emojiText,
                     };
 
-                    if (textChannel.GetCurrentUserPermissions().EmbedLinks)
+                    var settings = SettingsConfig.GetSettings(guildChannel.GuildId.ToString());
+                    
+                    if (textChannel.GetCurrentUserPermissions().EmbedLinks && settings.PreferEmbeds)
                     {
                         embedBuilder = new EmbedBuilder
                         {

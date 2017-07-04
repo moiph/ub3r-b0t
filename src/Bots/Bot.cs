@@ -473,7 +473,8 @@ namespace UB3RB0T
             {
                 this.Logger.Log(LogType.Debug, "Fetching server settings...");
                 var sinceToken = SettingsConfig.Instance.SinceToken;
-                await SettingsConfig.Instance.OverrideAsync(this.Config.SettingsEndpoint.AppendQueryParam("since", sinceToken.ToString()));
+                var configEndpoint = this.Config.SettingsEndpoint.AppendQueryParam("since", sinceToken.ToString()).AppendQueryParam("shard", this.Shard.ToString()).AppendQueryParam("shardcount", this.Config.Discord.ShardCount.ToString());
+                await SettingsConfig.Instance.OverrideAsync(configEndpoint);
                 this.Logger.Log(LogType.Debug, "Server settings updated.");
             }
             catch (Exception ex)
