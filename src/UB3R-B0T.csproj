@@ -48,12 +48,12 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Discord.Net.WebSocket" Version="1.0.1" />
-    <PackageReference Include="Flurl.Http" Version="1.1.1" />
-    <PackageReference Include="Microsoft.ApplicationInsights" Version="2.3.0-beta1" />
+    <PackageReference Include="Flurl.Http" Version="1.1.2" />
+    <PackageReference Include="Microsoft.ApplicationInsights" Version="2.4.0" />
     <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel" Version="1.1.2" />
     <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel.Https" Version="1.1.2" />
     <PackageReference Include="Microsoft.AspNetCore.WebUtilities" Version="1.1.2" />
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="2.0.0-rc2" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="2.3.0-beta2" />
     <PackageReference Include="UB3RIRC" Version="1.0.3" />
   </ItemGroup>
 </Project>
