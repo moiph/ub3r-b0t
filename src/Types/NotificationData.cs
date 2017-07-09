@@ -18,9 +18,9 @@
         public string Id { get; set; }
         public string Channel { get; set; }
         public string Server { get; set; }
-        public NotificationType Type { get; set; }
+        public NotificationType Type { get; set; } = NotificationType.Rss;
         public string Text { get; set; }
-        public BotType BotType { get; set; }
+        public BotType BotType { get; set; } = BotType.Discord;
         public EmbedData Embed { get; set; }
     }
 }

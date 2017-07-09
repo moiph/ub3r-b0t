@@ -43,6 +43,10 @@
         // endpoint to send alerts (e.g. bot restarts) to
         public Uri AlertEndpoint { get; set; }
 
+        // Connection string for Azure Service Bus (for notifications)
+        public string ServiceBusConnectionString { get; set; }
+        public string QueueNamePrefix { get; set; }
+
         /// Hostname to listen on for incoming http requests (for monitoring)
         public string WebListenerHostName { get; set; }
 

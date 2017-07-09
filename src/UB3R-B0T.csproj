@@ -16,8 +16,8 @@
     <UpdateAssemblyInfoVersion>False</UpdateAssemblyInfoVersion>
     <AssemblyVersionSettings>IncrementOnDemand.IncrementOnDemand.DateStamp.Increment</AssemblyVersionSettings>
     <Version>4.1.0</Version>
-    <AssemblyVersion>4.1.1706.4</AssemblyVersion>
-    <FileVersion>4.1.1706.4</FileVersion>
+    <AssemblyVersion>4.1.1707.8</AssemblyVersion>
+    <FileVersion>4.1.1707.8</FileVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <DebugType>pdbonly</DebugType>
@@ -53,6 +53,7 @@
     <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel" Version="1.1.2" />
     <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel.Https" Version="1.1.2" />
     <PackageReference Include="Microsoft.AspNetCore.WebUtilities" Version="1.1.2" />
+    <PackageReference Include="Microsoft.Azure.ServiceBus" Version="0.0.6-preview" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="2.3.0-beta2" />
     <PackageReference Include="UB3RIRC" Version="1.0.3" />
   </ItemGroup>

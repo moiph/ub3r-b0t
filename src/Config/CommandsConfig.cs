@@ -13,8 +13,6 @@
 
         public Uri RemindersEndpoint { get; set; }
 
-        public Uri NotificationsEndpoint { get; set; }
-
         public Uri JpegEndpoint { get; set; }
 
         public string[] UserInfoSnippets { get; set; }

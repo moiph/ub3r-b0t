@@ -208,7 +208,8 @@ namespace UB3RB0T
                     }
                     else
                     {
-                        await channelToUse.SendMessageAsync($"<{notification.Embed.Url}>", false, notification.Embed.CreateEmbedBuilder());
+                        var url = string.IsNullOrEmpty(notification.Embed.Url) ? string.Empty : $"<{notification.Embed.Url}>";
+                        await channelToUse.SendMessageAsync(url, false, notification.Embed.CreateEmbedBuilder());
                     }
                 }
                 else

@@ -6,6 +6,7 @@ namespace UB3RB0T
     using System.Collections.Generic;
     using System.Linq;
     using System.Security.Cryptography.X509Certificates;
+    using System.Text;
     using System.Text.RegularExpressions;
     using System.Threading;
     using System.Threading.Tasks;
@@ -13,6 +14,8 @@ namespace UB3RB0T
     using Microsoft.ApplicationInsights.DataContracts;
     using Microsoft.ApplicationInsights.Extensibility;
     using Microsoft.AspNetCore.Hosting;
+    using Microsoft.Azure.ServiceBus;
+    using Newtonsoft.Json;
     using UB3RIRC;
 
     /// <summary>
@@ -28,11 +31,11 @@ namespace UB3RB0T
         private static long startTime;
 
         private IWebHost listenerHost;
+        private QueueClient queueClient;
+        private readonly string queueName;
 
-        private bool processingNotifications;
         private bool processingReminders;
 
-        private Timer notificationsTimer;
         private Timer remindersTimer;
         private Timer settingsUpdateTimer;
         private Timer heartbeatTimer;
@@ -57,6 +60,10 @@ namespace UB3RB0T
         {
             this.Logger = new Logger(LogType.Debug, new List<ILog> { new ConsoleLog() });
             this.Shard = shard;
+            if (!string.IsNullOrEmpty(this.Config.QueueNamePrefix))
+            {
+                this.queueName = $"{this.Config.QueueNamePrefix}{shard}";
+            }
 
             this.SetupAppInsights();
 
@@ -123,8 +130,17 @@ namespace UB3RB0T
             Bot.startTime = Utilities.Utime;
 
             this.StartTimers();
-            this.StartWebListener();
             this.StartConsoleListener();
+
+            if (!string.IsNullOrEmpty(this.Config.WebListenerHostName))
+            {
+                this.StartWebListener();
+            }
+
+            if (!string.IsNullOrEmpty(this.Config.ServiceBusConnectionString))
+            {
+                this.StartServiceBusListener();
+            }
 
             while (this.exitCode == (int)ExitCode.Success)
             {
@@ -134,6 +150,47 @@ namespace UB3RB0T
             await this.StopAsync(this.exitCode == (int)ExitCode.UnexpectedError);
             this.Logger.Log(LogType.Info, "Exited.");
             return this.exitCode;
+        }
+
+        /// <summary>
+        /// Creates a QueueClient for azure service bus to listen for notifications.
+        /// </summary>
+        private void StartServiceBusListener()
+        {
+            this.queueClient = new QueueClient(this.Config.ServiceBusConnectionString, this.queueName, ReceiveMode.PeekLock);
+
+            // Register an OnMessage callback
+            this.queueClient.RegisterMessageHandler(
+                async (message, token) =>
+                {
+                    var body = Encoding.UTF8.GetString(message.Body);
+
+                    NotificationData notificationData = null;
+
+                    try
+                    {
+                        notificationData = JsonConvert.DeserializeObject<NotificationData>(body);
+                    }
+                    catch (JsonSerializationException ex)
+                    {
+                        this.Logger.Log(LogType.Warn, $"Failed to deserialize notification: {ex}");
+                    }
+
+                    if (notificationData != null)
+                    {
+                        try
+                        {
+                            await this.SendNotification(notificationData);
+                        }
+                        catch (Exception ex)
+                        {
+                            this.Logger.Log(LogType.Error, "Error processing notification: {0}", ex);
+                        }
+                    }
+
+                    // For now, no retries. Regardless of notification send success, complete it.
+                    await queueClient.CompleteAsync(message.SystemProperties.LockToken);
+                });
         }
 
         public async Task StopAsync(bool unexpected = false)
@@ -153,10 +210,10 @@ namespace UB3RB0T
         public virtual void Dispose(bool disposing)
         {
             this.Logger.Log(LogType.Debug, "dispose start");
+            this.queueClient?.CloseAsync();
             this.settingsUpdateTimer?.Dispose();
             this.remindersTimer?.Dispose();
             this.heartbeatTimer?.Dispose();
-            this.notificationsTimer?.Dispose();
             this.seenTimer?.Dispose();
             this.listenerHost?.Dispose();
             this.Logger.Log(LogType.Debug, "dispose end");
@@ -484,17 +541,10 @@ namespace UB3RB0T
         }
 
         /// <summary>
-        /// Starts recurring timers (notifications, reminders, etc)
+        /// Starts recurring timers (reminders, seen, heartbeat)
         /// </summary>
         private void StartTimers()
         {
-            // TODO: investigate getting push notifications from service->bot client
-
-            if (CommandsConfig.Instance.NotificationsEndpoint != null)
-            {
-                notificationsTimer = new Timer(NotificationsTimerAsync, null, 10000, 10000);
-            }
-
             if (CommandsConfig.Instance.RemindersEndpoint != null)
             {
                 remindersTimer = new Timer(RemindersTimerAsync, null, 10000, 10000);
@@ -652,62 +702,6 @@ namespace UB3RB0T
             }
 
             this.processingReminders = false;
-        }
-
-        /// <summary>
-        /// Timer callback to handle notifications.
-        /// </summary>
-        /// <param name="state">State object (unused).</param>
-        private async void NotificationsTimerAsync(object state)
-        {
-            if (this.processingNotifications)
-            {
-                return;
-            }
-
-            this.processingNotifications = true;
-            NotificationData[] notifications = null;
-            try
-            {
-                notifications = await Utilities.GetApiResponseAsync<NotificationData[]>(CommandsConfig.Instance.NotificationsEndpoint);
-            }
-            catch (Exception ex)
-            {
-                this.Logger.Log(LogType.Error, "Error fetching notifications: {0}", ex);
-            }
-
-            var notificationsToDelete = new List<string>();
-            if (notifications != null)
-            {
-                foreach (var notification in notifications?.Where(t => t.BotType == this.BotType))
-                {
-                    try
-                    {
-                        if (await this.SendNotification(notification))
-                        {
-                            notificationsToDelete.Add(notification.Id);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        this.Logger.Log(LogType.Error, "Error processing notification: {0}", ex);
-                    }
-                }
-            }
-
-            if (notificationsToDelete.Count > 0)
-            {
-                try
-                {
-                    await CommandsConfig.Instance.NotificationsEndpoint.PostJsonAsync(new { ids = string.Join(",", notificationsToDelete) });
-                }
-                catch (Exception ex)
-                {
-                    this.Logger.Log(LogType.Error, "Error deleting notifications: {0}", ex);
-                }
-            }
-
-            this.processingNotifications = false;
         }
 
         // Whether or not the message author is the bot owner (will only return true in Discord scenarios).
