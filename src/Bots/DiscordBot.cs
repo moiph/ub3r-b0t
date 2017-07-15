@@ -30,6 +30,7 @@ namespace UB3RB0T
         public DiscordSocketClient Client { get; private set; }
 
         public static ConcurrentDictionary<string, Attachment> imageUrls = new ConcurrentDictionary<string, Attachment>();
+        private ConcurrentDictionary<ITextChannel, List<string>> messageBatch = new ConcurrentDictionary<ITextChannel, List<string>>();
 
         public override BotType BotType => BotType.Discord;
 
@@ -72,6 +73,7 @@ namespace UB3RB0T
             await this.Client.StartAsync();
 
             this.statsTimer = new Timer(StatsTimerAsync, null, 3600000, 3600000);
+            this.StartBatchMessageProcessing();
         }
 
         protected override async Task StopAsyncInternal(bool unexpected)
@@ -319,6 +321,60 @@ namespace UB3RB0T
                     this.Logger.Log(LogType.Warn, $"Failed to update discordbots.org stats: {ex}");
                 }
             }
+        }
+
+        private void BatchSendMessageAsync(ITextChannel channel, string text)
+        {
+            messageBatch.AddOrUpdate(channel, new List<string> { text }, (ITextChannel key, List<string> val) =>
+            {
+                val.Add(text);
+                return val;
+            });
+        }
+
+        private void StartBatchMessageProcessing()
+        {
+            Task.Run(async () =>
+            {
+                while (true)
+                {
+                    try
+                    {
+                        // copy the current channels
+                        ITextChannel[] channels = messageBatch.Keys.ToArray();
+
+                        foreach (var channel in channels)
+                        {
+                            messageBatch.TryRemove(channel, out var messages);
+
+                            string messageToSend = string.Empty;
+                            foreach (var message in messages)
+                            {
+                                if (messageToSend.Length + message.Length + 1 < Consts.MaxMessageLength)
+                                {
+                                    messageToSend += message + "\n";
+                                }
+                                else
+                                {
+                                    await channel.SendMessageAsync(messageToSend);
+                                    messageToSend = message + "\n";
+                                }
+                            }
+
+                            if (!string.IsNullOrEmpty(messageToSend))
+                            {
+                                await channel.SendMessageAsync(messageToSend);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        this.Logger.Log(LogType.Warn, $"{ex}");
+                    }
+
+                    await Task.Delay(10000);
+                }
+            }).Forget();
         }
 
         private bool IsAuthorOwner(SocketUserMessage message)

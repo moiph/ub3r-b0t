@@ -234,7 +234,7 @@ namespace UB3RB0T
                 string joinText = $"{guildUser.Username}#{guildUser.Discriminator} joined.";
                 if (this.Client.GetChannel(settings.Mod_LogId) is ITextChannel modLogChannel && modLogChannel.GetCurrentUserPermissions().SendMessages)
                 {
-                    await modLogChannel.SendMessageAsync(joinText);
+                    this.BatchSendMessageAsync(modLogChannel, joinText);
                 }
             }
         }
@@ -268,7 +268,7 @@ namespace UB3RB0T
             // mod log
             if (settings.HasFlag(ModOptions.Mod_LogUserLeave) && this.Client.GetChannel(settings.Mod_LogId) is ITextChannel modLogChannel && modLogChannel.GetCurrentUserPermissions().SendMessages)
             {
-                await modLogChannel.SendMessageAsync($"{guildUser.Username}#{guildUser.Discriminator} left.");
+                this.BatchSendMessageAsync(modLogChannel, $"{guildUser.Username}#{guildUser.Discriminator} left.");
             }
         }
 
@@ -304,14 +304,28 @@ namespace UB3RB0T
             {
                 if (this.Client.GetChannel(settings.Mod_LogId) is ITextChannel modLogChannel && modLogChannel.GetCurrentUserPermissions().SendMessages)
                 {
+                    var msg = string.Empty;
+
                     if (settings.HasFlag(ModOptions.Mod_LogUserLeaveVoice) && beforeState.VoiceChannel != null && beforeState.VoiceChannel.Id != afterState.VoiceChannel?.Id)
                     {
-                        modLogChannel.SendMessageAsync($"{guildUser.Username} left voice channel { beforeState.VoiceChannel.Name}").Forget();
+                        msg = $"{guildUser.Username} left voice channel { beforeState.VoiceChannel.Name}";
                     }
 
                     if (settings.HasFlag(ModOptions.Mod_LogUserJoinVoice) && afterState.VoiceChannel != null && afterState.VoiceChannel.Id != beforeState.VoiceChannel?.Id)
                     {
-                        modLogChannel.SendMessageAsync($"{guildUser.Username} joined voice channel {afterState.VoiceChannel.Name}").Forget();
+                        if (string.IsNullOrEmpty(msg))
+                        {
+                            msg = $"{guildUser.Username} joined voice channel {afterState.VoiceChannel.Name}";
+                        }
+                        else
+                        {
+                            msg += $" and joined voice channel {afterState.VoiceChannel.Name}";
+                        }
+                    }
+
+                    if (!string.IsNullOrEmpty(msg))
+                    {
+                        this.BatchSendMessageAsync(modLogChannel, msg);
                     }
                 }
             }
@@ -320,7 +334,7 @@ namespace UB3RB0T
         /// <summary>
         /// Sends mod log messages for role and nickname changes, if configured.
         /// </summary>
-        private async Task HandleGuildMemberUpdated(SocketGuildUser guildUserBefore, SocketGuildUser guildUserAfter)
+        private Task HandleGuildMemberUpdated(SocketGuildUser guildUserBefore, SocketGuildUser guildUserAfter)
         {
             // Mod log
             var settings = SettingsConfig.GetSettings(guildUserBefore.Guild.Id);
@@ -339,13 +353,13 @@ namespace UB3RB0T
                     if (rolesAdded.Count > 0)
                     {
                         string roleText = $"**{guildUserAfter.Username}#{guildUserAfter.Discriminator}** had these roles added: `{string.Join(",", rolesAdded)}`";
-                        await modLogChannel.SendMessageAsync(roleText);
+                        this.BatchSendMessageAsync(modLogChannel, roleText);
                     }
 
                     if (rolesRemoved.Count > 0)
                     {
                         string roleText = $"**{guildUserAfter.Username}#{guildUserAfter.Discriminator}** had these roles removed: `{string.Join(",", rolesRemoved)}`";
-                        await modLogChannel.SendMessageAsync(roleText);
+                        this.BatchSendMessageAsync(modLogChannel, roleText);
                     }
                 }
 
@@ -353,18 +367,23 @@ namespace UB3RB0T
                 {
                     if (string.IsNullOrEmpty(guildUserAfter.Nickname))
                     {
-                        await modLogChannel.SendMessageAsync($"{guildUserAfter.Username}#{guildUserAfter.Discriminator} removed their nickname (was {guildUserBefore.Nickname})");
+                        string nickText = $"{guildUserAfter.Username}#{guildUserAfter.Discriminator} removed their nickname (was {guildUserBefore.Nickname})";
+                        this.BatchSendMessageAsync(modLogChannel, nickText);
                     }
                     else if (string.IsNullOrEmpty(guildUserBefore.Nickname))
                     {
-                        await modLogChannel.SendMessageAsync($"{guildUserAfter.Username}#{guildUserAfter.Discriminator} set a new nickname to {guildUserAfter.Nickname}");
+                        string nickText = $"{guildUserAfter.Username}#{guildUserAfter.Discriminator} set a new nickname to {guildUserAfter.Nickname}";
+                        this.BatchSendMessageAsync(modLogChannel, nickText);
                     }
                     else
                     {
-                        await modLogChannel.SendMessageAsync($"{guildUserAfter.Username}#{guildUserAfter.Discriminator} changed their nickname from {guildUserBefore.Nickname} to {guildUserAfter.Nickname}");
+                        string nickText = $"{guildUserAfter.Username}#{guildUserAfter.Discriminator} changed their nickname from {guildUserBefore.Nickname} to {guildUserAfter.Nickname}";
+                        this.BatchSendMessageAsync(modLogChannel, nickText);
                     }
                 }
             }
+
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -695,7 +714,7 @@ namespace UB3RB0T
                     }
 
                     delText += $"**{message.Author.Username}#{message.Author.Discriminator}** deleted in {textChannel.Mention}: {message.Content}";
-                    await modLogChannel.SendMessageAsync(delText.SubstringUpTo(2000));
+                    this.BatchSendMessageAsync(modLogChannel, delText.SubstringUpTo(2000));
                 }
             }
         }

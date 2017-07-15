@@ -2,8 +2,11 @@
 namespace UB3RB0T
 {
     using System.Text.RegularExpressions;
+
     public class Consts
     {
+        public const int MaxMessageLength = 2000;
+
         public static readonly Regex UrlRegex = new Regex("(https?://[^ ]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         public static readonly Regex ChannelRegex = new Regex("#([a-zA-Z0-9\\-]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         public static readonly Regex HttpRegex = new Regex("https?://([^\\s]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);

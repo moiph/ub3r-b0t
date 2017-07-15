@@ -20,6 +20,7 @@
     public class DiscordCommands
     {
         public Dictionary<string, Func<SocketUserMessage, Task<CommandResponse>>> Commands { get; private set; }
+
         private DiscordSocketClient client;
         private AudioManager audioManager;
         private BotApi botApi;
@@ -219,6 +220,8 @@
                     return new CommandResponse { Text = "you don't have permissions to clear messages, fartface" };
                 }
 
+                var guildChannel = message.Channel as IGuildChannel;
+
                 string[] parts = message.Content.Split(new[] { ' ' }, 3);
                 if (parts.Length != 2 && parts.Length != 3)
                 {
@@ -244,16 +247,17 @@
                     }
                 }
 
-                var botGuildUser = await (message.Channel as IGuildChannel).GetUserAsync(client.CurrentUser.Id);
+                var botGuildUser = await guildChannel.GetUserAsync(client.CurrentUser.Id);
                 bool botOnly = deletionUser == botGuildUser;
 
-                if (!botOnly && !botGuildUser.GetPermissions(message.Channel as IGuildChannel).ManageMessages)
+                if (!botOnly && !botGuildUser.GetPermissions(guildChannel).ManageMessages)
                 {
                     return new CommandResponse { Text = "yeah I don't have the permissions to delete messages, buttwad." };
                 }
 
                 if (int.TryParse(parts[1], out int count))
                 {
+                    var textChannel = message.Channel as ITextChannel;
                     // +1 for the current .clear message
                     if (deletionUser == null)
                     {
@@ -277,11 +281,11 @@
                         {
                             if (!lastMsgId.HasValue)
                             {
-                                downloadedMsgs = await (message.Channel as ITextChannel).GetMessagesAsync(count).Flatten();
+                                downloadedMsgs = await textChannel.GetMessagesAsync(count).Flatten();
                             }
                             else
                             {
-                                downloadedMsgs = await (message.Channel as ITextChannel).GetMessagesAsync(lastMsgId.Value, Direction.Before, count).Flatten();
+                                downloadedMsgs = await textChannel.GetMessagesAsync(lastMsgId.Value, Direction.Before, count).Flatten();
                             }
                         }
                         catch (Exception ex)
@@ -307,6 +311,12 @@
                         {
                             break;
                         }
+                    }
+
+                    var settings = SettingsConfig.GetSettings(guildUser.GuildId.ToString());
+                    if (settings.HasFlag(ModOptions.Mod_LogDelete) && this.client.GetChannel(settings.Mod_LogId) is ITextChannel modLogChannel && modLogChannel.GetCurrentUserPermissions().SendMessages)
+                    {
+                        modLogChannel.SendMessageAsync($"{guildUser.Username}#{guildUser.Discriminator} cleared {msgsToDeleteCount} messages from {textChannel.Mention}").Forget();
                     }
 
                     try
@@ -663,7 +673,8 @@
                 IRole requestedRole = message.MentionedRoles.FirstOrDefault();
                 if (requestedRole == null)
                 {
-                    requestedRole = guildChannel.Guild.Roles.Where(r => r.Name.ToLowerInvariant().Contains(roleArgs[1].ToLowerInvariant())).FirstOrDefault();
+                    requestedRole = guildChannel.Guild.Roles.Where(r => r.Name.ToLowerInvariant() == roleArgs[1].ToLowerInvariant()).FirstOrDefault() ??
+                        guildChannel.Guild.Roles.Where(r => r.Name.ToLowerInvariant().Contains(roleArgs[1].ToLowerInvariant())).FirstOrDefault();
 
                     if (requestedRole == null)
                     {
@@ -678,18 +689,18 @@
 
                 if (!settings.SelfRoles.Contains(requestedRole.Id))
                 {
-                    return new CommandResponse { Text = "woah there buttmunch tryin' to cheat the system? you don't have the AUTHORITY to self-assign THAT role. now make like a tree and get outta here" };
+                    return new CommandResponse { Text = $"woah there buttmunch tryin' to cheat the system? you don't have the AUTHORITY to self-assign the {requestedRole.Name.ToUpperInvariant()} role. now make like a tree and get outta here" };
                 }
 
                 var guildAuthor = message.Author as IGuildUser;
                 if (isAdd && guildAuthor.RoleIds.Contains(requestedRole.Id))
                 {
-                    return new CommandResponse { Text = "seriously? you already have that role. settle DOWN, freakin' role enthustiast" };
+                    return new CommandResponse { Text = $"seriously? you already have the {requestedRole.Name} role. settle DOWN, freakin' role enthustiast" };
                 }
 
                 if (!isAdd && !guildAuthor.RoleIds.Contains(requestedRole.Id))
                 {
-                    return new CommandResponse { Text = "seriously? you don't even have that role. settle DOWN, freakin' role unenthustiast" };
+                    return new CommandResponse { Text = $"seriously? you don't even have the {requestedRole.Name} role. settle DOWN, freakin' role unenthustiast" };
                 }
 
                 try
