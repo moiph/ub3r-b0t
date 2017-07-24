@@ -68,25 +68,20 @@
 
         public async Task LeaveAudioAsync(ulong guildId)
         {
-            if (audioInstances.TryGetValue(guildId, out AudioInstance audioInstance))
+            if (audioInstances.TryRemove(guildId, out AudioInstance audioInstance))
             {
-                if (!audioInstance.isDisconnecting)
+                // say our goodbyes
+                try
                 {
-                    audioInstance.isDisconnecting = true;
-                    // say our goodbyes
-                    try
-                    {
-                        await this.SendAudioAsyncInternalAsync(audioInstance, PhrasesConfig.Instance.GetVoiceFileNames(VoicePhraseType.BotLeave).Random());
-                    }
-                    catch (Exception ex)
-                    {
-                        // TODO: proper logging
-                        Console.WriteLine(ex);
-                    }
-
-                    audioInstances.TryRemove(guildId, out audioInstance);
-                    audioInstance.Dispose();
+                    await this.SendAudioAsyncInternalAsync(audioInstance, PhrasesConfig.Instance.GetVoiceFileNames(VoicePhraseType.BotLeave).Random());
                 }
+                catch (Exception ex)
+                {
+                    // TODO: proper logging
+                    Console.WriteLine(ex);
+                }
+
+                audioInstance.Dispose();
             }
             else
             {

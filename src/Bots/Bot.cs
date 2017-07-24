@@ -294,18 +294,18 @@ namespace UB3RB0T
                 }
             }
 
-            if (!CommandsConfig.Instance.Commands.ContainsKey(messageData.Command))
+            string command = messageData.Command;
+            if (!CommandsConfig.Instance.Commands.ContainsKey(command))
             {
-                messageData.Command = string.Empty;
+                command = string.Empty;
             }
 
-            if (string.IsNullOrEmpty(messageData.Command))
+            if (string.IsNullOrEmpty(command))
             {
                 // match fun
                 bool mentionsBot = messageData.MentionsBot(this.Config.Name, Convert.ToUInt64(this.UserId));
-                if (CommandsConfig.Instance.TryParseForCommand(messageData.Content, mentionsBot, out string command, out string query))
+                if (CommandsConfig.Instance.TryParseForCommand(messageData.Content, mentionsBot, out string parsedCommand, out string query))
                 {
-                    messageData.Command = command;
                     messageData.Query = query;
                 }
             }

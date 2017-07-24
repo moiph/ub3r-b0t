@@ -1,9 +1,8 @@
 ﻿
 namespace UB3RB0T
 {
+    using Newtonsoft.Json;
     using System;
-    using System.Collections.Generic;
-    using System.Net;
     using System.Threading.Tasks;
 
     /// <summary>
@@ -25,68 +24,20 @@ namespace UB3RB0T
 
         public async Task<BotResponseData> IssueRequestAsync(BotMessageData messageData, string query)
         {
-            var responses = new List<string>();
-            var responseData = new BotResponseData();
+            messageData.Query = query;
 
-            string requestUrl = string.Format("{0}?apikey={1}&nick={2}&host={3}&server={4}&channel={5}&bottype={6}&userId={7}&format={8}&query={9}",
-                this.apiEndpoint,
-                this.apiKey,
-                WebUtility.UrlEncode(messageData.UserName),
-                WebUtility.UrlEncode(messageData.UserHost ?? messageData.UserId),
-                messageData.Server,
-                WebUtility.UrlEncode(messageData.Channel),
-                this.botType.ToString().ToLowerInvariant(),
-                messageData.UserId,
-                messageData.Format,
-                WebUtility.UrlEncode(query));
-
-            var botResponse = await Utilities.GetApiResponseAsync<BotApiResponse>(new Uri(requestUrl));
-
-            if (botResponse != null)
+            try
             {
-                if (botResponse.Embed != null)
-                {
-                    responseData.Embed = botResponse.Embed;
-                }
-                else
-                {
-                    // TODO: fix API stupidity and just return the array
-                    var botResponses = botResponse.Msgs.Length > 0 ? botResponse.Msgs : new string[] { botResponse.Msg };
-
-                    if (botResponses[0] != null)
-                    {
-                        char a = (char)1;
-                        char b = (char)2;
-                        char c = (char)3;
-
-                        foreach (var response in botResponses)
-                        {
-                            if (response != null)
-                            {
-                                responses.Add(response.Replace("%a", a.ToString()).Replace("%b", b.ToString()).Replace("%c", c.ToString()));
-                            }
-                        }
-
-                        if (this.botType == BotType.Discord)
-                        {
-                            string response = string.Join("\n", responses);
-
-                            // Extra processing for figlet/cowsay on Discord
-                            if (query.StartsWith("cowsay", StringComparison.OrdinalIgnoreCase) || query.StartsWith("figlet", StringComparison.OrdinalIgnoreCase))
-                            {
-                                // use a non printable character to force preceeding whitespace to display correctly
-                                response = "```" + (char)1 + response + "```";
-                            }
-
-                            responses = new List<string> { response };
-                        }
-                    }
-                }
-
-                responseData.Responses = responses;
+                var response = await new Uri($"{this.apiEndpoint}/{messageData.Command}").PostJsonAsync(messageData);
+                return JsonConvert.DeserializeObject<BotResponseData>(await response.Content.ReadAsStringAsync());
             }
-
-            return responseData;
+            catch (Exception ex)
+            {
+                // TODO: proper logger
+                Console.WriteLine($"Failed to parse {this.apiEndpoint}: ");
+                Console.WriteLine(ex);
+                return null;
+            }
         }
     }
 }

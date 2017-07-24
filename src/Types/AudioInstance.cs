@@ -29,16 +29,6 @@
                 // wait up to 5 seconds in case we're already flushing a stream.
                 this.streamLock.Wait(5000);
 
-                try
-                {
-                    this.AudioClient.StopAsync().GetAwaiter().GetResult();
-                }
-                catch (Exception ex)
-                {
-                    // TODO: proper logging
-                    Console.WriteLine(ex);
-                }
-
                 this.Stream.Dispose();
                 this.Stream = null;
                 this.AudioClient.Dispose();

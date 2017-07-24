@@ -156,37 +156,22 @@ namespace UB3RB0T
 
         public static async Task<T> GetApiResponseAsync<T>(Uri uri)
         {
-            string content = string.Empty;
-            var req = WebRequest.Create(uri);
-            WebResponse webResponse = null;
-            try
+            using (var httpClient = new HttpClient())
             {
-                var responseTask = req.GetResponseAsync();
-                var timeoutTask = Task.Delay(10000);
-
-                if (await Task.WhenAny(responseTask, timeoutTask) == timeoutTask)
+                try
                 {
-                    throw new TimeoutException();
-                }
+                    httpClient.Timeout = TimeSpan.FromSeconds(10);
+                    var content = await httpClient.GetStringAsync(uri);
 
-                webResponse = responseTask.Result;
-                if (webResponse != null)
+                    return JsonConvert.DeserializeObject<T>(content);
+                }
+                catch (Exception ex)
                 {
-                    Stream responseStream = webResponse.GetResponseStream();
-                    using (StreamReader reader = new StreamReader(responseStream))
-                    {
-                        content = await reader.ReadToEndAsync();
-                    }
+                    // TODO: proper logger
+                    Console.WriteLine($"Failed to parse {uri}: ");
+                    Console.WriteLine(ex);
+                    return default(T);
                 }
-
-                return JsonConvert.DeserializeObject<T>(content);
-            }
-            catch (Exception ex)
-            {
-                // TODO: proper logger
-                Console.WriteLine($"Failed to parse {uri}: ");
-                Console.WriteLine(ex);
-                return default(T);
             }
         }
 
