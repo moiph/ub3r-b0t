@@ -36,7 +36,7 @@ namespace UB3RB0T
                 // TODO: proper logger
                 Console.WriteLine($"Failed to parse {this.apiEndpoint}: ");
                 Console.WriteLine(ex);
-                return null;
+                return new BotResponseData();
             }
         }
     }

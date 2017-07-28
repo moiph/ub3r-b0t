@@ -513,7 +513,7 @@ namespace UB3RB0T
 
                 if (reactionType == "💬" || reactionType == "🗨️")
                 {
-                    newMessageContent = $".quote add \"{messageContent}\" - userid:{message.Author.Id} {message.Author.Username}";
+                    newMessageContent = $"{settings.Prefix}quote add \"{messageContent}\" - userid:{message.Author.Id} {message.Author.Username}";
                     await message.AddReactionAsync(new Emoji("💬"));
                 }
                 else if (string.IsNullOrEmpty(message.Content) && message.Attachments?.FirstOrDefault()?.Url is string attachmentUrl)
@@ -546,11 +546,11 @@ namespace UB3RB0T
                             var analyzeData = JsonConvert.DeserializeObject<AnalyzeImageData>(response);
                             if (analyzeData.Description.Tags.Contains("ball"))
                             {
-                                newMessageContent = ".8ball foo";
+                                newMessageContent = $"{settings.Prefix}8ball foo";
                             }
                             else if (analyzeData.Description.Tags.Contains("outdoor"))
                             {
-                                newMessageContent = ".fw";
+                                newMessageContent = $"{settings.Prefix}fw";
                             }
                         }
                     }

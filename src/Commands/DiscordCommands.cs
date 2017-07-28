@@ -14,7 +14,6 @@
     using System.Net.Http;
     using System.Reflection;
     using System.Text;
-    using System.Text.RegularExpressions;
     using System.Threading.Tasks;
 
     public class DiscordCommands
@@ -605,9 +604,6 @@
                 return await this.SelfRole(message, false);
             });
 
-            Commands.Add("roll", RollAsync);
-            Commands.Add("d", RollAsync);
-
             Commands.Add("admin", async (message) =>
             {
                 if (SettingsConfig.Instance.CreateEndpoint != null && message.Channel is IGuildChannel guildChannel)
@@ -723,102 +719,6 @@
             }
 
             return new CommandResponse { Text = "role command does not work in private channels" };
-        }
-
-        // TODO: Not discord specific, move this
-        private Task<CommandResponse> RollAsync(SocketMessage message)
-        {
-            string[] parts = message.Content.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            var rolls = new List<long>();
-            var r = new Random();
-
-            bool failed = true;
-
-            if (parts.Length == 1)
-            {
-                rolls.Add(new Random().Next(1, 7));
-            }
-            else
-            {
-                string[] advancedParts = message.Content.Split(new char[] { ' ' }, 2, StringSplitOptions.RemoveEmptyEntries);
-                // see if it's a multi roll
-                var match = Regex.Match(advancedParts[1], "(\\d+)?d(\\d+) ?(\\+|\\-|\\*)? ?(\\d+)?");
-
-                if (match.Success)
-                {
-                    if (match.Value != advancedParts[1])
-                    {
-                        return Task.FromResult(new CommandResponse { Text = "Invalid syntax; `.roll <count>d<sides>[+-*]<modifier>`" });
-                    }
-
-                    string numDiceValue = string.IsNullOrEmpty(match.Groups[1].Value) ? "1" : match.Groups[1].Value;
-                    if (int.TryParse(numDiceValue, out int numDice) && int.TryParse(match.Groups[2].Value, out int diceValue) && numDice <= 20)
-                    {
-                        long rollResult = 0;
-                        try
-                        {
-                            for (var i = 0; i < numDice; i++)
-                            {
-                                rollResult += r.Next(1, Math.Min(diceValue + 1, int.MaxValue));
-                            }
-
-                            var bonus = 0;
-                            var modifier = match.Groups[3].Value;
-                            int.TryParse(match.Groups[4].Value, out var amount);
-
-                            switch (modifier)
-                            {
-                                case "+":
-                                    rollResult += amount;
-                                    break;
-                                case "-":
-                                    rollResult -= amount;
-                                    break;
-                                case "*":
-                                    rollResult = rollResult * amount;
-                                    break;
-                                case "":
-                                default:
-                                    break;
-                            }
-
-                            rolls.Add(rollResult + bonus);
-                            failed = false;
-                        }
-                        catch (ArgumentOutOfRangeException)
-                        {
-                            // tsk tsk
-                        }
-                    }
-                }
-                else if (parts.Length == 2 && parts[1].Contains("i"))
-                {
-                    return Task.FromResult(new CommandResponse { Text = "I uhh...I don't know how to deal with unreal dice.... my brain is wrinkled" });
-                }
-                else if (parts.Length == 2 && parts[1] == "0")
-                {
-                    return Task.FromResult(new CommandResponse { Text = "really? zero sides? ass." });
-                }
-                else if (parts.Length <= 20)
-                {
-                    for (int i = 1; i < parts.Length; i++)
-                    {
-                        if (int.TryParse(parts[i], out int roll) && roll > 0 && roll < int.MaxValue)
-                        {
-                            rolls.Add(r.Next(1, Math.Min(roll + 1, int.MaxValue)));
-                            failed = false;
-                        }
-                        else
-                        {
-                            failed = true;
-                            break;
-                        }
-                    }
-                }
-            }
-
-            string msg = failed ? "dude at least one of those is a bogus die or you rolled more than 20 of 'em. don't fuck with me man this is serious" : $"You rolled ... {string.Join(" | ", rolls)}";
-            return Task.FromResult(new CommandResponse { Text = msg });
         }
 
         private void CreateScriptOptions()

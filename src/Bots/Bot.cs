@@ -356,7 +356,7 @@ namespace UB3RB0T
 
                     if (string.IsNullOrEmpty(command))
                     {
-                        if (settings.AutoTitlesEnabled && CommandsConfig.Instance.AutoTitleMatches.Any(t => messageData.Content.Contains(t)))
+                        if (settings.AutoTitlesEnabled && (CommandsConfig.Instance.AutoTitleMatches.Any(t => messageData.Content.Contains(t)) || Consts.RedditRegex.IsMatch(messageData.Content)))
                         {
                             Match match = Consts.HttpRegex.Match(messageData.Content);
                             string matchValue = !string.IsNullOrEmpty(match.Value) ? match.Value : Consts.RedditRegex.Match(messageData.Content).Value;
@@ -598,7 +598,7 @@ namespace UB3RB0T
                 var metric = new MetricTelemetry
                 {
                     Name = "Guilds",
-                    Sum = discordBot.Client.Guilds.Count(),
+                    Count = discordBot.Client.Guilds.Count(),
                 };
 
                 this.AppInsights?.TrackMetric(metric);
