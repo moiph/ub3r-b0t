@@ -6,6 +6,7 @@ namespace UB3RB0T
     using System.Linq;
     using System.Text.RegularExpressions;
     using System.Threading.Tasks;
+    using StatsdClient;
     using UB3RIRC;
 
     public class IrcBot : Bot
@@ -132,6 +133,7 @@ namespace UB3RB0T
             if (ircClient != null)
             {
                 ircClient.Command("PRIVMSG", notification.Channel, notification.Text);
+                DogStatsd.Increment("messageSent", tags: new[] { $"shard:{this.Shard}", $"{this.BotType}" } );
                 return Task.FromResult(true);
             }
 
@@ -174,6 +176,7 @@ namespace UB3RB0T
         protected override Task RespondAsync(BotMessageData messageData, string text)
         {
             this.ircClients[messageData.Server]?.Command("PRIVMSG", messageData.Channel, text);
+            DogStatsd.Increment("messageSent", tags: new[] { $"shard:{this.Shard}", $"{this.BotType}" });
             return Task.CompletedTask;
         }
 

@@ -16,6 +16,7 @@ namespace UB3RB0T
     using Microsoft.AspNetCore.Hosting;
     using Microsoft.Azure.ServiceBus;
     using Newtonsoft.Json;
+    using StatsdClient;
     using UB3RIRC;
 
     /// <summary>
@@ -406,6 +407,7 @@ namespace UB3RB0T
                         { "serverId", messageData.Server },
                     };
                     this.AppInsights?.TrackEvent(command.ToLowerInvariant(), props);
+                    DogStatsd.Increment("commandProcessed", tags: new[] { $"shard:{this.Shard}", $"command:{command.ToLowerInvariant()}", $"{this.BotType}" });
 
                     // extra processing on ".title" command
                     if ((command == "title" || command == "t") && messageData.Content.EndsWith(command) && urls.ContainsKey(messageData.Channel))
@@ -413,7 +415,10 @@ namespace UB3RB0T
                         query += $" {this.urls[messageData.Channel]}";
                     }
 
-                    responseData = await this.BotApi.IssueRequestAsync(messageData, query);
+                    using (DogStatsd.StartTimer("commandDuration", tags: new[] { $"shard:{this.Shard}", $"command:{command.ToLowerInvariant()}", $"{this.BotType}" }))
+                    {
+                        responseData = await this.BotApi.IssueRequestAsync(messageData, query);
+                    }
                 }
             }
 
@@ -602,6 +607,8 @@ namespace UB3RB0T
                 };
 
                 this.AppInsights?.TrackMetric(metric);
+
+                DogStatsd.Gauge("guildsCount", discordBot.Client.Guilds.Count(), tags: new[] { $"shard:{this.Shard}", $"{this.BotType}" });
             }
 
             if (this.Config.HeartbeatEndpoint != null && !this.Config.IsDevMode)
@@ -722,11 +729,17 @@ namespace UB3RB0T
                     InstrumentationKey = Config.InstrumentationKey,
                 });
 
-
                 TelemetryConfiguration.Active.TelemetryChannel.DeveloperMode = this.Config.IsDevMode;
                 this.AppInsights.Context.Properties.Add("Shard", this.Shard.ToString());
                 this.AppInsights.Context.Properties.Add("BotType", this.BotType.ToString());
             }
+
+            var dogstatsdConfig = new StatsdConfig
+            {
+                StatsdServerName = "127.0.0.1"
+            };
+
+            DogStatsd.Configure(dogstatsdConfig);
         }
     }
 }

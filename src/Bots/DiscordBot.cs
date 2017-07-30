@@ -13,6 +13,7 @@ namespace UB3RB0T
     using Discord.WebSocket;
     using Flurl.Http;
     using Newtonsoft.Json;
+    using StatsdClient;
     using UB3RIRC;
 
     public partial class DiscordBot : Bot
@@ -218,6 +219,8 @@ namespace UB3RB0T
                 {
                     await channelToUse.SendMessageAsync(notification.Text);
                 }
+
+                DogStatsd.Increment("notificationSent", tags: new[] { $"shard:{this.Shard}", $"{this.BotType}" });
             }
             catch (Exception ex)
             {

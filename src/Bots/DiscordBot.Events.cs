@@ -11,6 +11,7 @@ namespace UB3RB0T
     using Discord.WebSocket;
     using Flurl.Http;
     using Newtonsoft.Json;
+    using StatsdClient;
     using UB3RIRC;
 
     public partial class DiscordBot
@@ -142,6 +143,7 @@ namespace UB3RB0T
             if (this.isReady)
             {
                 this.AppInsights?.TrackEvent("serverJoin");
+                DogStatsd.Increment("serverJoin", tags: new[] { $"shard:{this.Shard}", $"{this.BotType}" });
 
                 // if it's a bot farm, bail out.
                 await guild.DownloadUsersAsync();
@@ -170,6 +172,7 @@ namespace UB3RB0T
         private async Task HandleLeftGuildAsync(SocketGuild guild)
         {
             this.AppInsights?.TrackEvent("serverLeave");
+            DogStatsd.Increment("serverLeave", tags: new[] { $"shard:{this.Shard}", $"{this.BotType}" });
 
             SettingsConfig.RemoveSettings(guild.Id.ToString());
 
@@ -406,6 +409,7 @@ namespace UB3RB0T
         /// </summary>
         private async Task HandleMessageReceivedAsync(SocketMessage socketMessage, string reactionType = null, IUser reactionUser = null)
         {
+            DogStatsd.Increment("messageReceived", tags: new[] { $"shard:{this.Shard}", $"{this.BotType}" });
             // Ignore system and our own messages.
             var message = socketMessage as SocketUserMessage;
             bool isOutbound = false;
@@ -750,6 +754,8 @@ namespace UB3RB0T
 
         private async Task<IUserMessage> RespondAsync(SocketUserMessage message, string response, Embed embedResponse = null, bool bypassEdit = false)
         {
+            DogStatsd.Increment("messageSent", tags: new[] { $"shard:{this.Shard}", $"{this.BotType}" });
+
             response = response.Substring(0, Math.Min(response.Length, 2000));
 
             if (!bypassEdit && this.botResponsesCache.Get(message.Id) is IUserMessage oldMsg)
