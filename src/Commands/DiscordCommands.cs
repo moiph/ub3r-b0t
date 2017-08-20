@@ -105,6 +105,40 @@
                 return null;
             });
 
+            Commands.Add("remove", async (message) =>
+            {
+                if (message.Channel is IGuildChannel guildChannel)
+                {
+                    if (message.Author.Id != guildChannel.Guild.OwnerId)
+                    {
+                        return new CommandResponse { Text = "Restricted to server owner." };
+                    }
+
+                    var settings = SettingsConfig.GetSettings(guildChannel.GuildId.ToString());
+
+                    string[] parts = message.Content.Split(new[] { ' ' }, 3);
+
+                    if (parts.Length != 3)
+                    {
+                        return new CommandResponse { Text = "Usage: .remove type #; valid types are timer and wc" };
+                    }
+
+                    var type = parts[1].ToLowerInvariant();
+                    var id = parts[2];
+
+                    string query = $"remove {CommandsConfig.Instance.HelperKey} {type} {id}";
+                    var messageData = BotMessageData.Create(message, query, settings);
+                    var response = (await this.botApi.IssueRequestAsync(messageData, query)).Responses.FirstOrDefault();
+
+                    if (response != null)
+                    {
+                        return new CommandResponse { Text = response };
+                    }
+                }
+
+                return null;
+            });
+
             Commands.Add("status", async (message) =>
             {
                 var serversStatus = await Utilities.GetApiResponseAsync<HeartbeatData[]>(BotConfig.Instance.HeartbeatEndpoint);
