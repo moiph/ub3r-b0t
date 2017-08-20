@@ -13,6 +13,7 @@ namespace UB3RB0T
     using Newtonsoft.Json;
     using StatsdClient;
     using UB3RIRC;
+    using System.Collections.Generic;
 
     public partial class DiscordBot
     {
@@ -142,8 +143,7 @@ namespace UB3RB0T
         {
             if (this.isReady)
             {
-                this.AppInsights?.TrackEvent("serverJoin");
-                DogStatsd.Increment("serverJoin", tags: new[] { $"shard:{this.Shard}", $"{this.BotType}" });
+                this.TrackEvent("serverJoin");
 
                 // if it's a bot farm, bail out.
                 await guild.DownloadUsersAsync();
@@ -161,7 +161,7 @@ namespace UB3RB0T
                 var owner = guild.Owner;
                 if (guild.CurrentUser.GetPermissions(defaultChannel).SendMessages)
                 {
-                    await defaultChannel.SendMessageAsync($"(HELLO, I AM UB3R-B0T! .halp for info. {owner.Mention} you're the kickass owner-- you can use .admin to configure some stuff.)");
+                    await defaultChannel.SendMessageAsync($"(HELLO, I AM UB3R-B0T! .halp for info. {owner.Mention} you're the kickass owner-- you can use .admin to configure some stuff. By using me you agree to these terms: https://discordapp.com/developers/docs/legal)");
                 }
             }
         }
@@ -171,8 +171,7 @@ namespace UB3RB0T
         /// </summary>
         private async Task HandleLeftGuildAsync(SocketGuild guild)
         {
-            this.AppInsights?.TrackEvent("serverLeave");
-            DogStatsd.Increment("serverLeave", tags: new[] { $"shard:{this.Shard}", $"{this.BotType}" });
+            this.TrackEvent("serverLeave");
 
             SettingsConfig.RemoveSettings(guild.Id.ToString());
 
@@ -409,7 +408,13 @@ namespace UB3RB0T
         /// </summary>
         private async Task HandleMessageReceivedAsync(SocketMessage socketMessage, string reactionType = null, IUser reactionUser = null)
         {
-            DogStatsd.Increment("messageReceived", tags: new[] { $"shard:{this.Shard}", $"{this.BotType}" });
+            var props = new Dictionary<string, string> {
+                { "server", (socketMessage.Channel as SocketGuildChannel)?.Guild.Id.ToString() ?? "private" },
+                { "channel", socketMessage.Channel.Id.ToString() },
+            };
+
+            this.TrackEvent("messageReceived", props);
+
             // Ignore system and our own messages.
             var message = socketMessage as SocketUserMessage;
             bool isOutbound = false;
@@ -754,7 +759,12 @@ namespace UB3RB0T
 
         private async Task<IUserMessage> RespondAsync(SocketUserMessage message, string response, Embed embedResponse = null, bool bypassEdit = false)
         {
-            DogStatsd.Increment("messageSent", tags: new[] { $"shard:{this.Shard}", $"{this.BotType}" });
+            var props = new Dictionary<string, string> {
+                { "server", (message.Channel as SocketGuildChannel)?.Guild.Id.ToString() ?? "private" },
+                { "channel", message.Channel.Id.ToString() },
+            };
+
+            this.TrackEvent("messageSent", props);
 
             response = response.Substring(0, Math.Min(response.Length, 2000));
 

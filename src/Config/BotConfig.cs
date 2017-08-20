@@ -64,8 +64,6 @@
         [JsonRequired]
         public ulong OwnerId { get; set; }
 
-        public int ShardCount { get; set; } = 1;
-
         public string Status { get; set; }
 
         // Servers that are blocked from normal usage (owner being exempt)

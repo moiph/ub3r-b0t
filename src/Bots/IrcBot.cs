@@ -15,7 +15,7 @@ namespace UB3RB0T
         private Dictionary<string, ServerData> serverData = new Dictionary<string, ServerData>(StringComparer.OrdinalIgnoreCase);
         private static Regex namesRegex = new Regex(".*(#[^ ]+) :(.*)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-        public IrcBot(int shard) : base(shard)
+        public IrcBot(int shard) : base(shard, 1)
         {
         }
 
@@ -50,7 +50,10 @@ namespace UB3RB0T
             foreach (var client in this.ircClients.Values)
             {
                 client.Disconnect("Shutting down.");
+                client.OnIrcEvent -= this.OnIrcEventAsync;
             }
+
+            this.ircClients.Clear();
 
             return Task.CompletedTask;
         }
@@ -74,6 +77,13 @@ namespace UB3RB0T
             {
                 string query = string.Empty;
 
+                var props = new Dictionary<string, string> {
+                    { "server", client.Host.ToLowerInvariant() },
+                    { "channel", data.Target.ToLowerInvariant() },
+                };
+
+                this.TrackEvent("messageReceived", props);
+
                 // TODO: put this in config
                 // twitch parses "." prefix as internal commands; so we have to remap it :(
                 if (client.Host == "irc.chat.twitch.tv")
@@ -95,6 +105,7 @@ namespace UB3RB0T
                 foreach (string response in responses)
                 {
                     client.Command("PRIVMSG", data.Target, response);
+                    this.TrackEvent("messageSent", props);
                 }
             }
             // TODO: This stuff should be handled by the IRC library...
@@ -133,7 +144,12 @@ namespace UB3RB0T
             if (ircClient != null)
             {
                 ircClient.Command("PRIVMSG", notification.Channel, notification.Text);
-                DogStatsd.Increment("messageSent", tags: new[] { $"shard:{this.Shard}", $"{this.BotType}" } );
+                var props = new Dictionary<string, string> {
+                    { "server", ircClient.Host.ToLowerInvariant() },
+                    { "channel", notification.Channel.ToLowerInvariant() },
+                };
+
+                this.TrackEvent("notificationSent", props);
                 return Task.FromResult(true);
             }
 
@@ -167,6 +183,12 @@ namespace UB3RB0T
                 string msg = string.Format("{0}: {1} ({2} ago) {3}", reminder.Nick, reminder.Reason, reminder.Duration, reminder.RequestedBy);
                 this.ircClients[reminder.Server]?.Command("PRIVMSG", reminder.Channel, msg);
 
+                var props = new Dictionary<string, string> {
+                    { "server", reminder.Server.ToLowerInvariant() },
+                    { "channel", reminder.Channel.ToLowerInvariant() },
+                };
+                this.TrackEvent("messageSent", props);
+
                 return Task.FromResult(true);
             }
 
@@ -176,7 +198,13 @@ namespace UB3RB0T
         protected override Task RespondAsync(BotMessageData messageData, string text)
         {
             this.ircClients[messageData.Server]?.Command("PRIVMSG", messageData.Channel, text);
-            DogStatsd.Increment("messageSent", tags: new[] { $"shard:{this.Shard}", $"{this.BotType}" });
+
+            var props = new Dictionary<string, string> {
+                    { "server", messageData.Server.ToLowerInvariant() },
+                    { "channel", messageData.Channel.ToLowerInvariant() },
+            };
+            this.TrackEvent("messageSent", props);
+
             return Task.CompletedTask;
         }
 

@@ -117,6 +117,8 @@
 
         public bool DisableLinkParsing { get; set; }
 
+        public ulong PatronSponsor { get; set; } = 0;
+
         public bool HasFlag(ModOptions flag)
         {
             return (this.Mod_LogOptions & flag) == flag;

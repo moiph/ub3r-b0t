@@ -594,6 +594,19 @@
                 return new CommandResponse { Text = text, Embed = embedBuilder };
             });
 
+            Commands.Add("roles", (message) =>
+            {
+                if (message.Channel is IGuildChannel guildChannel)
+                {
+                    var settings = SettingsConfig.GetSettings(guildChannel.GuildId.ToString());
+                    var roles = guildChannel.Guild.Roles.Where(r => settings.SelfRoles.Contains(r.Id)).Select(r => $"``{r.Name.Replace("`", @"\`")}``");
+
+                    return Task.FromResult(new CommandResponse { Text = "The following roles are available to self-assign: " + string.Join(", ", roles) });
+                }
+
+                return Task.FromResult(new CommandResponse { Text = "role command does not work in private channels" });
+            });
+
             Commands.Add("role", async (message) =>
             {
                 return await this.SelfRole(message, true);

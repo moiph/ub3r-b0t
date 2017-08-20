@@ -91,6 +91,7 @@
         {
             var botType = BotType.Discord;
             var shard = 0;
+            var totalShards = 1;
 
             if (args != null)
             {
@@ -122,6 +123,10 @@
                         case "/s":
                             shard = int.Parse(argParts[1]);
                             break;
+
+                        case "/st":
+                            totalShards = int.Parse(argParts[1]);
+                            break;
                     }
                 }
             }
@@ -133,7 +138,7 @@
             {
                 try
                 {
-                    using (var bot = Bot.Create(botType, shard, instanceCount))
+                    using (var bot = Bot.Create(botType, shard, totalShards, instanceCount))
                     {
                         BotInstance = bot;
                         // Handle clean shutdown when possible

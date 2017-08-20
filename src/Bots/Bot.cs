@@ -48,6 +48,7 @@ namespace UB3RB0T
         private ConcurrentDictionary<string, SeenUserData> seenUsers = new ConcurrentDictionary<string, SeenUserData>();
 
         protected int Shard { get; private set; } = 0;
+        protected int TotalShards { get; private set; } = 1;
         protected Logger Logger { get; }
         protected TelemetryClient AppInsights { get; private set; }
         protected BotApi BotApi { get; }
@@ -57,10 +58,11 @@ namespace UB3RB0T
         public BotConfig Config => BotConfig.Instance;
         public abstract BotType BotType { get; }
 
-        protected Bot(int shard)
+        protected Bot(int shard, int totalShards)
         {
             this.Logger = new Logger(LogType.Debug, new List<ILog> { new ConsoleLog() });
             this.Shard = shard;
+            this.TotalShards = totalShards;
             if (!string.IsNullOrEmpty(this.Config.QueueNamePrefix))
             {
                 this.queueName = $"{this.Config.QueueNamePrefix}{shard}";
@@ -87,7 +89,7 @@ namespace UB3RB0T
         /// <param name="shard">Shard of this bot instance.</param>
         /// <param name="instanceCount">Instance of this bot (increments on internal automatic restarts)</param>
         /// <returns></returns>
-        public static Bot Create(BotType botType, int shard, int instanceCount)
+        public static Bot Create(BotType botType, int shard, int totalShards, int instanceCount)
         {
             Bot bot;
             switch (botType)
@@ -97,7 +99,7 @@ namespace UB3RB0T
                     break;
 
                 case BotType.Discord:
-                    bot = new DiscordBot(shard);
+                    bot = new DiscordBot(shard, totalShards);
                     break;
 
                 default:
@@ -222,13 +224,8 @@ namespace UB3RB0T
 
         protected void UpdateSeen(string key, SeenUserData seenUserData)
         {
-            if (this.Config.SeenEndpoint != null && !string.IsNullOrEmpty(seenUserData.Text))
+            if (this.Config.SeenEndpoint != null && !string.IsNullOrEmpty(seenUserData.Name))
             {
-                if (seenUserData.Text.Length > 256)
-                {
-                    seenUserData.Text = seenUserData.Text.Substring(0, 253) + "...";
-                }
-
                 seenUserData.Timestamp = Utilities.Utime;
                 this.seenUsers[key] = seenUserData;
             }
@@ -264,7 +261,7 @@ namespace UB3RB0T
                 Name = messageData.UserId ?? messageData.UserName,
                 Channel = messageData.Channel,
                 Server = messageData.Server,
-                Text = messageData.Content,
+                //Text = messageData.Content, removed due to discord tos
             });
 
             var httpMatch = Consts.HttpRegex.Match(messageData.Content);
@@ -404,10 +401,11 @@ namespace UB3RB0T
                     }
 
                     var props = new Dictionary<string, string> {
-                        { "serverId", messageData.Server },
+                        { "command",  command.ToLowerInvariant() },
+                        { "server", messageData.Server },
+                        { "channel", messageData.Channel }
                     };
-                    this.AppInsights?.TrackEvent(command.ToLowerInvariant(), props);
-                    DogStatsd.Increment("commandProcessed", tags: new[] { $"shard:{this.Shard}", $"command:{command.ToLowerInvariant()}", $"{this.BotType}" });
+                    this.TrackEvent("commandProcessed", props);
 
                     // extra processing on ".title" command
                     if ((command == "title" || command == "t") && messageData.Content.EndsWith(command) && urls.ContainsKey(messageData.Channel))
@@ -448,6 +446,39 @@ namespace UB3RB0T
             }
 
             return responseData;
+        }
+
+        protected void TrackEvent(string eventName, Dictionary<string, string> properties = null)
+        {
+            // set common properties/tags
+            if (properties == null)
+            {
+                properties = new Dictionary<string, string>();
+            }
+
+            properties["botType"] = $"{this.BotType}";
+            properties["shard"] = $"{this.Shard}";
+
+            // remove server/channel properties from discord unless sponsored by a patron
+            if (this.BotType == BotType.Discord && properties.ContainsKey("server"))
+            {
+                var settings = SettingsConfig.GetSettings(properties["server"]);
+                if (settings.PatronSponsor == 0)
+                {
+                    properties.Remove("server");
+                    properties.Remove("channel");
+                }
+            }
+
+            this.AppInsights?.TrackEvent(eventName, properties);
+
+            var tags = new List<string>();
+            foreach (var kvp in properties)
+            {
+                tags.Add($"{kvp.Key}:{kvp.Value}");
+            }
+
+            DogStatsd.Increment(eventName, tags: tags.ToArray());
         }
 
         private void StartWebListener()
@@ -535,7 +566,7 @@ namespace UB3RB0T
             {
                 this.Logger.Log(LogType.Debug, "Fetching server settings...");
                 var sinceToken = SettingsConfig.Instance.SinceToken;
-                var configEndpoint = this.Config.SettingsEndpoint.AppendQueryParam("since", sinceToken.ToString()).AppendQueryParam("shard", this.Shard.ToString()).AppendQueryParam("shardcount", this.Config.Discord.ShardCount.ToString());
+                var configEndpoint = this.Config.SettingsEndpoint.AppendQueryParam("since", sinceToken.ToString()).AppendQueryParam("shard", this.Shard.ToString()).AppendQueryParam("shardcount", this.TotalShards.ToString());
                 await SettingsConfig.Instance.OverrideAsync(configEndpoint);
                 this.Logger.Log(LogType.Debug, "Server settings updated.");
             }
@@ -628,7 +659,7 @@ namespace UB3RB0T
                 }
             }
 
-            if (this.messageCount == 0)
+            if (this.messageCount == 0 && this is DiscordBot)
             {
                 this.missedHeartbeats++;
 

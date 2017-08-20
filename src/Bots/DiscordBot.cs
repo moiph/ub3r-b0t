@@ -22,7 +22,7 @@ namespace UB3RB0T
         private Timer statsTimer;
         private DiscordCommands discordCommands;
 
-        public DiscordBot(int shard) : base(shard)
+        public DiscordBot(int shard, int totalShards) : base(shard, totalShards)
         {
         }
 
@@ -45,7 +45,7 @@ namespace UB3RB0T
             this.Client = new DiscordSocketClient(new DiscordSocketConfig
             {
                 ShardId = this.Shard,
-                TotalShards = this.Config.Discord.ShardCount,
+                TotalShards = this.TotalShards,
                 LogLevel = LogSeverity.Verbose,
                 MessageCacheSize = 500,
             });
@@ -154,6 +154,12 @@ namespace UB3RB0T
                 try
                 {
                     await channel.SendMessageAsync(msg);
+
+                    var props = new Dictionary<string, string> {
+                        { "server", reminder.Server.ToLowerInvariant() },
+                        { "channel", reminder.Channel.ToLowerInvariant() },
+                    };
+                    this.TrackEvent("messageSent", props);
                 }
                 catch (Exception ex)
                 {
@@ -220,7 +226,12 @@ namespace UB3RB0T
                     await channelToUse.SendMessageAsync(notification.Text);
                 }
 
-                DogStatsd.Increment("notificationSent", tags: new[] { $"shard:{this.Shard}", $"{this.BotType}" });
+                var props = new Dictionary<string, string> {
+                        { "server", notification.Server },
+                        { "channel", notification.Channel },
+                        { "notificationType", notification.Type.ToString() },
+                };
+                this.TrackEvent("notificationSent", props);
             }
             catch (Exception ex)
             {
@@ -254,7 +265,7 @@ namespace UB3RB0T
         /// <param name="state"></param>
         private async void StatsTimerAsync(object state)
         {
-            var shardCount = this.Config.Discord.ShardCount;
+            var shardCount = this.TotalShards;
             var guildCount = this.Client.Guilds.Count();
             var shardId = this.Client.ShardId;
 

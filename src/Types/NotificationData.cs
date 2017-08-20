@@ -5,6 +5,7 @@
     [Flags]
     public enum NotificationType
     {
+        Generic = 0,
         Rss = 1,
         Twitter = 2,
         Twitch = 4,
@@ -18,7 +19,7 @@
         public string Id { get; set; }
         public string Channel { get; set; }
         public string Server { get; set; }
-        public NotificationType Type { get; set; } = NotificationType.Rss;
+        public NotificationType Type { get; set; } = NotificationType.Generic;
         public string Text { get; set; }
         public BotType BotType { get; set; } = BotType.Discord;
         public EmbedData Embed { get; set; }
