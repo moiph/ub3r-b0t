@@ -13,7 +13,6 @@ namespace UB3RB0T
     using Discord.WebSocket;
     using Flurl.Http;
     using Newtonsoft.Json;
-    using StatsdClient;
     using UB3RIRC;
 
     public partial class DiscordBot : Bot
@@ -333,6 +332,20 @@ namespace UB3RB0T
                 catch (Exception ex)
                 {
                     this.Logger.Log(LogType.Warn, $"Failed to update discordbots.org stats: {ex}");
+                }
+            }
+
+            if (!string.IsNullOrEmpty(this.Config.Discord.MayoBotsKey) && this.Shard == 0)
+            {
+                try
+                {
+                    var result = await $"https://list.passthemayo.space/api/bots/{this.Config.Discord.ClientId}"
+                        .WithHeader("Authorization", this.Config.Discord.MayoBotsKey)
+                        .PostJsonAsync(new { server_count = (guildCount * shardCount) });
+                }
+                catch (Exception ex)
+                {
+                    this.Logger.Log(LogType.Warn, $"Failed to update list.passthemayo.space stats: {ex}");
                 }
             }
         }
