@@ -16,8 +16,8 @@
     <UpdateAssemblyInfoVersion>False</UpdateAssemblyInfoVersion>
     <AssemblyVersionSettings>IncrementOnDemand.IncrementOnDemand.DateStamp.Increment</AssemblyVersionSettings>
     <Version>4.1.0</Version>
-    <AssemblyVersion>4.1.1708.2</AssemblyVersion>
-    <FileVersion>4.1.1708.2</FileVersion>
+    <AssemblyVersion>4.1.1709.1</AssemblyVersion>
+    <FileVersion>4.1.1709.1</FileVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <DebugType>pdbonly</DebugType>
@@ -47,7 +47,7 @@
     <Content Include="ub3rb0t.ico" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Discord.Net.WebSocket" Version="1.0.2-build-00808" />
+    <PackageReference Include="Discord.Net.WebSocket" Version="1.0.2" />
     <PackageReference Include="DogStatsD-CSharp-Client" Version="3.0.0" />
     <PackageReference Include="Flurl.Http" Version="1.2.0" />
     <PackageReference Include="Microsoft.ApplicationInsights" Version="2.4.0" />
