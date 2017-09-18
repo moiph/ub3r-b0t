@@ -54,10 +54,14 @@
                                 var channelsResponse = new GuildPermisssionsData();
 
                                 var botGuildUser = guild.CurrentUser;
+
                                 foreach (var chan in guild.Channels)
                                 {
-                                    var channelPermissions = botGuildUser.GetPermissions(chan);
-                                    channelsResponse.Channels.Add(chan.Id, new GuildChannelPermissions { CanRead = channelPermissions.ReadMessages, CanSend = channelPermissions.SendMessages });
+                                    if (chan.Name != null)
+                                    { 
+                                        var channelPermissions = botGuildUser.GetPermissions(chan);
+                                        channelsResponse.Channels.Add(chan.Id, new GuildChannelPermissions { CanRead = channelPermissions.ReadMessages, CanSend = channelPermissions.SendMessages });
+                                    }
                                 }
                                 response = JsonConvert.SerializeObject(channelsResponse);
                             }

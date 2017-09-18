@@ -449,7 +449,7 @@
                     NicknameInfo = !string.IsNullOrEmpty(guildUser.Nickname) ? $" aka {guildUser.Nickname}" : "",
                     Footnote = CommandsConfig.Instance.UserInfoSnippets.Random(),
                     Created = $"{targetUser.GetCreatedDate().ToString("dd MMM yyyy")} {targetUser.GetCreatedDate().ToString("hh:mm:ss tt")} UTC",
-                    Joined = $"{guildUser.JoinedAt.Value.ToString("dd MMM yyyy")} {guildUser.JoinedAt.Value.ToString("hh:mm:ss tt")} UTC",
+                    Joined = guildUser.JoinedAt.HasValue ? $"{guildUser.JoinedAt.Value.ToString("dd MMM yyyy")} {guildUser.JoinedAt.Value.ToString("hh:mm:ss tt")} UTC" : "[data temporarily missing]",
                     Id = targetUser.Id.ToString(),
                 };
 

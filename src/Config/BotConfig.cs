@@ -64,8 +64,6 @@
         [JsonRequired]
         public ulong OwnerId { get; set; }
 
-        public ulong ClientId { get; set; }
-
         public string Status { get; set; }
 
         // Servers that are blocked from normal usage (owner being exempt)
@@ -93,11 +91,6 @@
         /// Key for statistics on https://discordbots.org/
         /// </summary>
         public string DiscordBotsOrgKey { get; set; }
-
-        /// <summary>
-        /// Key for statistics on https://list.passthemayo.space
-        /// </summary>
-        public string MayoBotsKey { get; set; }
 
         /// <summary>
         /// Outgoing webhooks, to send messages for particular channels to...wherever
