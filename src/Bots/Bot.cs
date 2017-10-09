@@ -35,9 +35,6 @@ namespace UB3RB0T
         private QueueClient queueClient;
         private readonly string queueName;
 
-        private bool processingReminders;
-
-        private Timer remindersTimer;
         private Timer settingsUpdateTimer;
         private Timer heartbeatTimer;
         private Timer seenTimer;
@@ -216,7 +213,6 @@ namespace UB3RB0T
             this.Logger.Log(LogType.Debug, "dispose start");
             this.queueClient?.CloseAsync();
             this.settingsUpdateTimer?.Dispose();
-            this.remindersTimer?.Dispose();
             this.heartbeatTimer?.Dispose();
             this.seenTimer?.Dispose();
             this.listenerHost?.Dispose();
@@ -237,13 +233,6 @@ namespace UB3RB0T
         protected abstract Task StopAsyncInternal(bool unexpected);
 
         protected abstract HeartbeatData GetHeartbeatData();
-
-        /// <summary>
-        /// Attempts to process and send a reminder.
-        /// </summary>
-        /// <param name="notification">The reminder data.</param>
-        /// <returns>True, if reminder was successfully processed.</returns>
-        protected abstract Task<bool> SendReminder(ReminderData reminder);
 
         /// <summary>
         /// Attempts to process and send a notification.
@@ -583,15 +572,10 @@ namespace UB3RB0T
         }
 
         /// <summary>
-        /// Starts recurring timers (reminders, seen, heartbeat)
+        /// Starts recurring timers (seen, heartbeat)
         /// </summary>
         private void StartTimers()
         {
-            if (CommandsConfig.Instance.RemindersEndpoint != null)
-            {
-                remindersTimer = new Timer(RemindersTimerAsync, null, 10000, 10000);
-            }
-
             if (this.Config.SeenEndpoint != null)
             {
                 seenTimer = new Timer(SeenTimerAsync, null, 60000, 60000);
@@ -690,62 +674,6 @@ namespace UB3RB0T
 
             // reset message count
             messageCount = 0;
-        }
-
-        /// <summary>
-        /// Timer callback to handle reminders.
-        /// </summary>
-        /// <param name="state">State object (unused).</param>
-        private async void RemindersTimerAsync(object state)
-        {
-            if (this.processingReminders)
-            {
-                return;
-            }
-
-            this.processingReminders = true;
-            ReminderData[] reminders = null;
-            try
-            {
-                reminders = await Utilities.GetApiResponseAsync<ReminderData[]>(CommandsConfig.Instance.RemindersEndpoint);
-            }
-            catch (Exception ex)
-            {
-                this.Logger.Log(LogType.Error, "Error fetching reminders: {0}", ex);
-            }
-
-            var remindersToDelete = new List<string>();
-            if (reminders != null)
-            {
-                foreach (var reminder in reminders.Where(t => t.BotType == this.BotType))
-                {
-                    try
-                    {
-                        if (await this.SendReminder(reminder))
-                        {
-                            remindersToDelete.Add(reminder.Id);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        this.Logger.Log(LogType.Error, "Error processing reminders: {0}", ex);
-                    }
-                }
-            }
-
-            if (remindersToDelete.Count > 0)
-            {
-                try
-                {
-                    await Utilities.GetApiResponseAsync<object>(new Uri(CommandsConfig.Instance.RemindersEndpoint.ToString() + "?ids=" + string.Join(",", remindersToDelete)));
-                }
-                catch (Exception ex)
-                {
-                    this.Logger.Log(LogType.Error, "Error deleting reminders: {0}", ex);
-                }
-            }
-
-            this.processingReminders = false;
         }
 
         // Whether or not the message author is the bot owner (will only return true in Discord scenarios).

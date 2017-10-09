@@ -175,26 +175,6 @@ namespace UB3RB0T
             return heartbeatData;
         }
 
-        /// <inheritdoc />
-        protected override Task<bool> SendReminder(ReminderData reminder)
-        {
-            if (this.ircClients.ContainsKey(reminder.Server))
-            {
-                string msg = string.Format("{0}: {1} ({2} ago) {3}", reminder.Nick, reminder.Reason, reminder.Duration, reminder.RequestedBy);
-                this.ircClients[reminder.Server]?.Command("PRIVMSG", reminder.Channel, msg);
-
-                var props = new Dictionary<string, string> {
-                    { "server", reminder.Server.ToLowerInvariant() },
-                    { "channel", reminder.Channel.ToLowerInvariant() },
-                };
-                this.TrackEvent("messageSent", props);
-
-                return Task.FromResult(true);
-            }
-
-            return Task.FromResult(false);
-        }
-
         protected override Task RespondAsync(BotMessageData messageData, string text)
         {
             this.ircClients[messageData.Server]?.Command("PRIVMSG", messageData.Channel, text);

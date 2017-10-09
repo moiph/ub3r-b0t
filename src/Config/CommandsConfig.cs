@@ -11,8 +11,6 @@
 
         public Dictionary<string, string> Commands { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-        public Uri RemindersEndpoint { get; set; }
-
         public Uri JpegEndpoint { get; set; }
 
         public string HelperKey { get; set; }
