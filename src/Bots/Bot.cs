@@ -65,7 +65,8 @@ namespace UB3RB0T
             this.TotalShards = totalShards;
             if (!string.IsNullOrEmpty(this.Config.QueueNamePrefix))
             {
-                this.queueName = $"{this.Config.QueueNamePrefix}{shard}";
+                var suffix = this.BotType == BotType.Irc ? "irc" : $"{shard}";
+                this.queueName = $"{this.Config.QueueNamePrefix}{suffix}";
             }
 
             this.SetupAppInsights();
@@ -425,7 +426,7 @@ namespace UB3RB0T
                 string response = null;
                 if (messageData.MentionsBot(this.Config.Name, Convert.ToUInt64(this.UserId)))
                 {
-                    var responseValue = PhrasesConfig.Instance.PartialMentionPhrases.Where(kvp => messageData.Content.ToLowerInvariant().Contains(kvp.Key.ToLowerInvariant())).FirstOrDefault().Value;
+                    var responseValue = PhrasesConfig.Instance.PartialMentionPhrases.FirstOrDefault(kvp => messageData.Content.ToLowerInvariant().Contains(kvp.Key.ToLowerInvariant())).Value;
                     if (!string.IsNullOrEmpty(responseValue))
                     {
                         response = PhrasesConfig.Instance.Responses[responseValue].Random();
@@ -435,6 +436,11 @@ namespace UB3RB0T
                 if (response == null && (settings.FunResponsesEnabled || IsAuthorOwner(messageData)) && PhrasesConfig.Instance.ExactPhrases.ContainsKey(messageData.Content) && new Random().Next(1, 100) <= settings.FunResponseChance)
                 {
                     response = PhrasesConfig.Instance.Responses[PhrasesConfig.Instance.ExactPhrases[messageData.Content]].Random();
+                }
+
+                if (response == null)
+                {
+                    response = settings.CustomCommands.FirstOrDefault(c => c.IsExactMatch && c.Command == messageData.Content || !c.IsExactMatch && messageData.Content.ToLowerInvariant().Contains(c.Command.ToLowerInvariant()))?.Response;
                 }
 
                 if (response != null)

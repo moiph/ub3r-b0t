@@ -34,6 +34,7 @@
         public string VisionKey { get; set; }
         public Uri OcrEndpoint { get; set; }
         public Uri AnalyzeEndpoint { get; set; }
+        public ulong[] OcrAutoIds { get; set; } = new ulong[] { };
 
         public DiscordConfig Discord { get; set; }
         public Irc Irc { get; set; }

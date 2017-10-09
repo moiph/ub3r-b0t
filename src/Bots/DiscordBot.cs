@@ -46,7 +46,7 @@ namespace UB3RB0T
                 ShardId = this.Shard,
                 TotalShards = this.TotalShards,
                 LogLevel = LogSeverity.Verbose,
-                MessageCacheSize = 500,
+                MessageCacheSize = 100,
             });
 
             this.Client.Ready += Client_Ready;
@@ -197,7 +197,7 @@ namespace UB3RB0T
 
             var settings = SettingsConfig.GetSettings(notification.Server);
             // adjust the notification text to disable discord link parsing, if configured to do so
-            if (settings.DisableLinkParsing)
+            if (settings.DisableLinkParsing && notification.Type != NotificationType.Reminder)
             {
                 notification.Text = Consts.UrlRegex.Replace(notification.Text, new MatchEvaluator((Match urlMatch) =>
                 {

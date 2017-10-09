@@ -330,7 +330,7 @@
                         if (downloadedMsgs.Count() > 0)
                         {
                             lastMsgId = downloadedMsgs.Last().Id;
-                            
+
                             var msgs = downloadedMsgs.Where(m => (deletionUser == null || m.Author?.Id == deletionUser.Id)).Take(count - msgsToDeleteCount);
                             msgsToDeleteCount += msgs.Count();
                             msgsToDelete.AddRange(msgs);
@@ -367,6 +367,76 @@
                 {
                     return new CommandResponse { Text = "Usage: .clear #" };
                 }
+            });
+
+            Commands.Add("captain_planet", async (message) =>
+            {
+                if (message.Channel is IDMChannel)
+                {
+                    return null;
+                }
+
+                if (BotConfig.Instance.Discord.OwnerId == message.Author.Id)
+                {
+                    var guildChannel = message.Channel as IGuildChannel;
+                    var textChannel = message.Channel as ITextChannel;
+                    var botGuildUser = await guildChannel.GetUserAsync(client.CurrentUser.Id);
+                    var existingNickname = botGuildUser.Nickname;
+
+                    await botGuildUser.ModifyAsync(x => x.Nickname = "Kwame");
+                    await textChannel.SendMessageAsync("EARTH!");
+                    await Task.Delay(1100);
+
+                    await botGuildUser.ModifyAsync(x => x.Nickname = "Wheeler");
+                    await textChannel.SendMessageAsync("FIRE!");
+                    await Task.Delay(1100);
+
+                    await botGuildUser.ModifyAsync(x => x.Nickname = "Linka");
+                    await textChannel.SendMessageAsync("WIND!");
+                    await Task.Delay(1100);
+
+                    await botGuildUser.ModifyAsync(x => x.Nickname = "Gi");
+                    await textChannel.SendMessageAsync("WATER!");
+                    await Task.Delay(1100);
+
+                    await botGuildUser.ModifyAsync(x => x.Nickname = "Ma-ti");
+                    await textChannel.SendMessageAsync("HEART!");
+                    await Task.Delay(1100);
+
+                    await botGuildUser.ModifyAsync(x => x.Nickname = "anonymous");
+                    await textChannel.SendMessageAsync("by your powers combined...");
+                    await Task.Delay(1100);
+
+                    await botGuildUser.ModifyAsync(x => x.Nickname = "Captain Planet");
+                    await textChannel.SendMessageAsync("I AM CAPTAIN PLANET!");
+                    await Task.Delay(1100);
+
+                    await botGuildUser.ModifyAsync(x => x.Nickname = "Everyone");
+                    await textChannel.SendMessageAsync("GOOO PLANET!");
+                    await Task.Delay(5000);
+
+                    await botGuildUser.ModifyAsync(x => x.Nickname = existingNickname);
+                }
+
+                return null;
+            });
+
+            Commands.Add("nick", async (message) =>
+            {
+                if (message.Channel is IDMChannel)
+                {
+                    return null;
+                }
+
+                if (BotConfig.Instance.Discord.OwnerId == message.Author.Id)
+                {
+                    var messageParts = message.Content.Split(new[] { ' ' }, 2);
+                    var guildChannel = message.Channel as IGuildChannel;
+                    var botGuildUser = await guildChannel.GetUserAsync(client.CurrentUser.Id);
+                    await botGuildUser.ModifyAsync(u => u.Nickname = messageParts[1]);
+                }
+
+                return null;
             });
 
             Commands.Add("jpeg", async (message) =>
@@ -408,6 +478,9 @@
 
                 return null;
             });
+
+            Commands.Add("qp", this.QuickPoll);
+            Commands.Add("quickpoll", this.QuickPoll);
 
             Commands.Add("userinfo", async (message) =>
             {
@@ -699,6 +772,33 @@
 
                 return null;
             });
+        }
+
+        private async Task<CommandResponse> QuickPoll(SocketUserMessage message)
+        {
+            var guildChannel = message.Channel as SocketGuildChannel;
+            if (guildChannel == null)
+            {
+                return null;
+            }
+
+            var parts = message.Content.Split(new[] { ' ' }, 2);
+            if (parts.Length == 1)
+            {
+                return new CommandResponse { Text = "Ask a question for your poll, jeez" };
+            }
+
+            var botGuildUser = guildChannel.GetUser(client.CurrentUser.Id);
+
+            if (!botGuildUser.GetPermissions(guildChannel).AddReactions)
+            {
+                return new CommandResponse { Text = "I need to have add reactions permissions." };
+            }
+
+            await message.AddReactionAsync(Emote.Parse("<:check:363764608969867274>"));
+            await message.AddReactionAsync(Emote.Parse("<:xmark:363764632160043008>"));
+
+            return null;
         }
 
         private async Task<CommandResponse> SelfRole(SocketMessage message, bool isAdd)

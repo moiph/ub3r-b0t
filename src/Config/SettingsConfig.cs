@@ -82,6 +82,13 @@
         Mod_LogUserLeaveVoice = 256,
     }
 
+    public class CustomCommand
+    {
+        public string Command { get; set; }
+        public string Response { get; set; }
+        public bool IsExactMatch { get; set; }
+    }
+
     public class Settings
     {
         private List<Regex> regexWordCensors;
@@ -101,6 +108,7 @@
 
         public HashSet<ulong> SelfRoles { get; set; } = new HashSet<ulong>();
         public HashSet<string> DisabledCommands { get; set; } = new HashSet<string>();
+        public List<CustomCommand> CustomCommands = new List<CustomCommand>();
         public string Prefix { get; set; } = ".";
 
         public bool Mod_ImgLimit { get; set; }

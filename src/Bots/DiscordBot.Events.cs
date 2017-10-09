@@ -11,7 +11,6 @@ namespace UB3RB0T
     using Discord.WebSocket;
     using Flurl.Http;
     using Newtonsoft.Json;
-    using StatsdClient;
     using UB3RIRC;
     using System.Collections.Generic;
 
@@ -452,7 +451,7 @@ namespace UB3RB0T
             var settings = SettingsConfig.GetSettings(guildId?.ToString());
 
             // if it's a globally blocked server, ignore it unless it's the owner
-            if (message.Author.Id != this.Config.Discord.OwnerId && guildId != null && this.Config.Discord.BlockedServers.Contains(guildId.Value))
+            if (message.Author.Id != this.Config.Discord.OwnerId && guildId != null && this.Config.Discord.BlockedServers.Contains(guildId.Value) && !this.Config.OcrAutoIds.Contains(message.Channel.Id))
             {
                 return;
             }
@@ -465,9 +464,9 @@ namespace UB3RB0T
             }
 
             // Bail out with help info if it's a PM
-            if (message.Channel is IDMChannel && (message.Content.Contains("help") || message.Content.Contains("info") || message.Content.Contains("commands")))
+            if (message.Channel is IDMChannel)
             {
-                await this.RespondAsync(message, "Info and commands can be found at: https://ub3r-b0t.com");
+                await this.RespondAsync(message, "Info and commands can be found at: https://ub3r-b0t.com [Commands don't work in direct messages]");
                 return;
             }
 
@@ -516,7 +515,8 @@ namespace UB3RB0T
             // TODO: need to drive this via config
             // TODO: Need to generalize even further due to more reaction types
             // TODO: oh my god stop writing TODOs and just make the code less awful
-            if (!string.IsNullOrEmpty(reactionType))
+            // TODO: ARE YOU KIDDING ME RIGHT NOW WHAT IS THIS SHIT
+            if (!string.IsNullOrEmpty(reactionType) || this.Config.OcrAutoIds.Contains(message.Channel.Id))
             {
                 string newMessageContent = string.Empty;
 
@@ -525,41 +525,62 @@ namespace UB3RB0T
                     newMessageContent = $"{settings.Prefix}quote add \"{messageContent}\" - userid:{message.Author.Id} {message.Author.Username}";
                     await message.AddReactionAsync(new Emoji("💬"));
                 }
-                else if (string.IsNullOrEmpty(message.Content) && message.Attachments?.FirstOrDefault()?.Url is string attachmentUrl)
+                else if (string.IsNullOrEmpty(message.Content) || this.Config.OcrAutoIds.Contains(message.Channel.Id))
                 {
-                    if (reactionType == "👁")
+                    var attachmentUrl = message.Attachments?.FirstOrDefault()?.Url;
+                    if (attachmentUrl == null)
                     {
-                        var result = await this.Config.OcrEndpoint.ToString()
-                        .WithHeader("Ocp-Apim-Subscription-Key", this.Config.VisionKey)
-                        .PostJsonAsync(new { url = attachmentUrl });
-
-                        if (result.IsSuccessStatusCode)
+                        if (Uri.TryCreate(message.Content, UriKind.Absolute, out Uri attachmentUri))
                         {
-                            var response = await result.Content.ReadAsStringAsync();
-                            var ocrData = JsonConvert.DeserializeObject<OcrData>(response);
-                            if (!string.IsNullOrEmpty(ocrData.GetText()))
+                            attachmentUrl = attachmentUri.ToString();
+                            if (!attachmentUrl.EndsWith(".jpg") && !attachmentUrl.EndsWith(".png"))
                             {
-                                newMessageContent = ocrData.GetText();
+                                attachmentUrl = null;
                             }
                         }
                     }
-                    else if (reactionType == "🖼")
+
+                    if (attachmentUrl != null)
                     {
-                        var analyzeResult = await this.Config.AnalyzeEndpoint.ToString()
+                        if (reactionType == "👁" || this.Config.OcrAutoIds.Contains(message.Channel.Id))
+                        {
+                            var result = await this.Config.OcrEndpoint.ToString()
                             .WithHeader("Ocp-Apim-Subscription-Key", this.Config.VisionKey)
                             .PostJsonAsync(new { url = attachmentUrl });
 
-                        if (analyzeResult.IsSuccessStatusCode)
-                        {
-                            var response = await analyzeResult.Content.ReadAsStringAsync();
-                            var analyzeData = JsonConvert.DeserializeObject<AnalyzeImageData>(response);
-                            if (analyzeData.Description.Tags.Contains("ball"))
+                            if (result.IsSuccessStatusCode)
                             {
-                                newMessageContent = $"{settings.Prefix}8ball foo";
+                                var response = await result.Content.ReadAsStringAsync();
+                                var ocrData = JsonConvert.DeserializeObject<OcrData>(response);
+                                if (!string.IsNullOrEmpty(ocrData.GetText()))
+                                {
+                                    newMessageContent = ocrData.GetText();
+
+                                    if (newMessageContent.ToLowerInvariant().Contains("unknown guild channel type"))
+                                    {
+                                        await message.Channel.SendMessageAsync($"update to 1.0.2");
+                                    }
+                                }
                             }
-                            else if (analyzeData.Description.Tags.Contains("outdoor"))
+                        }
+                        else if (reactionType == "🖼")
+                        {
+                            var analyzeResult = await this.Config.AnalyzeEndpoint.ToString()
+                                .WithHeader("Ocp-Apim-Subscription-Key", this.Config.VisionKey)
+                                .PostJsonAsync(new { url = attachmentUrl });
+
+                            if (analyzeResult.IsSuccessStatusCode)
                             {
-                                newMessageContent = $"{settings.Prefix}fw";
+                                var response = await analyzeResult.Content.ReadAsStringAsync();
+                                var analyzeData = JsonConvert.DeserializeObject<AnalyzeImageData>(response);
+                                if (analyzeData.Description.Tags.Contains("ball"))
+                                {
+                                    newMessageContent = $"{settings.Prefix}8ball foo";
+                                }
+                                else if (analyzeData.Description.Tags.Contains("outdoor"))
+                                {
+                                    newMessageContent = $"{settings.Prefix}fw";
+                                }
                             }
                         }
                     }

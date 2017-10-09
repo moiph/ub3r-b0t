@@ -1,5 +1,6 @@
 ﻿namespace UB3RB0T
 {
+    using Discord;
     using Microsoft.AspNetCore.Builder;
     using Microsoft.AspNetCore.Http;
     using Microsoft.AspNetCore.Hosting;
@@ -37,36 +38,43 @@
             app.Run(async context =>
             {
                 string response = string.Empty;
-                if (BotInstance is DiscordBot discordBot)
+
+                try
                 {
-                    if (context.Request.Query["guilds"] == "1" && BotInstance != null)
+                    if (BotInstance is DiscordBot discordBot)
                     {
-                        response = string.Join($",{Environment.NewLine}",
-                            discordBot.Client.Guilds.OrderByDescending(g => g.Users.Count).Select(g => $"{g.Id} | {g.Name} | {g.Users.Count}"));
-                    }
-                    else if (!string.IsNullOrEmpty(context.Request.Query["guildId"]) && BotInstance != null)
-                    {
-                        if (ulong.TryParse(context.Request.Query["guildId"], out ulong guildId))
+                        if (context.Request.Query["guilds"] == "1" && BotInstance != null)
                         {
-                            var guild = discordBot.Client.GetGuild(guildId);
-                            if (guild != null)
+                            response = string.Join($",{Environment.NewLine}",
+                                discordBot.Client.Guilds.OrderByDescending(g => g.Users.Count).Select(g => $"{g.Id} | {g.Name} | {g.Users.Count}"));
+                        }
+                        else if (!string.IsNullOrEmpty(context.Request.Query["guildId"]) && BotInstance != null)
+                        {
+                            if (ulong.TryParse(context.Request.Query["guildId"], out ulong guildId))
                             {
-                                var channelsResponse = new GuildPermisssionsData();
-
-                                var botGuildUser = guild.CurrentUser;
-
-                                foreach (var chan in guild.Channels)
+                                var guild = discordBot.Client.GetGuild(guildId);
+                                if (guild != null)
                                 {
-                                    if (chan.Name != null)
-                                    { 
+                                    var channelsResponse = new GuildPermisssionsData();
+
+                                    var botGuildUser = guild.CurrentUser;
+                                    var channels = guild.Channels.Where(c => c is ITextChannel || c is IVoiceChannel);
+
+                                    foreach (var chan in channels)
+                                    {
                                         var channelPermissions = botGuildUser.GetPermissions(chan);
                                         channelsResponse.Channels.Add(chan.Id, new GuildChannelPermissions { CanRead = channelPermissions.ReadMessages, CanSend = channelPermissions.SendMessages });
                                     }
+
+                                    response = JsonConvert.SerializeObject(channelsResponse);
                                 }
-                                response = JsonConvert.SerializeObject(channelsResponse);
                             }
                         }
                     }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex);
                 }
 
                 // if empty, response was not handled

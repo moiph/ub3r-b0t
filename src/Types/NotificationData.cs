@@ -12,6 +12,7 @@
         Beam = 8,
         Trello = 16,
         Picarto = 32,
+        Reminder = 64,
     }
 
     public class NotificationData
