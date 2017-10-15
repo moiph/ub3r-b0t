@@ -518,7 +518,7 @@ namespace UB3RB0T
             // TODO: ARE YOU KIDDING ME RIGHT NOW WHAT IS THIS SHIT
             if (!string.IsNullOrEmpty(reactionType) || this.Config.OcrAutoIds.Contains(message.Channel.Id))
             {
-                string newMessageContent = string.Empty;
+                string newMessageContent = null;
 
                 if (reactionType == "💬" || reactionType == "🗨️")
                 {
