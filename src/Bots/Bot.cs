@@ -294,7 +294,7 @@ namespace UB3RB0T
                 bool mentionsBot = messageData.MentionsBot(this.Config.Name, Convert.ToUInt64(this.UserId));
                 if (CommandsConfig.Instance.TryParseForCommand(messageData.Content, mentionsBot, out string parsedCommand, out string query))
                 {
-                    messageData.Query = query;
+                    messageData.Content = $"{settings.Prefix}query";
                 }
             }
         }
@@ -405,7 +405,8 @@ namespace UB3RB0T
 
                     using (DogStatsd.StartTimer("commandDuration", tags: new[] { $"shard:{this.Shard}", $"command:{command.ToLowerInvariant()}", $"{this.BotType}" }))
                     {
-                        responseData = await this.BotApi.IssueRequestAsync(messageData, query);
+                        messageData.Content = $"{settings.Prefix}{query}";
+                        responseData = await this.BotApi.IssueRequestAsync(messageData);
                     }
                 }
             }

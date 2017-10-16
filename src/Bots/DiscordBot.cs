@@ -14,15 +14,26 @@ namespace UB3RB0T
     using Flurl.Http;
     using Newtonsoft.Json;
     using UB3RIRC;
+    using UB3RB0T.Commands;
 
     public partial class DiscordBot : Bot
     {
         private AudioManager audioManager = new AudioManager();
         private Timer statsTimer;
-        private DiscordCommands discordCommands;
+        private Dictionary<string, IDiscordCommand> discordCommands;
+
+        private List<IModule> modules;
 
         public DiscordBot(int shard, int totalShards) : base(shard, totalShards)
         {
+            // TODO: Add these via reflection processing or config instead of this nonsense
+            // order matters
+            this.modules = new List<IModule>
+            {
+                new WordCensorModule(),
+                new FaqModule(),
+                new OcrModule(),
+            };
         }
 
         protected override string UserId => this.Client.CurrentUser.Id.ToString();
@@ -67,7 +78,29 @@ namespace UB3RB0T
             this.Client.MessageDeleted += (message, channel) => this.HandleEvent(DiscordEventType.MessageDeleted, message, channel);
             this.Client.ReactionAdded += (message, channel, reaction) => this.HandleEvent(DiscordEventType.ReactionAdded, message, channel, reaction);
 
-            this.discordCommands = new DiscordCommands(this.Client, this.audioManager, this.BotApi);
+            // TODO: Add these via reflection processing or config instead of this nonsense
+            this.discordCommands = new Dictionary<string, IDiscordCommand>
+            {
+                { "debug", new DebugCommand() },
+                { "seen", new SeenCommand() },
+                { "remove", new RemoveCommand() },
+                { "clear", new ClearCommand() },
+                { "status", new StatusCommand() },
+                { "voice", new VoiceJoinCommand() },
+                { "dvoice", new VoiceLeaveCommand() },
+                { "devoice", new VoiceLeaveCommand() },
+                { "captain_planet", new CaptainCommand() },
+                { "jpeg", new JpegCommand() },
+                { "userinfo", new UserInfoCommand() },
+                { "serverinfo", new ServerInfoCommand() },
+                { "roles", new RolesCommand() },
+                { "admin", new AdminCommand() },
+                { "eval", new EvalCommand() },
+                { "quickpoll", new QuickPollCommand() },
+                { "qp", new QuickPollCommand() },
+                { "role", new RoleCommand(true) },
+                { "derole", new RoleCommand(false) },
+            };
 
             await this.Client.LoginAsync(TokenType.Bot, this.Config.Discord.Token);
             await this.Client.StartAsync();

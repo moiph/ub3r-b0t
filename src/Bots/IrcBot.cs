@@ -6,7 +6,6 @@ namespace UB3RB0T
     using System.Linq;
     using System.Text.RegularExpressions;
     using System.Threading.Tasks;
-    using StatsdClient;
     using UB3RIRC;
 
     public class IrcBot : Bot
@@ -91,12 +90,7 @@ namespace UB3RB0T
                     settings.Prefix = "^";
                 }
 
-                if (data.Text.StartsWith(settings.Prefix))
-                {
-                    query = data.Text.Substring(settings.Prefix.Length);
-                }
-
-                var messageData = BotMessageData.Create(data, query, client);
+                var messageData = BotMessageData.Create(data, client, settings);
 
                 await this.PreProcessMessage(messageData, settings);
 

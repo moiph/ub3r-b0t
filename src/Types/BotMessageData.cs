@@ -25,7 +25,25 @@
         public string Server { get; set; }
         public string Content { get; set; }
         public string Command => Query.Split(new[] { ' ' }, 2)?[0];
-        public string Query { get; set; }
+        public string Prefix { get; set; }
+        public string Query
+        {
+            get
+            {
+                string query = string.Empty;
+                int argPos = 0;
+                if (DiscordMessageData?.HasMentionPrefix(BotConfig.Instance.Discord.BotId, ref argPos) == true)
+                {
+                    query = this.Content.Substring(argPos);
+                }
+                else if (this.Content.StartsWith(this.Prefix))
+                {
+                    query = this.Content.Substring(this.Prefix.Length);
+                }
+
+                return query;
+            }
+        }
         public string Format { get; set; }
         public bool RateLimitChecked { get; set; }
 
@@ -45,7 +63,7 @@
             return this.IrcMessageData.Text.Contains(botName);
         }
 
-        public static BotMessageData Create(MessageData ircMessageData, string query, IrcClient ircClient)
+        public static BotMessageData Create(MessageData ircMessageData, IrcClient ircClient, Settings serverSettings)
         {
             return new BotMessageData(BotType.Irc)
             {
@@ -55,23 +73,23 @@
                 Channel = ircMessageData.Target,
                 Server = ircClient.Host,
                 Content = ircMessageData.Text,
-                Query = query,
+                Prefix = serverSettings.Prefix,
             };
         }
 
-        public static BotMessageData Create(SocketUserMessage discordMessageData, string query, Settings serverSettings)
+        public static BotMessageData Create(SocketUserMessage message, Settings serverSettings)
         {
             return new BotMessageData(BotType.Discord)
             {
-                DiscordMessageData = discordMessageData,
-                UserName = discordMessageData.Author.Username,
-                UserId = discordMessageData.Author.Id.ToString(),
-                UserHost = discordMessageData.Author.Id.ToString(),
-                Channel = discordMessageData.Channel.Id.ToString(),
-                Server = (discordMessageData.Channel as IGuildChannel)?.GuildId.ToString() ?? "private",
-                Content = discordMessageData.Content,
-                Query = query,
+                DiscordMessageData = message,
+                UserName = message.Author.Username,
+                UserId = message.Author.Id.ToString(),
+                UserHost = message.Author.Id.ToString(),
+                Channel = message.Channel.Id.ToString(),
+                Server = (message.Channel as IGuildChannel)?.GuildId.ToString() ?? "private",
+                Content = message.Content,
                 Format = serverSettings.PreferEmbeds ? "embed" : string.Empty,
+                Prefix = serverSettings.Prefix,
             };
         }
     }

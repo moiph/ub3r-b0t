@@ -16,8 +16,8 @@
     <UpdateAssemblyInfoVersion>False</UpdateAssemblyInfoVersion>
     <AssemblyVersionSettings>IncrementOnDemand.IncrementOnDemand.DateStamp.Increment</AssemblyVersionSettings>
     <Version>4.1.0</Version>
-    <AssemblyVersion>4.1.1710.1</AssemblyVersion>
-    <FileVersion>4.1.1710.1</FileVersion>
+    <AssemblyVersion>4.2.1710.2</AssemblyVersion>
+    <FileVersion>4.2.1710.2</FileVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <DebugType>pdbonly</DebugType>

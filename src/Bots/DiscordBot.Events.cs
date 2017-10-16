@@ -2,17 +2,17 @@
 namespace UB3RB0T
 {
     using System;
+    using System.Collections.Generic;
     using System.Linq;
     using System.Net;
+    using System.Reflection;
     using System.Text.RegularExpressions;
     using System.Threading.Tasks;
     using Discord;
     using Discord.Net;
     using Discord.WebSocket;
-    using Flurl.Http;
-    using Newtonsoft.Json;
     using UB3RIRC;
-    using System.Collections.Generic;
+    using UB3RB0T.Commands;
 
     public partial class DiscordBot
     {
@@ -425,14 +425,8 @@ namespace UB3RB0T
             {
                 if (isOutbound)
                 {
-                    if (message.Embeds?.Count > 0)
-                    {
-                        this.Logger.Log(LogType.Outgoing, $"\tSending [embed content] to {message.Channel.Name}");
-                    }
-                    else
-                    {
-                        this.Logger.Log(LogType.Outgoing, $"\tSending to {message.Channel.Name}: {message.Content}");
-                    }
+                    var logMessage = message.Embeds?.Count > 0 ? $"\tSending [embed content] to {message.Channel.Name}" : $"\tSending to {message.Channel.Name}: {message.Content}";
+                    this.Logger.Log(LogType.Outgoing, logMessage);
                 }
 
                 return;
@@ -446,8 +440,8 @@ namespace UB3RB0T
 
             // grab the settings for this server
             var botGuildUser = (message.Channel as SocketGuildChannel)?.Guild.CurrentUser;
-            var guildUser = message.Author as IGuildUser;
-            var guildId = (guildUser != null && guildUser.IsWebhook) ? null : guildUser?.GuildId;
+            var guildUser = message.Author as SocketGuildUser;
+            var guildId = (guildUser != null && guildUser.IsWebhook) ? null : guildUser?.Guild.Id;
             var settings = SettingsConfig.GetSettings(guildId?.ToString());
 
             // if it's a globally blocked server, ignore it unless it's the owner
@@ -470,15 +464,27 @@ namespace UB3RB0T
                 return;
             }
 
-            // check for word censors
-            if (botGuildUser?.GuildPermissions.ManageMessages ?? false)
+            var botContext = new DiscordBotContext(this.Client, message)
             {
-                if (settings.TriggersCensor(message.Content, out string offendingWord))
+                Reaction = reactionType,
+                ReactionUser = reactionUser,
+                BotApi = this.BotApi,
+                AudioManager = this.audioManager,
+            };
+
+            foreach (var module in this.modules)
+            {
+                var typeInfo = module.GetType().GetTypeInfo();
+                var permissionChecksPassed = await this.CheckPermissions(botContext, typeInfo);
+
+                if (!permissionChecksPassed)
                 {
-                    offendingWord = offendingWord != null ? $"`{offendingWord}`" : "*FANCY lanuage filters*";
-                    await message.DeleteAsync();
-                    var dmChannel = await message.Author.GetOrCreateDMChannelAsync();
-                    await dmChannel.SendMessageAsync($"hi uh sorry but your most recent message was tripped up by {offendingWord} and thusly was deleted. complain to management, i'm just the enforcer");
+                    continue;
+                }
+
+                var result = await module.Process(botContext);
+                if (result == ModuleResult.Stop)
+                {
                     return;
                 }
             }
@@ -488,130 +494,14 @@ namespace UB3RB0T
             {
                 return;
             }
-
-            // special case FAQ channel
-            if (message.Channel.Id == this.Config.FaqChannel && message.Content.EndsWith("?") && this.Config.FaqEndpoint != null)
-            {
-                string content = message.Content.Replace("<@85614143951892480>", "ub3r-b0t");
-                var result = await this.Config.FaqEndpoint.ToString().WithHeader("Ocp-Apim-Subscription-Key", this.Config.FaqKey).PostJsonAsync(new { question = content });
-                if (result.IsSuccessStatusCode)
-                {
-                    var response = await result.Content.ReadAsStringAsync();
-                    var qnaData = JsonConvert.DeserializeObject<QnAMakerData>(response);
-                    var score = Math.Floor(qnaData.Score);
-                    var answer = WebUtility.HtmlDecode(qnaData.Answer);
-                    await message.Channel.SendMessageAsync($"{answer} ({score}% match)");
-                }
-                else
-                {
-                    await message.Channel.SendMessageAsync("An error occurred while fetching data");
-                }
-
-                return;
-            }
-
-            string messageContent = message.Content;
-            // OCR for fun if requested (patrons only)
-            // TODO: need to drive this via config
-            // TODO: Need to generalize even further due to more reaction types
-            // TODO: oh my god stop writing TODOs and just make the code less awful
-            // TODO: ARE YOU KIDDING ME RIGHT NOW WHAT IS THIS SHIT
-            if (!string.IsNullOrEmpty(reactionType) || this.Config.OcrAutoIds.Contains(message.Channel.Id))
-            {
-                string newMessageContent = null;
-
-                if (reactionType == "💬" || reactionType == "🗨️")
-                {
-                    newMessageContent = $"{settings.Prefix}quote add \"{messageContent}\" - userid:{message.Author.Id} {message.Author.Username}";
-                    await message.AddReactionAsync(new Emoji("💬"));
-                }
-                else if (string.IsNullOrEmpty(message.Content) || this.Config.OcrAutoIds.Contains(message.Channel.Id))
-                {
-                    var attachmentUrl = message.Attachments?.FirstOrDefault()?.Url;
-                    if (attachmentUrl == null)
-                    {
-                        if (Uri.TryCreate(message.Content, UriKind.Absolute, out Uri attachmentUri))
-                        {
-                            attachmentUrl = attachmentUri.ToString();
-                            if (!attachmentUrl.EndsWith(".jpg") && !attachmentUrl.EndsWith(".png"))
-                            {
-                                attachmentUrl = null;
-                            }
-                        }
-                    }
-
-                    if (attachmentUrl != null)
-                    {
-                        if (reactionType == "👁" || this.Config.OcrAutoIds.Contains(message.Channel.Id))
-                        {
-                            var result = await this.Config.OcrEndpoint.ToString()
-                            .WithHeader("Ocp-Apim-Subscription-Key", this.Config.VisionKey)
-                            .PostJsonAsync(new { url = attachmentUrl });
-
-                            if (result.IsSuccessStatusCode)
-                            {
-                                var response = await result.Content.ReadAsStringAsync();
-                                var ocrData = JsonConvert.DeserializeObject<OcrData>(response);
-                                if (!string.IsNullOrEmpty(ocrData.GetText()))
-                                {
-                                    newMessageContent = ocrData.GetText();
-
-                                    if (newMessageContent.ToLowerInvariant().Contains("unknown guild channel type"))
-                                    {
-                                        await message.Channel.SendMessageAsync($"update to 1.0.2");
-                                    }
-                                }
-                            }
-                        }
-                        else if (reactionType == "🖼")
-                        {
-                            var analyzeResult = await this.Config.AnalyzeEndpoint.ToString()
-                                .WithHeader("Ocp-Apim-Subscription-Key", this.Config.VisionKey)
-                                .PostJsonAsync(new { url = attachmentUrl });
-
-                            if (analyzeResult.IsSuccessStatusCode)
-                            {
-                                var response = await analyzeResult.Content.ReadAsStringAsync();
-                                var analyzeData = JsonConvert.DeserializeObject<AnalyzeImageData>(response);
-                                if (analyzeData.Description.Tags.Contains("ball"))
-                                {
-                                    newMessageContent = $"{settings.Prefix}8ball foo";
-                                }
-                                else if (analyzeData.Description.Tags.Contains("outdoor"))
-                                {
-                                    newMessageContent = $"{settings.Prefix}fw";
-                                }
-                            }
-                        }
-                    }
-                }
-
-                messageContent = newMessageContent ?? messageContent;
-            }
-
+            
             // If it's a command, match that before anything else.
-            string query = string.Empty;
-            bool hasBotMention = message.MentionedUsers.Any(u => u.Id == this.Client.CurrentUser.Id);
-
-            int argPos = 0;
-            if (message.HasMentionPrefix(this.Client.CurrentUser, ref argPos))
-            {
-                query = messageContent.Substring(argPos);
-            }
-            else if (messageContent.StartsWith(settings.Prefix))
-            {
-                query = messageContent.Substring(settings.Prefix.Length);
-            }
-
-            var messageData = BotMessageData.Create(message, query, settings);
-            messageData.Content = messageContent;
-            await this.PreProcessMessage(messageData, settings);
-
-            string command = messageData.Command;
+            await this.PreProcessMessage(botContext.MessageData, settings);
+            string command = botContext.MessageData.Command;
 
             if (message.Attachments.FirstOrDefault() is Attachment attachment)
             {
-                imageUrls[messageData.Channel] = attachment;
+                imageUrls[botContext.MessageData.Channel] = attachment;
             }
 
             // if it's a blocked command, bail
@@ -620,18 +510,21 @@ namespace UB3RB0T
                 return;
             }
 
-            // Check discord specific commands prior to general ones.
-            if (discordCommands.Commands.ContainsKey(command))
+            if (this.discordCommands.TryGetValue(command, out IDiscordCommand discordCommand))
             {
-                var response = await discordCommands.Commands[command].Invoke(message).ConfigureAwait(false);
-                if (response != null)
+                var typeInfo = discordCommand.GetType().GetTypeInfo();
+                var permissionChecksPassed = await this.CheckPermissions(botContext, typeInfo);
+
+                if (permissionChecksPassed)
                 {
-                    if (response.Attachment != null)
+                    var response = await discordCommand.Process(botContext);
+
+                    if (response?.Attachment != null)
                     {
                         var sentMessage = await message.Channel.SendFileAsync(response.Attachment.Stream, response.Attachment.Name, response.Text);
                         this.botResponsesCache.Add(message.Id, sentMessage);
                     }
-                    else if (!string.IsNullOrEmpty(response.Text) || response.Embed != null)
+                    else if (!string.IsNullOrEmpty(response?.Text) || response?.Embed != null)
                     {
                         var sentMessage = await this.RespondAsync(message, response.Text, response.Embed);
                         this.botResponsesCache.Add(message.Id, sentMessage);
@@ -648,14 +541,14 @@ namespace UB3RB0T
                     typingState = message.Channel.EnterTypingState();
                 }
 
-                if (messageData.Command == "quote" && reactionUser != null)
+                if (botContext.MessageData.Command == "quote" && reactionUser != null)
                 {
-                    messageData.UserName = reactionUser.Username;
+                    botContext.MessageData.UserName = reactionUser.Username;
                 }
 
                 try
                 {
-                    BotResponseData responseData = await this.ProcessMessageAsync(messageData, settings);
+                    BotResponseData responseData = await this.ProcessMessageAsync(botContext.MessageData, settings);
 
                     if (responseData.Embed != null)
                     {
@@ -680,6 +573,26 @@ namespace UB3RB0T
                     typingState?.Dispose();
                 }
             }
+        }
+
+        private async Task<bool> CheckPermissions(IDiscordBotContext context, TypeInfo typeInfo)
+        {
+            var attributes = typeInfo.GetCustomAttributes().Where(a => a is PermissionsAttribute);
+            var attributeChecksPassed = true;
+            foreach (PermissionsAttribute attr in attributes)
+            {
+                if (!attr.CheckPermissions(context))
+                {
+                    if (!string.IsNullOrEmpty(attr.FailureMessage))
+                    {
+                        await this.RespondAsync(context.Message, attr.FailureMessage);
+                    }
+
+                    attributeChecksPassed = false;
+                }
+            }
+
+            return attributeChecksPassed;
         }
 
         /// <summary>

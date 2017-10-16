@@ -65,6 +65,9 @@
         [JsonRequired]
         public ulong OwnerId { get; set; }
 
+        [JsonRequired]
+        public ulong BotId { get; set; }
+
         public string Status { get; set; }
 
         // Servers that are blocked from normal usage (owner being exempt)

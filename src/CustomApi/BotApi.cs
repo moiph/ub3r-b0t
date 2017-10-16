@@ -22,10 +22,8 @@ namespace UB3RB0T
             this.botType = botType;
         }
 
-        public async Task<BotResponseData> IssueRequestAsync(BotMessageData messageData, string query)
+        public async Task<BotResponseData> IssueRequestAsync(BotMessageData messageData)
         {
-            messageData.Query = query;
-
             try
             {
                 var response = await new Uri($"{this.apiEndpoint}/{messageData.Command}").PostJsonAsync(messageData);
