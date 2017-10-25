@@ -294,7 +294,7 @@ namespace UB3RB0T
                 bool mentionsBot = messageData.MentionsBot(this.Config.Name, Convert.ToUInt64(this.UserId));
                 if (CommandsConfig.Instance.TryParseForCommand(messageData.Content, mentionsBot, out string parsedCommand, out string query))
                 {
-                    messageData.Content = $"{settings.Prefix}query";
+                    messageData.Content = $"{settings.Prefix}{query}";
                 }
             }
         }
