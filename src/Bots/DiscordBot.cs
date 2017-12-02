@@ -31,6 +31,7 @@ namespace UB3RB0T
             this.modules = new List<IModule>
             {
                 new WordCensorModule(),
+                new BotlessModule(),
                 new FaqModule(),
                 new OcrModule(),
             };

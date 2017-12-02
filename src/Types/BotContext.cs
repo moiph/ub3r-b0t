@@ -44,7 +44,7 @@
         public string Reaction { get; set; }
         public IUser ReactionUser { get; set; }
 
-        public Settings Settings => SettingsConfig.GetSettings((Message.Channel as SocketGuildChannel)?.Guild.Id.ToString());
+        public Settings Settings => SettingsConfig.GetSettings(GuildChannel?.Guild.Id.ToString());
         public BotMessageData MessageData { get; }
     }
 }

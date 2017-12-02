@@ -23,7 +23,8 @@
 
                 if (context.Reaction == "💬" || context.Reaction == "🗨️")
                 {
-                    newMessageContent = $"{context.Settings.Prefix}quote add \"{context.MessageData.Content}\" - userid:{message.Author.Id} {message.Author.Username}";
+                    var quote = context.MessageData.Content.Replace("\"", "&quot;");
+                    newMessageContent = $"{context.Settings.Prefix}quote add \"{quote}\" - userid:{message.Author.Id} {message.Author.Username}";
                     await message.AddReactionAsync(new Emoji("💬"));
                 }
                 else if (string.IsNullOrEmpty(message.Content) || BotConfig.Instance.OcrAutoIds.Contains(message.Channel.Id))

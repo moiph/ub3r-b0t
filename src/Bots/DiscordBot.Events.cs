@@ -450,13 +450,6 @@ namespace UB3RB0T
                 return;
             }
 
-            // if the user is blocked based on role, return
-            var botlessRoleId = guildUser?.Guild?.Roles?.FirstOrDefault(r => r.Name?.ToLowerInvariant() == "botless")?.Id;
-            if ((message.Author as IGuildUser)?.RoleIds.Any(r => botlessRoleId != null && r == botlessRoleId.Value) ?? false)
-            {
-                return;
-            }
-
             // Bail out with help info if it's a PM
             if (message.Channel is IDMChannel)
             {

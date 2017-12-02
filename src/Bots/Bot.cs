@@ -423,7 +423,7 @@ namespace UB3RB0T
                     }
                 }
 
-                if (response == null && (settings.FunResponsesEnabled || IsAuthorOwner(messageData)) && PhrasesConfig.Instance.ExactPhrases.ContainsKey(messageData.Content) && new Random().Next(1, 100) <= settings.FunResponseChance)
+                if (response == null && PhrasesConfig.Instance.ExactPhrases.ContainsKey(messageData.Content) && (settings.FunResponsesEnabled && new Random().Next(1, 100) <= settings.FunResponseChance || IsAuthorOwner(messageData)))
                 {
                     response = PhrasesConfig.Instance.Responses[PhrasesConfig.Instance.ExactPhrases[messageData.Content]].Random();
                 }
