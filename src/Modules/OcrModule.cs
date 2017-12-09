@@ -4,13 +4,13 @@
     using System.Linq;
     using System.Threading.Tasks;
     using Discord;
+    using Discord.WebSocket;
     using Flurl.Http;
     using Newtonsoft.Json;
 
     // OCR for fun if requested (patrons only)
     // TODO: need to drive this via config
     // TODO: Need to generalize even further due to more reaction types
-    // TODO: oh my god stop writing TODOs and just make the code less awful
     [BotPermissions(ChannelPermission.SendMessages | ChannelPermission.AddReactions)]
     public class OcrModule : BaseDiscordModule
     {
@@ -29,59 +29,37 @@
                 }
                 else if (string.IsNullOrEmpty(message.Content) || BotConfig.Instance.OcrAutoIds.Contains(message.Channel.Id))
                 {
-                    var attachmentUrl = message.Attachments?.FirstOrDefault()?.Url;
-                    if (attachmentUrl == null)
-                    {
-                        if (Uri.TryCreate(message.Content, UriKind.Absolute, out Uri attachmentUri))
-                        {
-                            attachmentUrl = attachmentUri.ToString();
-                            if (!attachmentUrl.EndsWith(".jpg") && !attachmentUrl.EndsWith(".png"))
-                            {
-                                attachmentUrl = null;
-                            }
-                        }
-                    }
+                    var imageUrl = this.ParseImageUrl(context.Message);
 
-                    if (attachmentUrl != null)
+                    if (imageUrl != null)
                     {
-                        if (context.Reaction == "👁" || BotConfig.Instance.OcrAutoIds.Contains(message.Channel.Id))
+                        if (context.Reaction == "🖼")
                         {
-                            var result = await BotConfig.Instance.OcrEndpoint.ToString()
-                            .WithHeader("Ocp-Apim-Subscription-Key", BotConfig.Instance.VisionKey)
-                            .PostJsonAsync(new { url = attachmentUrl });
+                            var analyzeData = await this.GetVisionData<AnalyzeImageData>(imageUrl);
 
-                            if (result.IsSuccessStatusCode)
+                            if (analyzeData != null)
                             {
-                                var response = await result.Content.ReadAsStringAsync();
-                                var ocrData = JsonConvert.DeserializeObject<OcrData>(response);
-                                if (!string.IsNullOrEmpty(ocrData.GetText()))
+                                var command = CommandsConfig.Instance.CommandPatterns.FirstOrDefault(c => analyzeData.Description.Tags.Contains(c.AnalysisTag));
+                                if (command != null)
                                 {
-                                    newMessageContent = ocrData.GetText();
-
-                                    if (newMessageContent.ToLowerInvariant().Contains("unknown guild channel type"))
-                                    {
-                                        await message.Channel.SendMessageAsync($"update to 1.0.2");
-                                    }
+                                    newMessageContent = $"{context.Settings.Prefix}{command.Replacement}";
                                 }
                             }
                         }
-                        else if (context.Reaction == "🖼")
+                        else if (context.Reaction == "👁" || BotConfig.Instance.OcrAutoIds.Contains(message.Channel.Id))
                         {
-                            var analyzeResult = await BotConfig.Instance.AnalyzeEndpoint.ToString()
-                                .WithHeader("Ocp-Apim-Subscription-Key", BotConfig.Instance.VisionKey)
-                                .PostJsonAsync(new { url = attachmentUrl });
+                            var ocrData = await this.GetVisionData<OcrData>(imageUrl);
+                            var ocrText = ocrData?.GetText();
 
-                            if (analyzeResult.IsSuccessStatusCode)
+                            if (!string.IsNullOrEmpty(ocrText))
                             {
-                                var response = await analyzeResult.Content.ReadAsStringAsync();
-                                var analyzeData = JsonConvert.DeserializeObject<AnalyzeImageData>(response);
-                                if (analyzeData.Description.Tags.Contains("ball"))
+                                newMessageContent = ocrText;
+                                var ocrTextLower = ocrText.ToLowerInvariant();
+                                var ocrPhrase = PhrasesConfig.Instance.OcrPhrases.FirstOrDefault(o => ocrTextLower.Contains(o.Key)).Value;
+
+                                if (ocrPhrase != null)
                                 {
-                                    newMessageContent = $"{context.Settings.Prefix}8ball foo";
-                                }
-                                else if (analyzeData.Description.Tags.Contains("outdoor"))
-                                {
-                                    newMessageContent = $"{context.Settings.Prefix}fw";
+                                    await message.Channel.SendMessageAsync(ocrPhrase);
                                 }
                             }
                         }
@@ -96,6 +74,52 @@
 
             return ModuleResult.Continue;
         }
-    }
 
+        /// <summary>
+        /// Gets OCR/Analysis data from the given image url
+        /// </summary>
+        /// <typeparam name="T">The type of data to process (OCR/Analyze)</typeparam>
+        /// <param name="imageUrl">The image url to process</param>
+        /// <returns>Vision data of type T</returns>
+        private async Task<T> GetVisionData<T>(string imageUrl)
+        {
+            var data = default(T);
+            Uri endpoint = typeof(T) == typeof(OcrData) ? BotConfig.Instance.OcrEndpoint : BotConfig.Instance.AnalyzeEndpoint;
+
+            var result = await endpoint.ToString()
+                .WithHeader("Ocp-Apim-Subscription-Key", BotConfig.Instance.VisionKey)
+                .PostJsonAsync(new { url = imageUrl });
+
+            if (result.IsSuccessStatusCode)
+            {
+                var response = await result.Content.ReadAsStringAsync();
+                data = JsonConvert.DeserializeObject<T>(response);
+            }
+
+            return data;
+        }
+
+        /// <summary>
+        /// Grabs the attachment URL from the message attachment, if present, else tries to parse an image URL out of the message contents.
+        /// </summary>
+        /// <param name="message">The message to parse</param>
+        /// <returns>Image URL</returns>
+        private string ParseImageUrl(SocketUserMessage message)
+        {
+            var attachmentUrl = message.Attachments?.FirstOrDefault()?.Url;
+            if (attachmentUrl == null)
+            {
+                if (Uri.TryCreate(message.Content, UriKind.Absolute, out Uri attachmentUri))
+                {
+                    attachmentUrl = attachmentUri.ToString();
+                    if (!attachmentUrl.EndsWith(".jpg") && !attachmentUrl.EndsWith(".png"))
+                    {
+                        attachmentUrl = null;
+                    }
+                }
+            }
+
+            return attachmentUrl;
+        }
+    }
 }

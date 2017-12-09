@@ -50,6 +50,11 @@
         /// </summary>
         public bool RequiresMention { get; set; }
 
+        /// <summary>
+        /// Tag to match for OcrModule
+        /// </summary>
+        public string AnalysisTag { get; set; }
+
         public CommandPattern()
         {
             this.Regex = new Lazy<Regex>(() => new Regex(this.Pattern, RegexOptions.IgnoreCase));

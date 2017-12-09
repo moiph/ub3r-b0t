@@ -21,6 +21,8 @@
         [JsonRequired]
         public Dictionary<string, string[]> Responses { get; set; }
 
+        public Dictionary<string, string> OcrPhrases { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
         /// Settings for voice support
         public string VoiceFilePath { get; set; }
 
