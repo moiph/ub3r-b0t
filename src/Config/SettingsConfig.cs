@@ -89,6 +89,12 @@
         public bool IsExactMatch { get; set; }
     }
 
+    public class NotificationText
+    {
+        public NotificationType Type { get; set; }
+        public string Text { get; set; }
+    }
+
     public class Settings
     {
         private List<Regex> regexWordCensors;
@@ -102,6 +108,8 @@
         public ulong VoiceId { get; set; }
         public ulong UpdateId { get; set; }
         public ulong JoinRoleId { get; set; }
+
+        public List<NotificationText> NotificationText = new List<NotificationText>();
 
         public HashSet<string> WordCensors { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         public HashSet<string> RegexCensors { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

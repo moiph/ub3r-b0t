@@ -181,8 +181,14 @@ namespace UB3RB0T
                     }
                     else
                     {
-                        var url = string.IsNullOrEmpty(notification.Embed.Url) ? string.Empty : $"<{notification.Embed.Url}>";
-                        await channelToUse.SendMessageAsync(url, false, notification.Embed.CreateEmbedBuilder());
+                        var customText = settings.NotificationText.FirstOrDefault(n => n.Type == notification.Type)?.Text;
+                        var messageText = string.IsNullOrEmpty(notification.Embed.Url) ? string.Empty : $"<{notification.Embed.Url}>";
+                        if (!string.IsNullOrEmpty(customText))
+                        {
+                            messageText += $" {customText}";
+                        }
+
+                        await channelToUse.SendMessageAsync(messageText, false, notification.Embed.CreateEmbedBuilder());
                     }
                 }
                 else
