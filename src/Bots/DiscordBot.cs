@@ -188,7 +188,7 @@ namespace UB3RB0T
                             messageText += $" {customText}";
                         }
 
-                        await channelToUse.SendMessageAsync(messageText, false, notification.Embed.CreateEmbedBuilder());
+                        await channelToUse.SendMessageAsync(messageText, false, notification.Embed.CreateEmbedBuilder().Build());
                     }
                 }
                 else

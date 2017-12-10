@@ -120,7 +120,7 @@
                 text = $"{userInfo.Title}{userInfo.NicknameInfo}: ID: {userInfo.Id} | Created: {userInfo.Created} | Joined: {userInfo.Joined} | word on the street: {userInfo.Footnote}";
             }
 
-            return Task.FromResult(new CommandResponse { Text = text, Embed = embedBuilder });
+            return Task.FromResult(new CommandResponse { Text = text, Embed = embedBuilder.Build() });
         }
     }
 }

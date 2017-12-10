@@ -110,7 +110,7 @@
                 text = "This command only works in servers, you scoundrel";
             }
 
-            return new CommandResponse { Text = text, Embed = embedBuilder };
+            return new CommandResponse { Text = text, Embed = embedBuilder.Build() };
         }
     }
 }

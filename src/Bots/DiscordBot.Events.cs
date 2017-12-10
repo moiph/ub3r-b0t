@@ -190,7 +190,7 @@ namespace UB3RB0T
         {
             var settings = SettingsConfig.GetSettings(guildUser.Guild.Id);
 
-            if (!string.IsNullOrEmpty(settings.Greeting))
+            if (!string.IsNullOrEmpty(settings.Greeting) && settings.GreetingId != 0)
             {
                 var greeting = settings.Greeting.Replace("%user%", guildUser.Mention);
                 greeting = greeting.Replace("%username%", $"{guildUser.Username}#{guildUser.Discriminator}");
@@ -247,7 +247,7 @@ namespace UB3RB0T
         {
             var settings = SettingsConfig.GetSettings(guildUser.Guild.Id);
 
-            if (!string.IsNullOrEmpty(settings.Farewell))
+            if (!string.IsNullOrEmpty(settings.Farewell) && settings.FarewellId != 0)
             {
                 var farewell = settings.Farewell.Replace("%user%", guildUser.Mention);
                 farewell = farewell.Replace("%username%", $"{guildUser.Username}#{guildUser.Discriminator}");
@@ -545,7 +545,7 @@ namespace UB3RB0T
 
                     if (responseData.Embed != null)
                     {
-                        var sentMessage = await this.RespondAsync(message, string.Empty, responseData.Embed.CreateEmbedBuilder());
+                        var sentMessage = await this.RespondAsync(message, string.Empty, responseData.Embed.CreateEmbedBuilder().Build());
                         this.botResponsesCache.Add(message.Id, sentMessage);
                     }
                     else
