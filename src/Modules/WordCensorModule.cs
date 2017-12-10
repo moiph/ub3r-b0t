@@ -28,6 +28,7 @@
                     }
                     catch (HttpException)
                     {
+                        this.blockedDMUsers.Add(context.Message.Author.Id);
                     }
                 }
                 
