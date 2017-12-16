@@ -101,12 +101,15 @@
                     }
                 }
 
-                embedBuilder.AddField((field) =>
+                if (roles.Count > 0)
                 {
-                    field.IsInline = false;
-                    field.Name = "roles";
-                    field.Value = string.Join(", ", roles);
-                });
+                    embedBuilder.AddField((field) =>
+                    {
+                        field.IsInline = false;
+                        field.Name = "roles";
+                        field.Value = string.Join(", ", roles);
+                    });
+                }
 
                 embedBuilder.AddField((field) =>
                 {
@@ -120,7 +123,7 @@
                 text = $"{userInfo.Title}{userInfo.NicknameInfo}: ID: {userInfo.Id} | Created: {userInfo.Created} | Joined: {userInfo.Joined} | word on the street: {userInfo.Footnote}";
             }
 
-            return Task.FromResult(new CommandResponse { Text = text, Embed = embedBuilder.Build() });
+            return Task.FromResult(new CommandResponse { Text = text, Embed = embedBuilder?.Build() });
         }
     }
 }
