@@ -17,13 +17,29 @@
                 var guild = guildChannel.Guild;
                 var emojiCount = guild.Emotes.Count();
                 var emojiText = "no custom emojis? I am ASHAMED to be here";
-                if (emojiCount > 50)
+                if (emojiCount > 100)
+                {
+                    emojiText = $"...{emojiCount} emojis? IMPOSSIBLE";
+                }
+                else if (emojiCount == 100)
+                {
+                    emojiText = $"wow {emojiCount} custom emojis! that's the max";
+                }
+                else if (emojiCount > 90)
                 {
                     emojiText = $"...{emojiCount} emojis? hackers";
                 }
+                else if (emojiCount > 75)
+                {
+                    emojiText = $"what?! {emojiCount} emojis? that's...that's incredible.";
+                }
+                else if (emojiCount > 50)
+                {
+                    emojiText = $"jeeez {emojiCount} custom emojis! excellent work.";
+                }
                 else if (emojiCount == 50)
                 {
-                    emojiText = "wow 50 custom emojis! that's the max";
+                    emojiText = $"wow {emojiCount} custom emojis! that's the old max pre-animated emojis";
                 }
                 else if (emojiCount >= 40)
                 {

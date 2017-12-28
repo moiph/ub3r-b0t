@@ -650,6 +650,13 @@ namespace UB3RB0T
                     }
 
                     delText += $"**{message.Author.Username}#{message.Author.Discriminator}** deleted in {textChannel.Mention}: {message.Content}";
+
+                    // Include attachment URLs, if applicable
+                    if (message.Attachments?.Count > 0)
+                    {
+                        delText += " " + string.Join(" ", message.Attachments.Select(a => a.Url));
+                    }
+
                     this.BatchSendMessageAsync(modLogChannel, delText.SubstringUpTo(2000));
                 }
             }
