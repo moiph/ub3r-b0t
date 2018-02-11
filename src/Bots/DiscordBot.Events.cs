@@ -162,6 +162,12 @@ namespace UB3RB0T
                 {
                     await defaultChannel.SendMessageAsync($"(HELLO, I AM UB3R-B0T! .halp for info. {owner.Mention} you're the kickass owner-- you can use .admin to configure some stuff. By using me you agree to these terms: https://discordapp.com/developers/docs/legal)");
                 }
+
+                if (this.Config.PruneEndpoint != null)
+                {
+                    var req = WebRequest.Create($"{this.Config.PruneEndpoint}?id={guild.Id}&restore=1");
+                    await req.GetResponseAsync();
+                }
             }
         }
 
