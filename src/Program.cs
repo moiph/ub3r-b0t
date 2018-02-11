@@ -63,7 +63,7 @@
                                     foreach (var chan in channels)
                                     {
                                         var channelPermissions = botGuildUser.GetPermissions(chan);
-                                        channelsResponse.Channels.Add(chan.Id, new GuildChannelPermissions { CanRead = channelPermissions.ReadMessages, CanSend = channelPermissions.SendMessages });
+                                        channelsResponse.Channels.Add(chan.Id, new GuildChannelPermissions { CanRead = channelPermissions.ViewChannel, CanSend = channelPermissions.SendMessages });
                                     }
 
                                     response = JsonConvert.SerializeObject(channelsResponse);

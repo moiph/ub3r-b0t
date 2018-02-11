@@ -101,6 +101,7 @@ namespace UB3RB0T
                 { "qp", new QuickPollCommand() },
                 { "role", new RoleCommand(true) },
                 { "derole", new RoleCommand(false) },
+                { "fr", new FeedbackCommand() },
             };
 
             await this.Client.LoginAsync(TokenType.Bot, this.Config.Discord.Token);

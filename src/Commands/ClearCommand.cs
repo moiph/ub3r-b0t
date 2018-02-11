@@ -75,11 +75,11 @@
                     {
                         if (!lastMsgId.HasValue)
                         {
-                            downloadedMsgs = await textChannel.GetMessagesAsync(count).Flatten();
+                            downloadedMsgs = await textChannel.GetMessagesAsync(count).FlattenAsync();
                         }
                         else
                         {
-                            downloadedMsgs = await textChannel.GetMessagesAsync(lastMsgId.Value, Direction.Before, count).Flatten();
+                            downloadedMsgs = await textChannel.GetMessagesAsync(lastMsgId.Value, Direction.Before, count).FlattenAsync();
                         }
                     }
                     catch (Exception ex)

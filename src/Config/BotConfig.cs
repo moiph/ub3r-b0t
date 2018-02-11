@@ -76,6 +76,8 @@
 
         public HashSet<ulong> Patrons { get; set; }
 
+        public HashSet<ulong> SpecialUsers { get; set; }
+
         /// <summary>
         /// Key for statistics on https://www.carbonitex.net
         /// </summary>
