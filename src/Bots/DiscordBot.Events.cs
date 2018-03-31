@@ -551,13 +551,16 @@ namespace UB3RB0T
                 {
                     BotResponseData responseData = await this.ProcessMessageAsync(botContext.MessageData, settings);
 
+                    if (Uri.TryCreate(responseData.AttachmentUrl, UriKind.Absolute, out Uri attachmentUri))
                     {
                         Stream fileStream;
                         using (var httpClient = new HttpClient())
                         {
+                            var response = await httpClient.GetAsync(attachmentUri);
                             fileStream = await response.Content.ReadAsStreamAsync();
                         }
 
+                        var sentMessage = await message.Channel.SendFileAsync(fileStream, Path.GetFileName(attachmentUri.AbsolutePath));
                         this.botResponsesCache.Add(message.Id, sentMessage);
                     }
                     else if (responseData.Embed != null)
