@@ -3,8 +3,10 @@ namespace UB3RB0T
 {
     using System;
     using System.Collections.Generic;
+    using System.IO;
     using System.Linq;
     using System.Net;
+    using System.Net.Http;
     using System.Reflection;
     using System.Text.RegularExpressions;
     using System.Threading.Tasks;
@@ -549,7 +551,16 @@ namespace UB3RB0T
                 {
                     BotResponseData responseData = await this.ProcessMessageAsync(botContext.MessageData, settings);
 
-                    if (responseData.Embed != null)
+                    {
+                        Stream fileStream;
+                        using (var httpClient = new HttpClient())
+                        {
+                            fileStream = await response.Content.ReadAsStreamAsync();
+                        }
+
+                        this.botResponsesCache.Add(message.Id, sentMessage);
+                    }
+                    else if (responseData.Embed != null)
                     {
                         var sentMessage = await this.RespondAsync(message, string.Empty, responseData.Embed.CreateEmbedBuilder().Build());
                         this.botResponsesCache.Add(message.Id, sentMessage);
