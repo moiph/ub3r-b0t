@@ -154,11 +154,14 @@
                     {
                         BotInstance = bot;
                         // Handle clean shutdown when possible
-                        SetConsoleCtrlHandler((ctrlType) =>
+                        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                         {
-                            bot.StopAsync().GetAwaiter().GetResult();
-                            return true;
-                        }, true);
+                            SetConsoleCtrlHandler((ctrlType) =>
+                            {
+                                bot.StopAsync().GetAwaiter().GetResult();
+                                return true;
+                            }, true);
+                        }
 
                         exitCode = bot.StartAsync().GetAwaiter().GetResult();
                     }

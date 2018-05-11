@@ -5,6 +5,11 @@ namespace UB3RB0T
 
     public class QnAMakerData
     {
+        public QnAMakerAnswer[] Answers { get; set; }
+    }
+
+    public class QnAMakerAnswer
+    { 
             /// <summary>
             /// The top answer found in the QnA Service.
             /// </summary>

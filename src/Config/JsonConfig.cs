@@ -65,7 +65,7 @@
 
             if (!string.IsNullOrEmpty(config.FileName))
             {
-                string rootPath = Environment.GetEnvironmentVariable(JsonConfig.PathEnvironmentVariableName) ?? "Config\\";
+                string rootPath = Environment.GetEnvironmentVariable(JsonConfig.PathEnvironmentVariableName) ?? "Config";
                 contents = File.ReadAllText(Path.Combine(rootPath, config.FileName));
             }
             else

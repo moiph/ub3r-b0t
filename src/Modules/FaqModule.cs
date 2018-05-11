@@ -16,11 +16,11 @@
             if (message.Channel.Id == BotConfig.Instance.FaqChannel && message.Content.EndsWith("?") && BotConfig.Instance.FaqEndpoint != null)
             {
                 string content = message.Content.Replace("<@85614143951892480>", "ub3r-b0t");
-                var result = await BotConfig.Instance.FaqEndpoint.ToString().WithHeader("Ocp-Apim-Subscription-Key", BotConfig.Instance.FaqKey).PostJsonAsync(new { question = content });
+                var result = await BotConfig.Instance.FaqEndpoint.ToString().WithHeader("Authorization", BotConfig.Instance.FaqKey).PostJsonAsync(new { question = content });
                 if (result.IsSuccessStatusCode)
                 {
                     var response = await result.Content.ReadAsStringAsync();
-                    var qnaData = JsonConvert.DeserializeObject<QnAMakerData>(response);
+                    var qnaData = JsonConvert.DeserializeObject<QnAMakerData>(response).Answers[0];
                     var score = Math.Floor(qnaData.Score);
                     var answer = System.Net.WebUtility.HtmlDecode(qnaData.Answer);
                     await message.Channel.SendMessageAsync($"{answer} ({score}% match)");
