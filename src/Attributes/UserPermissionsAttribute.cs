@@ -26,6 +26,11 @@
         {
             var guildUser = context.Message.Author as SocketGuildUser;
 
+            if (guildUser.Id == BotConfig.Instance.Discord.OwnerId)
+            {
+                return true;
+            }
+
             if (this.GuildPermission.HasValue)
             {
                 return guildUser?.GuildPermissions.Has(this.GuildPermission.Value) ?? false;

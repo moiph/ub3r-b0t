@@ -24,6 +24,7 @@
         Settings Settings { get; }
         string Reaction { get; }
         IUser ReactionUser { get; }
+        DiscordBot Bot { get; }
     }
 
     public class DiscordBotContext : IDiscordBotContext
@@ -38,6 +39,7 @@
         public DiscordSocketClient Client { get; }
         public AudioManager AudioManager { get; set; }
         public BotApi BotApi { get; set; }
+        public DiscordBot Bot { get; set; }
 
         public SocketUserMessage Message { get; }
         public SocketGuildChannel GuildChannel => Message.Channel as SocketGuildChannel;

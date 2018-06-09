@@ -48,6 +48,16 @@ namespace UB3RB0T
             return value.Substring(0, Math.Min(value.Length, maxLength));
         }
 
+        public static bool IContains(this string haystack, string needle)
+        {
+            return haystack.ToLowerInvariant().Contains(needle.ToLowerInvariant());
+        }
+
+        public static bool IEquals(this string first, string second)
+        {
+            return first.ToLowerInvariant().Equals(second.ToLowerInvariant());
+        }
+
         public static EmbedBuilder CreateEmbedBuilder(this EmbedData embedData)
         {
             var embedBuilder = new EmbedBuilder

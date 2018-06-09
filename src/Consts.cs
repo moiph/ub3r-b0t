@@ -8,7 +8,7 @@ namespace UB3RB0T
         public const int MaxMessageLength = 2000;
 
         public static readonly Regex UrlRegex = new Regex("(https?://[^ ]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        public static readonly Regex ChannelRegex = new Regex("#([a-zA-Z0-9\\-]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        public static readonly Regex ChannelRegex = new Regex("#([a-zA-Z0-9_\\-]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         public static readonly Regex HttpRegex = new Regex("https?://([^\\s]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         public static readonly Regex RedditRegex = new Regex("(^| )/?r/[^ ]+");
         public static readonly Regex TimerRegex = new Regex(".*?remind (?<target>.+?) in (?<years>[0-9]+ year)?s? ?(?<weeks>[0-9]+ week)?s? ?(?<days>[0-9]+ day)?s? ?(?<hours>[0-9]+ hour)?s? ?(?<minutes>[0-9]+ minute)?s? ?(?<seconds>[0-9]+ seconds)?.*?(?<prep>[^ ]+) (?<reason>.+)", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);

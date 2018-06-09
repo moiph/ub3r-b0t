@@ -26,7 +26,16 @@
             query = string.Empty;
             command = string.Empty;
 
-            var commandPattern = this.CommandPatterns.FirstOrDefault(t => t.Regex.Value.IsMatch(text));
+            CommandPattern commandPattern = null;
+            try
+            {
+                commandPattern = this.CommandPatterns.FirstOrDefault(t => t.Regex.Value.IsMatch(text));
+            }
+            catch (RegexMatchTimeoutException)
+            {
+                // ignore
+            }
+
             if (commandPattern != null && (!commandPattern.RequiresMention || mentionsBot))
             {
                 query = commandPattern.Regex.Value.Replace(text, commandPattern.Replacement);
@@ -57,7 +66,7 @@
 
         public CommandPattern()
         {
-            this.Regex = new Lazy<Regex>(() => new Regex(this.Pattern, RegexOptions.IgnoreCase));
+            this.Regex = new Lazy<Regex>(() => new Regex(this.Pattern, RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(100)));
         }
     }
 }

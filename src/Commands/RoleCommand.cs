@@ -31,8 +31,9 @@
                 IRole requestedRole = context.Message.MentionedRoles.FirstOrDefault();
                 if (requestedRole == null)
                 {
-                    requestedRole = context.GuildChannel.Guild.Roles.FirstOrDefault(r => r.Name.ToLowerInvariant() == roleArgs[1].ToLowerInvariant()) ??
-                        context.GuildChannel.Guild.Roles.FirstOrDefault(r => r.Name.ToLowerInvariant().Contains(roleArgs[1].ToLowerInvariant()));
+                    var guildRoles = context.GuildChannel.Guild.Roles.OrderBy(r => r.Position);
+                    requestedRole = guildRoles.FirstOrDefault(r => r.Name.IEquals(roleArgs[1])) ?? 
+                        guildRoles.FirstOrDefault(r => r.Name.IContains(roleArgs[1]));
 
                     if (requestedRole == null)
                     {
@@ -44,6 +45,7 @@
                 {
                     return new CommandResponse { Text = $"woah there buttmunch tryin' to cheat the system? you don't have the AUTHORITY to self-assign the {requestedRole.Name.ToUpperInvariant()} role. now make like a tree and get outta here" };
                 }
+
 
                 var guildAuthor = context.Message.Author as IGuildUser;
                 if (isAdd && guildAuthor.RoleIds.Contains(requestedRole.Id))

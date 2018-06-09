@@ -160,12 +160,6 @@ namespace UB3RB0T
                 ChannelCount = this.serverData.Values.Sum(i => i.Channels.Count),
             };
 
-            // TODO: special case twitch until it becomes a first class type
-            if (this.ircClients.ContainsKey("irc.chat.twitch.tv"))
-            {
-                heartbeatData.BotType = "Twitch";
-            }
-
             return heartbeatData;
         }
 

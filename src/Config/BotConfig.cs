@@ -74,6 +74,9 @@
         // Useful for things liek large test servers.
         public HashSet<ulong> BlockedServers { get; set; }
 
+        // Webhooks to allow through processing
+        public HashSet<ulong> AllowedWebhooks { get; set; }
+
         public HashSet<ulong> Patrons { get; set; }
 
         public HashSet<ulong> SpecialUsers { get; set; }

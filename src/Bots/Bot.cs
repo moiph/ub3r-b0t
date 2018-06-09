@@ -45,13 +45,13 @@ namespace UB3RB0T
         private ConcurrentDictionary<string, SeenUserData> seenUsers = new ConcurrentDictionary<string, SeenUserData>();
 
         protected int Shard { get; private set; } = 0;
-        protected int TotalShards { get; private set; } = 1;
         protected Logger Logger { get; }
         protected TelemetryClient AppInsights { get; private set; }
         protected BotApi BotApi { get; }
 
         protected virtual string UserId { get; }
 
+        public int TotalShards { get; private set; } = 1;
         public BotConfig Config => BotConfig.Instance;
         public abstract BotType BotType { get; }
 
@@ -316,7 +316,7 @@ namespace UB3RB0T
 
                 if (string.IsNullOrEmpty(command))
                 {
-                    if (messageData.Content.ToLowerInvariant().Contains("remind "))
+                    if (messageData.Content.IContains("remind "))
                     {
                         // check for reminders
                         Match timerAtMatch = Consts.TimerOnRegex.Match(messageData.Content);
@@ -416,7 +416,7 @@ namespace UB3RB0T
                 string response = null;
                 if (messageData.MentionsBot(this.Config.Name, Convert.ToUInt64(this.UserId)))
                 {
-                    var responseValue = PhrasesConfig.Instance.PartialMentionPhrases.FirstOrDefault(kvp => messageData.Content.ToLowerInvariant().Contains(kvp.Key.ToLowerInvariant())).Value;
+                    var responseValue = PhrasesConfig.Instance.PartialMentionPhrases.FirstOrDefault(kvp => messageData.Content.IContains(kvp.Key)).Value;
                     if (!string.IsNullOrEmpty(responseValue))
                     {
                         response = PhrasesConfig.Instance.Responses[responseValue].Random();
@@ -430,7 +430,7 @@ namespace UB3RB0T
 
                 if (response == null)
                 {
-                    response = settings.CustomCommands.FirstOrDefault(c => c.IsExactMatch && c.Command == messageData.Content || !c.IsExactMatch && messageData.Content.ToLowerInvariant().Contains(c.Command.ToLowerInvariant()))?.Response;
+                    response = settings.CustomCommands.FirstOrDefault(c => c.IsExactMatch && c.Command == messageData.Content || !c.IsExactMatch && messageData.Content.IContains(c.Command))?.Response;
                 }
 
                 if (response != null)

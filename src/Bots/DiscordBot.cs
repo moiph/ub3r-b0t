@@ -41,7 +41,7 @@ namespace UB3RB0T
 
         public DiscordSocketClient Client { get; private set; }
 
-        public static ConcurrentDictionary<string, Attachment> imageUrls = new ConcurrentDictionary<string, Attachment>();
+        public ConcurrentDictionary<string, Attachment> ImageUrls = new ConcurrentDictionary<string, Attachment>();
         private ConcurrentDictionary<ITextChannel, List<string>> messageBatch = new ConcurrentDictionary<ITextChannel, List<string>>();
 
         public override BotType BotType => BotType.Discord;
@@ -58,7 +58,7 @@ namespace UB3RB0T
                 ShardId = this.Shard,
                 TotalShards = this.TotalShards,
                 LogLevel = LogSeverity.Verbose,
-                MessageCacheSize = 100,
+                MessageCacheSize = 50,
             });
 
             this.Client.Ready += Client_Ready;
@@ -114,7 +114,7 @@ namespace UB3RB0T
         protected override async Task StopAsyncInternal(bool unexpected)
         {
             // explicitly leave all audio channels so that we can say goodbye
-            if (!unexpected)
+            if (!unexpected && this.audioManager != null)
             {
                 var audioTask = this.audioManager.LeaveAllAudioAsync();
                 var timeoutTask = Task.Delay(20000);

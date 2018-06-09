@@ -20,7 +20,7 @@
             else
             {
                 Attachment img = context.Message.Attachments.FirstOrDefault();
-                if (img != null || DiscordBot.imageUrls.TryGetValue(context.Message.Channel.Id.ToString(), out img))
+                if (img != null || context.Bot.ImageUrls.TryGetValue(context.Message.Channel.Id.ToString(), out img))
                 {
                     url = img.Url;
                     fileName = img.Filename;

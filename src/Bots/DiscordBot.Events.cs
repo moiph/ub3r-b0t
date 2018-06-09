@@ -439,9 +439,10 @@ namespace UB3RB0T
 
                 return;
             }
-            
-            // Ignore other bots
-            if (message.Author.IsBot)
+
+            // Ignore other bots unless it's an allowed webhook
+            var webhookUser = message.Author as IWebhookUser;
+            if (message.Author.IsBot && !this.Config.Discord.AllowedWebhooks.Contains(webhookUser?.WebhookId ?? 0))
             {
                 return;
             }
@@ -449,7 +450,7 @@ namespace UB3RB0T
             // grab the settings for this server
             var botGuildUser = (message.Channel as SocketGuildChannel)?.Guild.CurrentUser;
             var guildUser = message.Author as SocketGuildUser;
-            var guildId = (guildUser != null && guildUser.IsWebhook) ? null : guildUser?.Guild.Id;
+            var guildId = webhookUser?.GuildId ?? guildUser?.Guild.Id;
             var settings = SettingsConfig.GetSettings(guildId?.ToString());
 
             // if it's a globally blocked server, ignore it unless it's the owner
@@ -471,6 +472,7 @@ namespace UB3RB0T
                 ReactionUser = reactionUser,
                 BotApi = this.BotApi,
                 AudioManager = this.audioManager,
+                Bot = this,
             };
 
             foreach (var module in this.modules)
@@ -502,7 +504,7 @@ namespace UB3RB0T
 
             if (message.Attachments.FirstOrDefault() is Attachment attachment)
             {
-                imageUrls[botContext.MessageData.Channel] = attachment;
+                this.ImageUrls[botContext.MessageData.Channel] = attachment;
             }
 
             // if it's a blocked command, bail

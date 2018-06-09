@@ -174,7 +174,20 @@
             {
                 if (this.regexWordCensors == null)
                 {
-                    this.regexWordCensors = this.RegexCensors.Where(r => !string.IsNullOrWhiteSpace(r)).Select(r => { return new Regex(r, RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(250)); }).ToList();
+                    this.regexWordCensors = this.RegexCensors.Where(r => !string.IsNullOrWhiteSpace(r)).Select(r =>
+                    {
+                        try
+                        {
+                            return new Regex(r, RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(250)); 
+                        }
+                        catch (ArgumentException)
+                        {
+                            // TODO: Handle logging to alert the server owner
+                            Console.WriteLine($"Regex failure on {this.Id} for {r}");
+                        }
+
+                        return null;
+                    }).ToList();
                 }
 
                 return this.regexWordCensors.Any(r =>
