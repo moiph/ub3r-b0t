@@ -72,14 +72,14 @@
 
         // Servers that are blocked from normal usage (owner being exempt)
         // Useful for things liek large test servers.
-        public HashSet<ulong> BlockedServers { get; set; }
+        public HashSet<ulong> BlockedServers { get; set; } = new HashSet<ulong>();
 
         // Webhooks to allow through processing
-        public HashSet<ulong> AllowedWebhooks { get; set; }
+        public HashSet<ulong> AllowedWebhooks { get; set; } = new HashSet<ulong>();
 
-        public HashSet<ulong> Patrons { get; set; }
+        public HashSet<ulong> Patrons { get; set; } = new HashSet<ulong>();
 
-        public HashSet<ulong> SpecialUsers { get; set; }
+        public HashSet<ulong> SpecialUsers { get; set; } = new HashSet<ulong>();
 
         /// <summary>
         /// Key for statistics on https://www.carbonitex.net
@@ -90,11 +90,6 @@
         /// Key for statistics on https://bots.discord.pw
         /// </summary>
         public string DiscordBotsKey { get; set; }
-
-        /// <summary>
-        /// Key for statistics on https://bots.discordlist.net/
-        /// </summary>
-        public string DiscordListKey { get; set; }
 
         /// <summary>
         /// Key for statistics on https://discordbots.org/

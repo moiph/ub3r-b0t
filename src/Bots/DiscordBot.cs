@@ -267,32 +267,6 @@ namespace UB3RB0T
                 }
             }
 
-            if (!string.IsNullOrEmpty(this.Config.Discord.DiscordListKey) && this.Shard == 0)
-            {
-                try
-                {
-                    using (var httpClient = new HttpClient())
-                    {
-                        httpClient.BaseAddress = new Uri("https://bots.discordlist.net");
-                        var content = new FormUrlEncodedContent(new[]
-                        {
-                            new KeyValuePair<string, string>("token", this.Config.Discord.DiscordListKey),
-                            new KeyValuePair<string, string>("servers", (guildCount * shardCount).ToString()),
-                        });
-
-                        var result = await httpClient.PostAsync("/api", content);
-                        if (!result.IsSuccessStatusCode)
-                        {
-                            this.Logger.Log(LogType.Warn, await result.Content.ReadAsStringAsync());
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    this.Logger.Log(LogType.Warn, $"Failed to update discordlist.net stats: {ex}");
-                }
-            }
-
             if (!string.IsNullOrEmpty(this.Config.Discord.DiscordBotsOrgKey))
             {
                 try
