@@ -2,9 +2,9 @@
 {
     using System;
     using System.Linq;
-    using System.Net.Http;
     using System.Threading.Tasks;
     using Discord;
+    using Flurl.Http;
 
     public class JpegCommand : IDiscordCommand
     {
@@ -29,20 +29,16 @@
 
             if (!string.IsNullOrEmpty(url))
             {
-                using (var httpClient = new HttpClient())
-                {
-                    var response = await httpClient.GetAsync(CommandsConfig.Instance.JpegEndpoint.AppendQueryParam("url", url));
-                    var stream = await response.Content.ReadAsStreamAsync();
+                var stream = await CommandsConfig.Instance.JpegEndpoint.AppendQueryParam("url", url).GetStreamAsync();
 
-                    return new CommandResponse
+                return new CommandResponse
+                {
+                    Attachment = new FileResponse
                     {
-                        Attachment = new FileResponse
-                        {
-                            Name = fileName,
-                            Stream = stream,
-                        }
-                    };
-                }
+                        Name = fileName,
+                        Stream = stream,
+                    }
+                };
             }
 
             return null;

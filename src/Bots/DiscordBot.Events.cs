@@ -6,13 +6,13 @@ namespace UB3RB0T
     using System.IO;
     using System.Linq;
     using System.Net;
-    using System.Net.Http;
     using System.Reflection;
     using System.Text.RegularExpressions;
     using System.Threading.Tasks;
     using Discord;
     using Discord.Net;
     using Discord.WebSocket;
+    using Flurl.Http;
     using UB3RIRC;
     using UB3RB0T.Commands;
 
@@ -412,6 +412,7 @@ namespace UB3RB0T
         /// <summary>
         /// Handles responses for messages.
         /// TODO: This method is way too huge.
+        /// TODO: read prior todo, IT'S GETTING WORSe, STAHP
         /// </summary>
         private async Task HandleMessageReceivedAsync(SocketMessage socketMessage, string reactionType = null, IUser reactionUser = null)
         {
@@ -455,6 +456,12 @@ namespace UB3RB0T
 
             // if it's a globally blocked server, ignore it unless it's the owner
             if (message.Author.Id != this.Config.Discord.OwnerId && guildId != null && this.Config.Discord.BlockedServers.Contains(guildId.Value) && !this.Config.OcrAutoIds.Contains(message.Channel.Id))
+            {
+                return;
+            }
+
+            // if it's a globally blocked user, ignore them
+            if (this.Config.Discord.BlockedUsers.Contains(message.Author.Id))
             {
                 return;
             }
@@ -555,12 +562,7 @@ namespace UB3RB0T
 
                     if (Uri.TryCreate(responseData.AttachmentUrl, UriKind.Absolute, out Uri attachmentUri))
                     {
-                        Stream fileStream;
-                        using (var httpClient = new HttpClient())
-                        {
-                            var response = await httpClient.GetAsync(attachmentUri);
-                            fileStream = await response.Content.ReadAsStreamAsync();
-                        }
+                        Stream fileStream = await attachmentUri.GetStreamAsync();
 
                         var sentMessage = await message.Channel.SendFileAsync(fileStream, Path.GetFileName(attachmentUri.AbsolutePath));
                         this.botResponsesCache.Add(message.Id, sentMessage);

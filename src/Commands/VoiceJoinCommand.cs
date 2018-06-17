@@ -18,8 +18,10 @@
             {
                 try
                 {
-                    await context.AudioManager.JoinAudioAsync(channel);
-                    await context.Message.Channel.SendMessageAsync($"[Joined {channel.Name}]");
+                    if (await context.AudioManager.JoinAudioAsync(channel))
+                    {
+                        await context.Message.Channel.SendMessageAsync($"[Joined {channel.Name}]");
+                    }
                 }
                 catch (Exception ex)
                 {

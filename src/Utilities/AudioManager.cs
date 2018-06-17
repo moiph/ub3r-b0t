@@ -13,8 +13,10 @@
         private ConcurrentDictionary<ulong, AudioInstance> audioInstances = new ConcurrentDictionary<ulong, AudioInstance>();
         private ConcurrentDictionary<string, byte[]> audioBytes = new ConcurrentDictionary<string, byte[]>();
 
-        public async Task JoinAudioAsync(IVoiceChannel voiceChannel)
+        public async Task<bool> JoinAudioAsync(IVoiceChannel voiceChannel)
         {
+            bool joinedAudio = false;
+
             var currentUser = await voiceChannel.Guild.GetCurrentUserAsync();
             if (!audioInstances.TryGetValue(voiceChannel.GuildId, out AudioInstance audioInstance) || currentUser.VoiceChannel == null)
             {
@@ -26,6 +28,8 @@
 
                 audioInstances[voiceChannel.GuildId] = audioInstance;
                 audioInstance.Stream = audioInstance.AudioClient.CreatePCMStream(Discord.Audio.AudioApplication.Voice, null, 250);
+
+                joinedAudio = true;
             }
             else
             {
@@ -48,6 +52,8 @@
                     Console.WriteLine(ex);
                 };
             }
+
+            return joinedAudio;
         }
 
         public async Task LeaveAllAudioAsync()

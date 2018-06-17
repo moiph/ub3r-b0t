@@ -9,6 +9,7 @@ namespace UB3RB0T
     using System;
     using System.Collections.Generic;
     using System.Globalization;
+    using System.IO;
     using System.Linq;
     using System.Net.Http;
     using System.Text.RegularExpressions;
@@ -36,6 +37,11 @@ namespace UB3RB0T
         public static Task<HttpResponseMessage> PostJsonAsync(this Uri uri, object data)
         {
             return uri.ToString().PostJsonAsync(data);
+        }
+
+        public static Task<Stream> GetStreamAsync(this Uri uri)
+        {
+            return uri.ToString().GetStreamAsync();
         }
 
         public static long ToUnixMilliseconds(DateTimeOffset dto)
@@ -164,22 +170,17 @@ namespace UB3RB0T
 
         public static async Task<T> GetApiResponseAsync<T>(Uri uri)
         {
-            using (var httpClient = new HttpClient())
+            try
             {
-                try
-                {
-                    httpClient.Timeout = TimeSpan.FromSeconds(10);
-                    var content = await httpClient.GetStringAsync(uri);
-
-                    return JsonConvert.DeserializeObject<T>(content);
-                }
-                catch (Exception ex)
-                {
-                    // TODO: proper logger
-                    Console.WriteLine($"Failed to parse {uri}: ");
-                    Console.WriteLine(ex);
-                    return default(T);
-                }
+                var content = await uri.ToString().WithTimeout(TimeSpan.FromSeconds(10)).GetStringAsync();
+                return JsonConvert.DeserializeObject<T>(content);
+            }
+            catch (Exception ex)
+            {
+                // TODO: proper logger
+                Console.WriteLine($"Failed to parse {uri}: ");
+                Console.WriteLine(ex);
+                return default(T);
             }
         }
 

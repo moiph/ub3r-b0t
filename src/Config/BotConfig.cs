@@ -74,6 +74,9 @@
         // Useful for things liek large test servers.
         public HashSet<ulong> BlockedServers { get; set; } = new HashSet<ulong>();
 
+        // Globally blocked users (e.g. rule breakers, bot abusers, rustlers, cut throats, murderers, bounty hunters, desperados, mugs, pugs, thugs, nitwits, halfwits, dimwits, vipers, snipers, con men, and so on)
+        public HashSet<ulong> BlockedUsers { get; set; } = new HashSet<ulong>();
+
         // Webhooks to allow through processing
         public HashSet<ulong> AllowedWebhooks { get; set; } = new HashSet<ulong>();
 
