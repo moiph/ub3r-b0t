@@ -83,7 +83,7 @@ namespace UB3RB0T
                     try
                     {
                         string messageContent = $"{iconType} {severity} on {this.BotType} shard {this.Shard}: {message}";
-                        this.WebhookUri.PostJsonAsync(new { content = messageContent.Substring(0, Math.Min(messageContent.Length, MessageLengthLimit)) });
+                        this.WebhookUri.PostJsonAsync(new { content = messageContent.SubstringUpTo(MessageLengthLimit) });
                     }
                     catch (Exception ex)
                     {

@@ -32,7 +32,7 @@
             {
                 string query = string.Empty;
                 int argPos = 0;
-                if (DiscordMessageData?.HasMentionPrefix(BotConfig.Instance.Discord.BotId, ref argPos) == true)
+                if (this.Content.HasMentionPrefix(BotConfig.Instance.Discord.BotId, ref argPos) == true)
                 {
                     query = this.Content.Substring(argPos);
                 }

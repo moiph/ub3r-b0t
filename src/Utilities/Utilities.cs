@@ -121,9 +121,8 @@ namespace UB3RB0T
             return embedBuilder;
         }
 
-        public static bool HasMentionPrefix(this IUserMessage msg, ulong botUserId, ref int argPos)
+        public static bool HasMentionPrefix(this string text, ulong botUserId, ref int argPos)
         {
-            var text = msg.Content;
             if (text.Length <= 3 || text[0] != '<' || text[1] != '@')
             {
                 return false;

@@ -31,7 +31,7 @@
             }
             catch (Exception ex)
             {
-                result = ex.ToString().Substring(0, Math.Min(ex.ToString().Length, 800));
+                result = ex.ToString().SubstringUpTo(800);
             }
 
             return new CommandResponse { Text = $"``{result}``" };

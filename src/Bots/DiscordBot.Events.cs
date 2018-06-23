@@ -629,7 +629,7 @@ namespace UB3RB0T
                     if (messageBefore.HasValue && messageBefore.Value.Content != messageAfter.Content && !string.IsNullOrEmpty(messageBefore.Value.Content))
                     {
                         string editText = $"**{messageAfter.Author.Username}** modified in {textChannel.Mention}: `{messageBefore.Value.Content}` to `{messageAfter.Content}`";
-                        await modLogChannel.SendMessageAsync(editText.Substring(0, Math.Min(editText.Length, Discord.DiscordConfig.MaxMessageSize)));
+                        await modLogChannel.SendMessageAsync(editText.SubstringUpTo(Discord.DiscordConfig.MaxMessageSize));
                     }
                 }
 
@@ -681,7 +681,7 @@ namespace UB3RB0T
                         delText += " " + string.Join(" ", message.Attachments.Select(a => a.Url));
                     }
 
-                    this.BatchSendMessageAsync(modLogChannel, delText.SubstringUpTo(2000));
+                    this.BatchSendMessageAsync(modLogChannel, delText.SubstringUpTo(Discord.DiscordConfig.MaxMessageSize));
                 }
             }
         }
@@ -724,7 +724,7 @@ namespace UB3RB0T
 
             this.TrackEvent("messageSent", props);
 
-            response = response.Substring(0, Math.Min(response.Length, 2000));
+            response = response.SubstringUpTo(Discord.DiscordConfig.MaxMessageSize);
 
             if (!bypassEdit && this.botResponsesCache.Get(message.Id) is IUserMessage oldMsg)
             {
