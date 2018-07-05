@@ -13,6 +13,8 @@
 
         public Uri JpegEndpoint { get; set; }
 
+        public int CommandLengthLimit { get; set; }
+
         public string HelperKey { get; set; }
 
         public string[] UserInfoSnippets { get; set; }
@@ -25,6 +27,12 @@
         {
             query = string.Empty;
             command = string.Empty;
+
+            // if the text is greater than a configurable number of characters, just bail out. not a valid command to parse.
+            if (text.Length > this.CommandLengthLimit)
+            {
+                return false;
+            }
 
             CommandPattern commandPattern = null;
             try

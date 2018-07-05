@@ -12,7 +12,6 @@ namespace UB3RB0T
     using Discord;
     using Discord.Net;
     using Discord.WebSocket;
-    using Flurl.Http;
     using UB3RIRC;
     using UB3RB0T.Commands;
 
@@ -435,7 +434,10 @@ namespace UB3RB0T
                 if (isOutbound)
                 {
                     var logMessage = message.Embeds?.Count > 0 ? $"\tSending [embed content] to {message.Channel.Name}" : $"\tSending to {message.Channel.Name}: {message.Content}";
-                    this.Logger.Log(LogType.Outgoing, logMessage);
+                    if (this.Config.LogOutgoing)
+                    {
+                        this.Logger.Log(LogType.Outgoing, logMessage);
+                    }
                 }
 
                 return;
@@ -547,7 +549,7 @@ namespace UB3RB0T
                 if (CommandsConfig.Instance.Commands.ContainsKey(command))
                 {
                     // possible bug with typing state
-                    Console.WriteLine($"typing triggered by {command}");
+                    this.Logger.Log(LogType.Debug, $"typing triggered by {command}");
                     typingState = message.Channel.EnterTypingState();
                 }
 
@@ -756,7 +758,7 @@ namespace UB3RB0T
                             text += webhook.MentionText;
                         }
 
-                        var result = await webhook.Endpoint.PostJsonAsync(new { text = text, username = message.Author.Username });
+                        var result = await webhook.Endpoint.PostJsonAsync(new { text, username = message.Author.Username });
                     }
                     catch (Exception ex)
                     {

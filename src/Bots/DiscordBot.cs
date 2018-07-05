@@ -5,7 +5,6 @@ namespace UB3RB0T
     using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Linq;
-    using System.Net.Http;
     using System.Text.RegularExpressions;
     using System.Threading;
     using System.Threading.Tasks;
@@ -58,7 +57,7 @@ namespace UB3RB0T
                 ShardId = this.Shard,
                 TotalShards = this.TotalShards,
                 LogLevel = LogSeverity.Verbose,
-                MessageCacheSize = 50,
+                MessageCacheSize = 25,
             });
 
             this.Client.Ready += Client_Ready;
@@ -139,10 +138,8 @@ namespace UB3RB0T
         /// <inheritdoc />
         protected override async Task<bool> SendNotification(NotificationData notification)
         {
-            var guild = this.Client.GetGuild(Convert.ToUInt64(notification.Server)) as IGuild;
-
             // if the guild wasn't found, it belongs to another shard.
-            if (guild == null)
+            if (!(this.Client.GetGuild(Convert.ToUInt64(notification.Server)) is IGuild guild))
             {
                 return false;
             }
@@ -245,6 +242,7 @@ namespace UB3RB0T
                 try
                 {
                     var result = await $"https://bots.discord.pw/api/bots/{this.UserId}/stats"
+                        .WithTimeout(5)
                         .WithHeader("Authorization", this.Config.Discord.DiscordBotsKey)
                         .PostJsonAsync(new { shard_id = shardId, shard_count = shardCount, server_count = guildCount });
                 }
@@ -259,6 +257,7 @@ namespace UB3RB0T
                 try
                 {
                     var result = await "https://www.carbonitex.net/discord/data/botdata.php"
+                        .WithTimeout(5)
                         .PostJsonAsync(new { key = this.Config.Discord.CarbonStatsKey, shard_id = shardId, shard_count = shardCount, servercount = guildCount });
                 }
                 catch (Exception ex)
@@ -272,6 +271,7 @@ namespace UB3RB0T
                 try
                 {
                     var result = await $"https://discordbots.org/api/bots/{this.UserId}/stats"
+                        .WithTimeout(5)
                         .WithHeader("Authorization", this.Config.Discord.DiscordBotsOrgKey)
                         .PostJsonAsync(new { shard_id = shardId, shard_count = shardCount, server_count = guildCount });
                 }

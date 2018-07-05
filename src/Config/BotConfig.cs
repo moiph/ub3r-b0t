@@ -55,6 +55,9 @@
         public string InstrumentationKey { get; set; }
 
         public string CertThumbprint { get; set; }
+
+        // Whether or not to log outgoing messages
+        public bool LogOutgoing { get; set; }
     }
 
     public class DiscordConfig
@@ -131,6 +134,11 @@
         /// The port for the server (defaults to 6667)
         /// </summary>
         public int Port { get; set; } = 6667;
+
+        /// <summary>
+        /// Whether or not to use SSL when connecting to this server.
+        /// </summary>
+        public bool UseSsl { get; set; }
 
         /// <summary>
         /// List of channels to join.

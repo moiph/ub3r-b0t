@@ -36,12 +36,12 @@ namespace UB3RB0T
 
         public static Task<HttpResponseMessage> PostJsonAsync(this Uri uri, object data)
         {
-            return uri.ToString().PostJsonAsync(data);
+            return uri.ToString().WithTimeout(10).PostJsonAsync(data);
         }
 
         public static Task<Stream> GetStreamAsync(this Uri uri)
         {
-            return uri.ToString().GetStreamAsync();
+            return uri.ToString().WithTimeout(10).GetStreamAsync();
         }
 
         public static long ToUnixMilliseconds(DateTimeOffset dto)

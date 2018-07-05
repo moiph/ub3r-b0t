@@ -10,8 +10,8 @@ namespace UB3RB0T
 
     public class IrcBot : Bot
     {
-        private Dictionary<string, IrcClient> ircClients = new Dictionary<string, IrcClient>();
-        private Dictionary<string, ServerData> serverData = new Dictionary<string, ServerData>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, IrcClient> ircClients = new Dictionary<string, IrcClient>();
+        private readonly Dictionary<string, ServerData> serverData = new Dictionary<string, ServerData>(StringComparer.OrdinalIgnoreCase);
         private static Regex namesRegex = new Regex(".*(#[^ ]+) :(.*)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         public IrcBot(int shard) : base(shard, 1)
@@ -35,7 +35,7 @@ namespace UB3RB0T
             foreach (IrcServer server in this.Config.Irc.Servers.Where(s => s.Enabled))
             {
                 this.serverData.Add(server.Host, new ServerData());
-                var ircClient = new IrcClient(server.Host, server.Nick ?? this.Config.Name, server.Host, server.Port, /* useSsl -- pending support */false, server.Password);
+                var ircClient = new IrcClient(server.Host, server.Nick ?? this.Config.Name, server.Host, server.Port, server.UseSsl, server.Password);
                 this.ircClients.Add(server.Host, ircClient);
                 ircClient.OnIrcEvent += this.OnIrcEventAsync;
 

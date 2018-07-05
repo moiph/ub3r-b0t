@@ -7,7 +7,7 @@
   </PropertyGroup>
   <PropertyGroup>
     <OutputType>exe</OutputType>
-    <TargetFramework>netcoreapp1.0</TargetFramework>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <PrimaryVersionType>AssemblyVersionAttribute</PrimaryVersionType>
     <AssemblyInfoFilePath>AssemblyInfo.cs</AssemblyInfoFilePath>
@@ -15,9 +15,9 @@
     <UpdateAssemblyFileVersion>False</UpdateAssemblyFileVersion>
     <UpdateAssemblyInfoVersion>False</UpdateAssemblyInfoVersion>
     <AssemblyVersionSettings>IncrementOnDemand.IncrementOnDemand.DateStamp.Increment</AssemblyVersionSettings>
-    <Version>4.2.0</Version>
-    <AssemblyVersion>4.2.1806.0</AssemblyVersion>
-    <FileVersion>4.2.1806.0</FileVersion>
+    <Version>4.3.0</Version>
+    <AssemblyVersion>4.3.1807.0</AssemblyVersion>
+    <FileVersion>4.3.1807.0</FileVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <DebugType>pdbonly</DebugType>
@@ -56,6 +56,6 @@
     <PackageReference Include="Microsoft.AspNetCore.WebUtilities" Version="1.1.2" />
     <PackageReference Include="Microsoft.Azure.ServiceBus" Version="0.0.6-preview" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="2.8.0" />
-    <PackageReference Include="UB3RIRC" Version="1.0.3" />
+    <PackageReference Include="UB3RIRC" Version="2.0.0" />
   </ItemGroup>
 </Project>

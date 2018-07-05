@@ -8,7 +8,7 @@
 
     public class UserInfoCommand : IDiscordCommand
     {
-        public Task<CommandResponse> Process(IDiscordBotContext context)
+        public async Task<CommandResponse> Process(IDiscordBotContext context)
         {
             SocketUser targetUser = context.Message.MentionedUsers?.FirstOrDefault();
 
@@ -25,7 +25,7 @@
 
                     if (targetUser == null)
                     {
-                        return Task.FromResult(new CommandResponse { Text = "User not found. Try a direct mention." });
+                        return new CommandResponse { Text = "User not found. Try a direct mention." };
                     }
                 }
                 else
@@ -34,12 +34,13 @@
                 }
             }
 
-            var guildUser = targetUser as SocketGuildUser;
 
-            if (guildUser == null)
+            if (!(targetUser is SocketGuildUser guildUser))
             {
                 return null;
             }
+
+            await guildUser.Guild.DownloadUsersAsync();
 
             var userInfo = new
             {
@@ -50,6 +51,7 @@
                 Created = $"{targetUser.GetCreatedDate().ToString("dd MMM yyyy")} {targetUser.GetCreatedDate().ToString("hh:mm:ss tt")} UTC",
                 Joined = guildUser.JoinedAt.HasValue ? $"{guildUser.JoinedAt.Value.ToString("dd MMM yyyy")} {guildUser.JoinedAt.Value.ToString("hh:mm:ss tt")} UTC" : "[data temporarily missing]",
                 Id = targetUser.Id.ToString(),
+                JoinPosition = guildUser.Guild.Users.OrderBy(u => u.JoinedAt).Select((Value, Index) => new { Value, Index }).Single(u => u.Value.Id == targetUser.Id).Index
             };
 
             EmbedBuilder embedBuilder = null;
@@ -82,6 +84,13 @@
                     field.Value = userInfo.Created;
                 });
 
+                embedBuilder.AddField((field) =>
+                {
+                    field.IsInline = true;
+                    field.Name = "join position";
+                    field.Value = userInfo.JoinPosition;
+                });
+
                 if (guildUser.JoinedAt.HasValue)
                 {
                     embedBuilder.AddField((field) =>
@@ -91,6 +100,13 @@
                         field.Value = userInfo.Joined;
                     });
                 }
+
+                embedBuilder.AddField((field) =>
+                {
+                    field.IsInline = true;
+                    field.Name = "id";
+                    field.Value = userInfo.Id;
+                });
 
                 var roles = new List<string>();
                 foreach (var role in guildUser.Roles)
@@ -110,20 +126,13 @@
                         field.Value = string.Join(", ", roles);
                     });
                 }
-
-                embedBuilder.AddField((field) =>
-                {
-                    field.IsInline = true;
-                    field.Name = "Id";
-                    field.Value = userInfo.Id;
-                });
             }
             else
             {
-                text = $"{userInfo.Title}{userInfo.NicknameInfo}: ID: {userInfo.Id} | Created: {userInfo.Created} | Joined: {userInfo.Joined} | word on the street: {userInfo.Footnote}";
+                text = $"{userInfo.Title}{userInfo.NicknameInfo}: ID: {userInfo.Id} | Created: {userInfo.Created} | Joined: {userInfo.Joined} | Join position: {userInfo.JoinPosition} | word on the street: {userInfo.Footnote}";
             }
 
-            return Task.FromResult(new CommandResponse { Text = text, Embed = embedBuilder?.Build() });
+            return new CommandResponse { Text = text, Embed = embedBuilder?.Build() };
         }
     }
 }

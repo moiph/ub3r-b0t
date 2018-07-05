@@ -39,10 +39,10 @@ namespace UB3RB0T
         private Timer heartbeatTimer;
         private Timer seenTimer;
 
-        private ConcurrentDictionary<string, string> urls = new ConcurrentDictionary<string, string>();
-        private ConcurrentDictionary<string, int> commandsIssued = new ConcurrentDictionary<string, int>();
-        private ConcurrentDictionary<string, RepeatData> repeatData = new ConcurrentDictionary<string, RepeatData>();
-        private ConcurrentDictionary<string, SeenUserData> seenUsers = new ConcurrentDictionary<string, SeenUserData>();
+        private readonly ConcurrentDictionary<string, string> urls = new ConcurrentDictionary<string, string>();
+        private readonly ConcurrentDictionary<string, int> commandsIssued = new ConcurrentDictionary<string, int>();
+        private readonly ConcurrentDictionary<string, RepeatData> repeatData = new ConcurrentDictionary<string, RepeatData>();
+        private readonly ConcurrentDictionary<string, SeenUserData> seenUsers = new ConcurrentDictionary<string, SeenUserData>();
 
         protected int Shard { get; private set; } = 0;
         protected Logger Logger { get; }
@@ -57,7 +57,7 @@ namespace UB3RB0T
 
         protected Bot(int shard, int totalShards)
         {
-            this.Logger = new Logger(LogType.Debug, new List<ILog> { new ConsoleLog() });
+            this.Logger = new Logger(LogType.Warn, new List<ILog> { new ConsoleLog() });
             this.Shard = shard;
             this.TotalShards = totalShards;
             if (!string.IsNullOrEmpty(this.Config.QueueNamePrefix))
@@ -264,6 +264,7 @@ namespace UB3RB0T
             {
                 var repeat = repeatData.GetOrAdd(messageData.Channel + messageData.Server, new RepeatData());
                 if (string.Equals(repeat.Text, messageData.Content, StringComparison.OrdinalIgnoreCase))
+
                 {
                     if (!repeat.Nicks.Contains(messageData.UserId ?? messageData.UserName))
                     {

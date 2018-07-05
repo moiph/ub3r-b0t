@@ -9,7 +9,6 @@
     public class AudioInstance : IDisposable
     {
         internal bool isDisposed;
-        internal bool isDisconnecting;
 
         internal readonly SemaphoreSlim streamLock = new SemaphoreSlim(1, 1);
 
