@@ -13,6 +13,12 @@
         Trello = 16,
         Picarto = 32,
         Reminder = 64,
+        System = 128, // used for internal system notifications
+    }
+
+    public enum SubType
+    {
+        SettingsUpdate,
     }
 
     public class NotificationData
@@ -21,6 +27,7 @@
         public string Channel { get; set; }
         public string Server { get; set; }
         public NotificationType Type { get; set; } = NotificationType.Generic;
+        public SubType SubType { get; set; }
         public string Text { get; set; }
         public BotType BotType { get; set; } = BotType.Discord;
         public EmbedData Embed { get; set; }

@@ -237,47 +237,42 @@ namespace UB3RB0T
             var guildCount = this.Client.Guilds.Count();
             var shardId = this.Client.ShardId;
 
-            if (!string.IsNullOrEmpty(this.Config.Discord.DiscordBotsKey))
+            foreach (var botData in this.Config.Discord.BotStats)
             {
-                try
+                if (botData.Enabled)
                 {
-                    var result = await $"https://bots.discord.pw/api/bots/{this.UserId}/stats"
-                        .WithTimeout(5)
-                        .WithHeader("Authorization", this.Config.Discord.DiscordBotsKey)
-                        .PostJsonAsync(new { shard_id = shardId, shard_count = shardCount, server_count = guildCount });
-                }
-                catch (Exception ex)
-                {
-                    this.Logger.Log(LogType.Warn, $"Failed to update bots.discord.pw stats: {ex}");
-                }
-            }
+                    string endpoint = botData.Endpoint.Replace("{{userId}}", this.UserId);
 
-            if (!string.IsNullOrEmpty(this.Config.Discord.CarbonStatsKey))
-            {
-                try
-                {
-                    var result = await "https://www.carbonitex.net/discord/data/botdata.php"
-                        .WithTimeout(5)
-                        .PostJsonAsync(new { key = this.Config.Discord.CarbonStatsKey, shard_id = shardId, shard_count = shardCount, servercount = guildCount });
-                }
-                catch (Exception ex)
-                {
-                    this.Logger.Log(LogType.Warn, $"Failed to update carbon stats: {ex}");
-                }
-            }
+                    // run token replacements on the known payload's properties
+                    foreach (var token in botData.PayloadProps)
+                    {
+                        switch (token.Key)
+                        {
+                            case "key":
+                                botData.Payload[token.Value] = botData.Key;
+                                break;
+                            case "shardId":
+                                botData.Payload[token.Value] = shardId;
+                                break;
+                            case "shardCount":
+                                botData.Payload[token.Value] = shardCount;
+                                break;
+                            case "guildCount":
+                                botData.Payload[token.Value] = guildCount;
+                                break;
+                        }
+                    }
 
-            if (!string.IsNullOrEmpty(this.Config.Discord.DiscordBotsOrgKey))
-            {
-                try
-                {
-                    var result = await $"https://discordbots.org/api/bots/{this.UserId}/stats"
-                        .WithTimeout(5)
-                        .WithHeader("Authorization", this.Config.Discord.DiscordBotsOrgKey)
-                        .PostJsonAsync(new { shard_id = shardId, shard_count = shardCount, server_count = guildCount });
-                }
-                catch (Exception ex)
-                {
-                    this.Logger.Log(LogType.Warn, $"Failed to update discordbots.org stats: {ex}");
+                    try
+                    {
+                        await endpoint.WithTimeout(5)
+                            .WithHeader("Authorization", botData.Key)
+                            .PostJsonAsync((object)botData.Payload);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.Logger.Log(LogType.Warn, $"Failed to update {botData.Name} stats: {ex}");
+                    }
                 }
             }
         }

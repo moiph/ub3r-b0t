@@ -16,7 +16,7 @@
     <UpdateAssemblyInfoVersion>False</UpdateAssemblyInfoVersion>
     <AssemblyVersionSettings>IncrementOnDemand.IncrementOnDemand.DateStamp.Increment</AssemblyVersionSettings>
     <Version>4.3.0</Version>
-    <AssemblyVersion>4.3.1807.0</AssemblyVersion>
+    <AssemblyVersion>4.3.1807.1</AssemblyVersion>
     <FileVersion>4.3.1807.0</FileVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">

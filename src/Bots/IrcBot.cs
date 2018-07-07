@@ -61,7 +61,10 @@ namespace UB3RB0T
         public async void OnIrcEventAsync(MessageData data, IrcClient client)
         {
             var responses = new List<string>();
-            var settings = new Settings();
+            var settings = new Settings
+            {
+                FunResponsesEnabled = true,
+            };
 
             if (data.Verb == ReplyCode.RPL_ENDOFMOTD || data.Verb == ReplyCode.RPL_NOMOTD) //  motd end or motd missing
             {

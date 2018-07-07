@@ -35,14 +35,16 @@ namespace UB3RB0T
         private QueueClient queueClient;
         private readonly string queueName;
 
-        private Timer settingsUpdateTimer;
         private Timer heartbeatTimer;
         private Timer seenTimer;
+        private Timer throttleTimer;
 
         private readonly ConcurrentDictionary<string, string> urls = new ConcurrentDictionary<string, string>();
         private readonly ConcurrentDictionary<string, int> commandsIssued = new ConcurrentDictionary<string, int>();
         private readonly ConcurrentDictionary<string, RepeatData> repeatData = new ConcurrentDictionary<string, RepeatData>();
         private readonly ConcurrentDictionary<string, SeenUserData> seenUsers = new ConcurrentDictionary<string, SeenUserData>();
+
+        private readonly SemaphoreSlim settingsLock = new SemaphoreSlim(1, 1);
 
         protected int Shard { get; private set; } = 0;
         protected Logger Logger { get; }
@@ -118,12 +120,6 @@ namespace UB3RB0T
             if (this.Config.SettingsEndpoint != null && this.BotType == BotType.Discord)
             {
                 await this.UpdateSettingsAsync();
-
-                // set a recurring timer to refresh settings
-                this.settingsUpdateTimer = new Timer(async (object state) =>
-                {
-                    await this.UpdateSettingsAsync();
-                }, null, 30000, 30000);
             }
 
             await this.StartAsyncInternal();
@@ -179,13 +175,29 @@ namespace UB3RB0T
 
                     if (notificationData != null)
                     {
-                        try
+
+                        // If it's a system notification, handle it directly, otherwise pass it along
+                        if (notificationData.Type == NotificationType.System)
                         {
-                            await this.SendNotification(notificationData);
+                            if (notificationData.SubType == SubType.SettingsUpdate)
+                            {
+                                await this.UpdateSettingsAsync();
+                            }
+                            else
+                            {
+                                this.Logger.Log(LogType.Error, $"Error processing notification, unrecognized subtype: {notificationData.SubType}");
+                            }
                         }
-                        catch (Exception ex)
+                        else
                         {
-                            this.Logger.Log(LogType.Error, "Error processing notification: {0}", ex);
+                            try
+                            {
+                                await this.SendNotification(notificationData);
+                            }
+                            catch (Exception ex)
+                            {
+                                this.Logger.Log(LogType.Error, "Error processing notification: {0}", ex);
+                            }
                         }
                     }
 
@@ -212,8 +224,8 @@ namespace UB3RB0T
         {
             this.Logger.Log(LogType.Debug, "dispose start");
             this.queueClient?.CloseAsync();
-            this.settingsUpdateTimer?.Dispose();
             this.heartbeatTimer?.Dispose();
+            this.throttleTimer?.Dispose();
             this.seenTimer?.Dispose();
             this.listenerHost?.Dispose();
             this.Logger.Log(LogType.Debug, "dispose end");
@@ -380,11 +392,11 @@ namespace UB3RB0T
                             return val + 1;
                         });
 
-                        if (commandCount > 12)
+                        if (commandCount > 6)
                         {
                             return responseData;
                         }
-                        else if (commandCount > 10)
+                        else if (commandCount > 5)
                         {
                             responses.Add("rate limited try later");
                             return responseData;
@@ -466,8 +478,6 @@ namespace UB3RB0T
                     properties.Remove("channel");
                 }
             }
-
-            this.AppInsights?.TrackEvent(eventName, properties);
 
             var tags = new List<string>();
             foreach (var kvp in properties)
@@ -559,6 +569,8 @@ namespace UB3RB0T
         /// <returns></returns>
         private async Task UpdateSettingsAsync()
         {
+            await settingsLock.WaitAsync();
+
             try
             {
                 this.Logger.Log(LogType.Debug, "Fetching server settings...");
@@ -570,6 +582,10 @@ namespace UB3RB0T
             catch (Exception ex)
             {
                 this.Logger.Log(LogType.Warn, $"Failed to update server settings: {ex}");
+            }
+            finally
+            {
+                settingsLock.Release();
             }
         }
 
@@ -584,6 +600,12 @@ namespace UB3RB0T
             }
 
             heartbeatTimer = new Timer(HeartbeatTimerAsync, null, 60000, 60000);
+            throttleTimer = new Timer(ThrottleTimer, null, 10000, 10000);
+        }
+
+        private void ThrottleTimer(object state)
+        {
+            this.commandsIssued.Clear();
         }
 
         /// <summary>
@@ -614,7 +636,6 @@ namespace UB3RB0T
         private async void HeartbeatTimerAsync(object state)
         {
             this.Logger.Log(LogType.Debug, "Heartbeat");
-            this.commandsIssued.Clear();
 
             PhrasesConfig.Instance.Reset();
             CommandsConfig.Instance.Reset();

@@ -88,19 +88,9 @@
         public HashSet<ulong> SpecialUsers { get; set; } = new HashSet<ulong>();
 
         /// <summary>
-        /// Key for statistics on https://www.carbonitex.net
+        /// Endpoints for bot lists
         /// </summary>
-        public string CarbonStatsKey { get; set; }
-
-        /// <summary>
-        /// Key for statistics on https://bots.discord.pw
-        /// </summary>
-        public string DiscordBotsKey { get; set; }
-
-        /// <summary>
-        /// Key for statistics on https://discordbots.org/
-        /// </summary>
-        public string DiscordBotsOrgKey { get; set; }
+        public BotStatData[] BotStats { get; set; } = new BotStatData[] { };
 
         /// <summary>
         /// Outgoing webhooks, to send messages for particular channels to...wherever
@@ -114,6 +104,17 @@
         public string UserName { get; set; }
         public ulong MentionUserId { get; set; }
         public string MentionText { get; set; }
+    }
+
+    public class BotStatData
+    {
+        public string Name { get; set; }
+        public string Key { get; set; }
+        public string Endpoint { get; set; }
+        public dynamic Payload { get; set; }
+        public bool Enabled { get; set; }
+        // Mapping of known property to payload property name, e.g. guildCount => server_count or guildCount => guilds
+        public Dictionary<string, string> PayloadProps { get; set; }
     }
 
     public class Irc
