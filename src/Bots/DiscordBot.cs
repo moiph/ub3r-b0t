@@ -40,8 +40,8 @@ namespace UB3RB0T
 
         public DiscordSocketClient Client { get; private set; }
 
-        public ConcurrentDictionary<string, Attachment> ImageUrls = new ConcurrentDictionary<string, Attachment>();
-        private ConcurrentDictionary<ITextChannel, List<string>> messageBatch = new ConcurrentDictionary<ITextChannel, List<string>>();
+        public readonly ConcurrentDictionary<string, Attachment> ImageUrls = new ConcurrentDictionary<string, Attachment>();
+        private readonly ConcurrentDictionary<ITextChannel, List<string>> messageBatch = new ConcurrentDictionary<ITextChannel, List<string>>();
 
         public override BotType BotType => BotType.Discord;
 
@@ -70,7 +70,9 @@ namespace UB3RB0T
             this.Client.UserJoined += (user) => this.HandleEvent(DiscordEventType.UserJoined, user);
             this.Client.UserLeft += (user) => this.HandleEvent(DiscordEventType.UserLeft, user);
             this.Client.UserVoiceStateUpdated += (user, beforeState, afterState) => this.HandleEvent(DiscordEventType.UserVoiceStateUpdated, user, beforeState, afterState);
-            this.Client.GuildMemberUpdated += (userBefore, userAfter) => this.HandleEvent(DiscordEventType.GuildMemberUpdated, userBefore, userAfter);
+            // This fires *a lot* and acted upon infrequently;
+            // TOOD: re-evaluate this approach of generalizing event handling to Task.Run() everything...
+            this.Client.GuildMemberUpdated += (userBefore, userAfter) => this.HandleGuildMemberUpdated(userBefore, userAfter);
             this.Client.UserBanned += (user, guild) => this.HandleEvent(DiscordEventType.UserBanned, user, guild);
 
             this.Client.MessageReceived += (message) => this.HandleEvent(DiscordEventType.MessageReceived, message);
@@ -191,7 +193,7 @@ namespace UB3RB0T
                 }
                 else
                 {
-                    await channelToUse.SendMessageAsync(notification.Text);
+                    await channelToUse.SendMessageAsync(notification.Text.SubstringUpTo(Discord.DiscordConfig.MaxMessageSize));
                 }
 
                 var props = new Dictionary<string, string> {

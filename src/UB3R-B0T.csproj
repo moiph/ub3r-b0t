@@ -16,8 +16,8 @@
     <UpdateAssemblyInfoVersion>False</UpdateAssemblyInfoVersion>
     <AssemblyVersionSettings>IncrementOnDemand.IncrementOnDemand.DateStamp.Increment</AssemblyVersionSettings>
     <Version>4.3.0</Version>
-    <AssemblyVersion>4.3.1807.1</AssemblyVersion>
-    <FileVersion>4.3.1807.0</FileVersion>
+    <AssemblyVersion>4.3.1807.8</AssemblyVersion>
+    <FileVersion>4.3.1807.8</FileVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <DebugType>pdbonly</DebugType>
@@ -49,7 +49,7 @@
   <ItemGroup>
     <PackageReference Include="Discord.Net.WebSocket" Version="2.0.0-beta2-00970" />
     <PackageReference Include="DogStatsD-CSharp-Client" Version="3.1.0" />
-    <PackageReference Include="Flurl.Http" Version="2.1.1" />
+    <PackageReference Include="Flurl.Http" Version="2.3.2" />
     <PackageReference Include="Microsoft.ApplicationInsights" Version="2.4.0" />
     <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel" Version="1.1.3" />
     <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel.Https" Version="1.1.3" />

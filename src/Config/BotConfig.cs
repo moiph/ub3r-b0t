@@ -58,6 +58,8 @@
 
         // Whether or not to log outgoing messages
         public bool LogOutgoing { get; set; }
+
+        public Dictionary<ThrottleType, Throttle> Throttles { get; set; } = new Dictionary<ThrottleType, Throttle>();
     }
 
     public class DiscordConfig
@@ -115,6 +117,12 @@
         public bool Enabled { get; set; }
         // Mapping of known property to payload property name, e.g. guildCount => server_count or guildCount => guilds
         public Dictionary<string, string> PayloadProps { get; set; }
+    }
+
+    public class Throttle
+    {
+        public uint Limit { get; set; }
+        public uint PeriodInMinutes { get; set; }
     }
 
     public class Irc

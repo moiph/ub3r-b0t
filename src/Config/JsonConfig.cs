@@ -10,6 +10,8 @@
     {
         public const string PathEnvironmentVariableName = "uberconfigpath";
 
+        public static string ConfigRootPath => Environment.GetEnvironmentVariable(PathEnvironmentVariableName) ?? "Config";
+
         internal static readonly ConcurrentDictionary<string, object> ConfigInstances = new ConcurrentDictionary<string, object>(StringComparer.OrdinalIgnoreCase);
 
         public static T AddOrSetInstance<T>(string key, object addValue) where T: class, new()
@@ -65,8 +67,7 @@
 
             if (!string.IsNullOrEmpty(config.FileName))
             {
-                string rootPath = Environment.GetEnvironmentVariable(JsonConfig.PathEnvironmentVariableName) ?? "Config";
-                contents = File.ReadAllText(Path.Combine(rootPath, config.FileName));
+                contents = File.ReadAllText(Path.Combine(JsonConfig.ConfigRootPath, config.FileName));
             }
             else
             {

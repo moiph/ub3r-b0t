@@ -475,6 +475,12 @@ namespace UB3RB0T
                 return;
             }
 
+            if (this.Throttler.IsThrottled(message.Author.Id.ToString(), ThrottleType.User))
+            {
+                this.Logger.Log(LogType.Warn, $"messaging throttle from user: {message.Author.Id} on chan {message.Channel.Id}");
+                return;
+            }
+
             var botContext = new DiscordBotContext(this.Client, message)
             {
                 Reaction = reactionType,
@@ -719,6 +725,8 @@ namespace UB3RB0T
 
         private async Task<IUserMessage> RespondAsync(SocketUserMessage message, string response, Embed embedResponse = null, bool bypassEdit = false)
         {
+            this.Throttler.Increment(message.Author.Id.ToString(), ThrottleType.User);
+
             var props = new Dictionary<string, string> {
                 { "server", (message.Channel as SocketGuildChannel)?.Guild.Id.ToString() ?? "private" },
                 { "channel", message.Channel.Id.ToString() },
@@ -730,11 +738,18 @@ namespace UB3RB0T
 
             if (!bypassEdit && this.botResponsesCache.Get(message.Id) is IUserMessage oldMsg)
             {
-                await oldMsg.ModifyAsync((m) =>
+                try
                 {
-                    m.Content = response;
-                    m.Embed = embedResponse;
-                });
+                    await oldMsg.ModifyAsync((m) =>
+                    {
+                        m.Content = response;
+                        m.Embed = embedResponse;
+                    });
+                }
+                catch (HttpException ex) when (ex.DiscordCode == 10008) 
+                {
+                    // ignore unknown messages; likely deleted
+                }
 
                 return null;
             }

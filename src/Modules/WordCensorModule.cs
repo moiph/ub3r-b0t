@@ -1,9 +1,11 @@
 ﻿namespace UB3RB0T
 {
     using System.Collections.Generic;
+    using System.Net;
     using System.Threading.Tasks;
     using Discord;
     using Discord.Net;
+    using Discord.WebSocket;
 
     [BotPermissions(GuildPermission.ManageMessages)]
     public class WordCensorModule : BaseDiscordModule
@@ -12,13 +14,26 @@
 
         public override async Task<ModuleResult> ProcessDiscordModule(IDiscordBotContext context)
         {
-            // check for word censors
-            if (context.Message != null && context.Settings.TriggersCensor(context.Message.Content, out string offendingWord))
+            // check for word censors; ignore if we can't delete messages
+            var guildUser = (context.Message.Author as SocketGuildUser).Guild.CurrentUser;
+            var canDeleteMessages = guildUser.Guild.CurrentUser.GuildPermissions.ManageRoles;
+
+            if (context.Message != null && context.Settings.TriggersCensor(context.Message.Content, out string offendingWord) && canDeleteMessages)
             {
                 offendingWord = offendingWord != null ? $"`{offendingWord}`" : "*FANCY lanuage filters*";
-                await context.Message.DeleteAsync();
+                bool messageDeleted = false;
 
-                if (!this.blockedDMUsers.Contains(context.Message.Author.Id))
+                try
+                {
+                    await context.Message.DeleteAsync();
+                    messageDeleted = true;
+                }
+                catch (HttpException ex) when (ex.HttpCode == HttpStatusCode.NotFound)
+                {
+                    // ignore if the message isn't found (may have been deleted already)
+                }
+
+                if (!this.blockedDMUsers.Contains(context.Message.Author.Id) && messageDeleted)
                 {
                     var dmChannel = await context.Message.Author.GetOrCreateDMChannelAsync();
                 

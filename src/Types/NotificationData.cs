@@ -6,19 +6,20 @@
     public enum NotificationType
     {
         Generic = 0,
-        Rss = 1,
-        Twitter = 2,
-        Twitch = 4,
-        Beam = 8,
-        Trello = 16,
-        Picarto = 32,
-        Reminder = 64,
-        System = 128, // used for internal system notifications
+        Rss = 1 << 0,
+        Twitter = 1 << 1,
+        Twitch = 1 << 2,
+        Beam = 1 << 3,
+        Trello = 1 << 4,
+        Picarto = 1 << 5,
+        Reminder = 1 << 6,
+        System = 1 << 7, // used for internal system notifications
     }
 
     public enum SubType
     {
         SettingsUpdate,
+        Shutdown,
     }
 
     public class NotificationData

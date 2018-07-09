@@ -37,10 +37,8 @@ namespace UB3RB0T
 
         private Timer heartbeatTimer;
         private Timer seenTimer;
-        private Timer throttleTimer;
 
         private readonly ConcurrentDictionary<string, string> urls = new ConcurrentDictionary<string, string>();
-        private readonly ConcurrentDictionary<string, int> commandsIssued = new ConcurrentDictionary<string, int>();
         private readonly ConcurrentDictionary<string, RepeatData> repeatData = new ConcurrentDictionary<string, RepeatData>();
         private readonly ConcurrentDictionary<string, SeenUserData> seenUsers = new ConcurrentDictionary<string, SeenUserData>();
 
@@ -52,6 +50,7 @@ namespace UB3RB0T
         protected BotApi BotApi { get; }
 
         protected virtual string UserId { get; }
+        protected Throttler Throttler = new Throttler();
 
         public int TotalShards { get; private set; } = 1;
         public BotConfig Config => BotConfig.Instance;
@@ -127,7 +126,6 @@ namespace UB3RB0T
             Bot.startTime = Utilities.Utime;
 
             this.StartTimers();
-            this.StartConsoleListener();
 
             if (!string.IsNullOrEmpty(this.Config.WebListenerHostName))
             {
@@ -179,13 +177,18 @@ namespace UB3RB0T
                         // If it's a system notification, handle it directly, otherwise pass it along
                         if (notificationData.Type == NotificationType.System)
                         {
-                            if (notificationData.SubType == SubType.SettingsUpdate)
+                            switch (notificationData.SubType)
                             {
-                                await this.UpdateSettingsAsync();
-                            }
-                            else
-                            {
-                                this.Logger.Log(LogType.Error, $"Error processing notification, unrecognized subtype: {notificationData.SubType}");
+                                case SubType.SettingsUpdate:
+                                    await this.UpdateSettingsAsync();
+                                    break;
+                                case SubType.Shutdown:
+                                    this.Logger.Log(LogType.Info, "Shutdown notification received");
+                                    this.exitCode = (int)ExitCode.ExpectedShutdown;
+                                    break;
+                                default:
+                                    this.Logger.Log(LogType.Error, $"Error processing notification, unrecognized subtype: {notificationData.SubType}");
+                                    break;
                             }
                         }
                         else
@@ -225,7 +228,6 @@ namespace UB3RB0T
             this.Logger.Log(LogType.Debug, "dispose start");
             this.queueClient?.CloseAsync();
             this.heartbeatTimer?.Dispose();
-            this.throttleTimer?.Dispose();
             this.seenTimer?.Dispose();
             this.listenerHost?.Dispose();
             this.Logger.Log(LogType.Debug, "dispose end");
@@ -276,7 +278,6 @@ namespace UB3RB0T
             {
                 var repeat = repeatData.GetOrAdd(messageData.Channel + messageData.Server, new RepeatData());
                 if (string.Equals(repeat.Text, messageData.Content, StringComparison.OrdinalIgnoreCase))
-
                 {
                     if (!repeat.Nicks.Contains(messageData.UserId ?? messageData.UserName))
                     {
@@ -387,16 +388,16 @@ namespace UB3RB0T
                     {
                         // make sure we're not rate limited
                         var commandKey = command + messageData.Server;
-                        var commandCount = this.commandsIssued.AddOrUpdate(commandKey, 1, (key, val) =>
-                        {
-                            return val + 1;
-                        });
 
-                        if (commandCount > 6)
+                        if (this.Throttler.IsThrottled(commandKey, ThrottleType.Command))
                         {
                             return responseData;
                         }
-                        else if (commandCount > 5)
+
+                        this.Throttler.Increment(commandKey, ThrottleType.Command);
+
+                        // if we're now throttled after this increment, return a "rate limited" message
+                        if (this.Throttler.IsThrottled(commandKey, ThrottleType.Command))
                         {
                             responses.Add("rate limited try later");
                             return responseData;
@@ -525,44 +526,6 @@ namespace UB3RB0T
             });
         }
 
-        private void StartConsoleListener()
-        {
-            Task.Run(() =>
-            {
-                string read = "";
-                while (read != "exit")
-                {
-                    read = Console.ReadLine();
-
-                    try
-                    {
-                        // TODO:
-                        // proper console command support
-                        if (read.StartsWith("JOIN"))
-                        {
-                            var args = read.Split(new[] { ' ' });
-                            if (args.Length != 3)
-                            {
-                                Console.WriteLine("invalid");
-                            }
-                            /*else if (this.ircClients.ContainsKey(args[1]))
-                            {
-                                // TODO: update irc library to handle this nonsense
-                                this.serverData[args[1]].Channels[args[2].ToLowerInvariant()] = new ChannelData();
-                                this.ircClients[args[1]].Command("JOIN", args[2], string.Empty);
-                            }*/
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine(ex);
-                    }
-                }
-
-                this.exitCode = (int)ExitCode.ExpectedShutdown;
-            });
-        }
-
         /// <summary>
         /// Updates settings from the service. (Currently Discord only)
         /// </summary>
@@ -600,12 +563,6 @@ namespace UB3RB0T
             }
 
             heartbeatTimer = new Timer(HeartbeatTimerAsync, null, 60000, 60000);
-            throttleTimer = new Timer(ThrottleTimer, null, 10000, 10000);
-        }
-
-        private void ThrottleTimer(object state)
-        {
-            this.commandsIssued.Clear();
         }
 
         /// <summary>
@@ -636,11 +593,6 @@ namespace UB3RB0T
         private async void HeartbeatTimerAsync(object state)
         {
             this.Logger.Log(LogType.Debug, "Heartbeat");
-
-            PhrasesConfig.Instance.Reset();
-            CommandsConfig.Instance.Reset();
-            BotConfig.Instance.Reset();
-            this.Logger.Log(LogType.Info, "Config reloaded.");
 
             if (this is DiscordBot discordBot)
             {

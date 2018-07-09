@@ -6,9 +6,11 @@
     using Microsoft.AspNetCore.Hosting;
     using Microsoft.Extensions.Logging;
     using System;
+    using System.IO;
     using System.Linq;
     using System.Runtime.InteropServices;
     using System.Text;
+    using System.Threading.Tasks;
     using Newtonsoft.Json;
 
     public enum ExitCode : int
@@ -143,6 +145,21 @@
                 }
             }
 
+            // setup a watcher for configs
+            var watcher = new FileSystemWatcher
+            {
+                Path = JsonConfig.ConfigRootPath,
+                NotifyFilter = NotifyFilters.LastWrite,
+                Filter = "*.json",
+            };
+
+            watcher.Changed += (source, e) =>
+            {
+                _ = ReloadConfigs();
+            };
+
+            watcher.EnableRaisingEvents = true;
+
             int exitCode = (int)ExitCode.Success;
             // Convert to async main method
             var instanceCount = 0;
@@ -175,6 +192,28 @@
             } while (exitCode == (int)ExitCode.UnexpectedError); // re-create the bot on failures.  Only exit if a clean shutdown occurs.
 
             Console.WriteLine("Game over man, game over!");
+        }
+
+        static async Task ReloadConfigs()
+        {
+            // immediate access will result in an IOException
+            // we could loop and wait for access or just be lazy
+            // and assume the human editor of the config files
+            // won't make a 2nd edit so rapidly (right? right??)
+            await Task.Delay(1000);
+
+            try
+            {
+                PhrasesConfig.Instance.Reset();
+                CommandsConfig.Instance.Reset();
+                BotConfig.Instance.Reset();
+
+                Console.WriteLine("Configs reloaded.");
+            }
+            catch (IOException ex) // of course, never assume...
+            {
+                Console.WriteLine($"Config reload failed: {ex}");
+            }
         }
     }
 }
