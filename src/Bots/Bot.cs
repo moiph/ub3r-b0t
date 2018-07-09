@@ -16,8 +16,8 @@ namespace UB3RB0T
     using Microsoft.AspNetCore.Hosting;
     using Microsoft.Azure.ServiceBus;
     using Newtonsoft.Json;
-    using StatsdClient;
     using Serilog;
+    using StatsdClient;
 
     /// <summary>
     /// It's...UB3R-B0T
