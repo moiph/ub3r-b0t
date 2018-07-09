@@ -12,8 +12,8 @@ namespace UB3RB0T
     using Discord;
     using Discord.Net;
     using Discord.WebSocket;
-    using UB3RIRC;
     using UB3RB0T.Commands;
+    using Serilog;
 
     public partial class DiscordBot
     {
@@ -76,7 +76,7 @@ namespace UB3RB0T
                 }
                 catch (Exception ex)
                 {
-                    this.Logger.Log(LogType.Warn, $"Error in {eventType} handler: {ex}");
+                    Log.Warning(ex, $"Error in {eventType} handler");
                     this.AppInsights?.TrackException(ex);
                 }
             }).Forget();
@@ -95,44 +95,50 @@ namespace UB3RB0T
             return Task.CompletedTask;
         }
 
-        private Task Discord_Log(LogMessage arg)
+        private Task Discord_Log(LogMessage logMessage)
         {
             // TODO: Temporary filter for audio warnings; remove with future Discord.NET update
-            if (arg.Message != null && arg.Message.Contains("Unknown OpCode") || (arg.Source != null && arg.Source.Contains("Audio") && arg.Message != null && (arg.Message.Contains("Latency = "))))
+            if (logMessage.Message != null && logMessage.Message.Contains("Unknown OpCode") || 
+                (logMessage.Source != null && logMessage.Source.Contains("Audio") && logMessage.Message != null && logMessage.Message.Contains("Latency = ")))
             {
                 return Task.CompletedTask;
             }
 
-            LogType logType = LogType.Debug;
-            switch (arg.Severity)
+            var logMessageText = logMessage.ToString(prependTimestamp: false);
+
+            switch (logMessage.Severity)
             {
                 case LogSeverity.Critical:
-                    logType = LogType.Fatal;
+                    Log.Fatal(logMessageText);
                     break;
                 case LogSeverity.Error:
-                    logType = LogType.Error;
+                    Log.Error(logMessageText);
                     break;
                 case LogSeverity.Warning:
-                    logType = LogType.Warn;
+                    Log.Warning(logMessageText);
                     break;
                 case LogSeverity.Info:
-                    logType = LogType.Info;
+                    Log.Information(logMessageText);
+                    break;
+                case LogSeverity.Debug:
+                    Log.Debug(logMessageText);
+                    break;
+                case LogSeverity.Verbose:
+                    Log.Verbose(logMessageText);
                     break;
             }
 
-            if (arg.Exception != null)
+            if (logMessage.Exception != null)
             {
-                this.AppInsights?.TrackException(arg.Exception);
+                this.AppInsights?.TrackException(logMessage.Exception);
             }
-
-            this.Logger.Log(logType, arg.ToString());
 
             return Task.CompletedTask;
         }
 
         private Task HandleDisconnected(Exception ex)
         {
-            this.Logger.Log(LogType.Warn, $"Disconnected: {ex}");
+            Log.Warning(ex, "Disconnected");
             return Task.CompletedTask;
         }
 
@@ -152,7 +158,7 @@ namespace UB3RB0T
                 var botRatio = (double)botCount / guild.Users.Count;
                 if (botCount > 30 && botRatio > .5)
                 {
-                    this.Logger.Log(LogType.Warn, $"Auto bailed on a bot farm: {guild.Name} (#{guild.Id})");
+                    Log.Warning($"Auto bailed on a bot farm: {guild.Name} (#{guild.Id})");
                     await guild.LeaveAsync();
                     return;
                 }
@@ -433,10 +439,10 @@ namespace UB3RB0T
             {
                 if (isOutbound)
                 {
-                    var logMessage = message.Embeds?.Count > 0 ? $"\tSending [embed content] to {message.Channel.Name}" : $"\tSending to {message.Channel.Name}: {message.Content}";
+                    var logMessage = message.Embeds?.Count > 0 ? $"Sending [embed content] to {message.Channel.Name}" : $"Sending to {message.Channel.Name}: {message.Content}";
                     if (this.Config.LogOutgoing)
                     {
-                        this.Logger.Log(LogType.Outgoing, logMessage);
+                        Log.Verbose($"{{Outgoing}} {logMessage}", ">>>");
                     }
                 }
 
@@ -477,7 +483,7 @@ namespace UB3RB0T
 
             if (this.Throttler.IsThrottled(message.Author.Id.ToString(), ThrottleType.User))
             {
-                this.Logger.Log(LogType.Warn, $"messaging throttle from user: {message.Author.Id} on chan {message.Channel.Id}");
+                Log.Warning($"messaging throttle from user: {message.Author.Id} on chan {message.Channel.Id}");
                 return;
             }
 
@@ -555,7 +561,7 @@ namespace UB3RB0T
                 if (CommandsConfig.Instance.Commands.ContainsKey(command))
                 {
                     // possible bug with typing state
-                    this.Logger.Log(LogType.Debug, $"typing triggered by {command}");
+                    Log.Debug($"typing triggered by {command}");
                     typingState = message.Channel.EnterTypingState();
                 }
 
@@ -777,7 +783,7 @@ namespace UB3RB0T
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"Outgoing webhook failed {ex}");
+                        Log.Warning(ex, "Outgoing webhook failed");
                     }
                 }
             }

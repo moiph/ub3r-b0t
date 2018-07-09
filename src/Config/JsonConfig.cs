@@ -1,6 +1,7 @@
 ﻿namespace UB3RB0T
 {
     using Newtonsoft.Json;
+    using Serilog;
     using System;
     using System.Collections.Concurrent;
     using System.IO;
@@ -55,8 +56,7 @@
             }
             else
             {
-                // TODO: proper logging
-                Console.WriteLine($"Config overide for {uri} was null");
+                Log.Error($"Config overide for {uri} was null");
             }
         }
 

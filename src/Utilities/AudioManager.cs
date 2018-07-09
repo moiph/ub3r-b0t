@@ -1,6 +1,7 @@
 ﻿namespace UB3RB0T
 {
     using Discord;
+    using Serilog;
     using System;
     using System.Collections.Concurrent;
     using System.Collections.Generic;
@@ -33,7 +34,7 @@
             }
             else
             {
-                Console.WriteLine($"Already in a voice channel for {voiceChannel.GuildId}");
+                Log.Information($"{{Indicator}} Already in a voice channel for {voiceChannel.GuildId}", "[audio]");
             }
 
             if (audioInstance.AudioClient.ConnectionState == ConnectionState.Connected && audioInstance.Stream.CanWrite)
@@ -46,10 +47,10 @@
                 {
                     await this.SendAudioAsync(audioInstance, PhrasesConfig.Instance.GetVoiceFileNames(VoicePhraseType.BotJoin).Random());
                 };
-                audioInstance.AudioClient.Disconnected += async (Exception ex) =>
+                audioInstance.AudioClient.Disconnected += (Exception ex) =>
                 {
-                    await this.LeaveAudioAsync(voiceChannel.GuildId);
-                    Console.WriteLine(ex);
+                    Log.Error(ex, "{{Indicator}} Disconnected from audio", "[audio]");
+                    return Task.CompletedTask;
                 };
             }
 
@@ -83,15 +84,14 @@
                 }
                 catch (Exception ex)
                 {
-                    // TODO: proper logging
-                    Console.WriteLine(ex);
+                    Log.Error(ex, "{Indicator} Failed to send audio on leave", "[audio]");
                 }
 
                 audioInstance.Dispose();
             }
             else
             {
-                Console.WriteLine($"Not in a voice channel for {guildId}");
+                Log.Information($"{{Indicator}} Not in a voice channel for {guildId}", "[audio]");
             }
         }
 
@@ -143,7 +143,7 @@
             Process p = null;
             if (!audioBytes.ContainsKey(filename))
             {
-                Console.WriteLine($"[audio] [{filename}] reading data");
+                Log.Debug($"{{Indicator}} [{filename}] reading data", "[audio]");
                 p = Process.Start(new ProcessStartInfo
                 {
                     FileName = "c:\\audio\\ffmpeg",
@@ -155,18 +155,18 @@
             }
             else
             {
-                Console.WriteLine($"[audio] [{filename}] using cached bytes");
+                Log.Debug($"{{Indicator}} [{filename}] using cached bytes", "[audio]");
             }
 
             await audioInstance.streamLock.WaitAsync();
 
-            Console.WriteLine($"[audio] [{filename}] lock obtained");
+            Log.Debug($"{{Indicator}} [{filename}] lock obtained", "[audio]");
 
             try
             {
                 if (audioInstance.Stream != null)
                 {
-                    Console.WriteLine($"[audio] [{filename}] stream copy");
+                    Log.Debug($"{{Indicator}} [{filename}] stream copy", "[audio]");
 
                     if (p != null)
                     {
@@ -198,14 +198,14 @@
 
                     if (await Task.WhenAny(flushTask, timeoutTask) == timeoutTask)
                     {
-                        Console.WriteLine($"[audio] [{filename}] timeout occurred");
+                        Log.Debug($"{{Indicator}} [{filename}] timeout occurred", "[audio]");
                         throw new TimeoutException();
                     }
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex);
+                Log.Error(ex, "{Indicator} Error sending audio clip", "[audio]");
                 p?.Dispose();
             }
             finally

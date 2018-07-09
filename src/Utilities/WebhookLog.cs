@@ -1,6 +1,7 @@
 ﻿
 namespace UB3RB0T
 {
+    using Serilog;
     using System;
     using UB3RIRC;
 
@@ -87,7 +88,7 @@ namespace UB3RB0T
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine("Error sending log data: " + ex);
+                        Log.Error(ex, "Error sending webhook log data");
                     }
                 }
             }

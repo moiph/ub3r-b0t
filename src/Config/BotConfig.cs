@@ -3,6 +3,7 @@
     using System;
     using Newtonsoft.Json;
     using System.Collections.Generic;
+    using Serilog.Events;
 
     public class BotConfig : JsonConfig<BotConfig>
     {
@@ -56,8 +57,12 @@
 
         public string CertThumbprint { get; set; }
 
+        public LogEventLevel LogEventLevel { get; set; } = LogEventLevel.Warning;
+
         // Whether or not to log outgoing messages
         public bool LogOutgoing { get; set; }
+
+        public string LogsPath { get; set; }
 
         public Dictionary<ThrottleType, Throttle> Throttles { get; set; } = new Dictionary<ThrottleType, Throttle>();
     }

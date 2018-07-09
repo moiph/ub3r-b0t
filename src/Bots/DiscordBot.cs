@@ -12,8 +12,8 @@ namespace UB3RB0T
     using Discord.WebSocket;
     using Flurl.Http;
     using Newtonsoft.Json;
-    using UB3RIRC;
     using UB3RB0T.Commands;
+    using Serilog;
 
     public partial class DiscordBot : Bot
     {
@@ -131,9 +131,9 @@ namespace UB3RB0T
             base.Dispose(disposing);
 
             this.statsTimer?.Dispose();
-            this.Logger.Log(LogType.Debug, "disposing of client");
+            Log.Debug("disposing of client");
             this.Client?.Dispose();
-            this.Logger.Log(LogType.Debug, "disposing of audio manager");
+            Log.Debug("disposing of audio manager");
             this.audioManager?.Dispose();
         }
 
@@ -212,7 +212,7 @@ namespace UB3RB0T
                 {
                     extraData = JsonConvert.SerializeObject(notification.Embed);
                 }
-                this.Logger.Log(LogType.Error, $"Failed to send notification {extraData}: {ex}");
+                Log.Error(ex, $"Failed to send notification {extraData}");
             }
 
             return true;
@@ -273,7 +273,7 @@ namespace UB3RB0T
                     }
                     catch (Exception ex)
                     {
-                        this.Logger.Log(LogType.Warn, $"Failed to update {botData.Name} stats: {ex}");
+                        Log.Warning(ex, $"Failed to update {botData.Name} stats");
                     }
                 }
             }
@@ -325,7 +325,7 @@ namespace UB3RB0T
                     }
                     catch (Exception ex)
                     {
-                        this.Logger.Log(LogType.Warn, $"{ex}");
+                        Log.Error(ex, "Batch processing error");
                     }
 
                     await Task.Delay(10000);

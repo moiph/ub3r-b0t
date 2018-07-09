@@ -2,15 +2,18 @@
 namespace UB3RB0T
 {
     using Discord;
+    using Discord.Net;
     using Discord.WebSocket;
     using Flurl.Http;
     using Microsoft.AspNetCore.WebUtilities;
     using Newtonsoft.Json;
+    using Serilog;
     using System;
     using System.Collections.Generic;
     using System.Globalization;
     using System.IO;
     using System.Linq;
+    using System.Net;
     using System.Net.Http;
     using System.Text.RegularExpressions;
     using System.Threading.Tasks;
@@ -176,9 +179,7 @@ namespace UB3RB0T
             }
             catch (Exception ex)
             {
-                // TODO: proper logger
-                Console.WriteLine($"Failed to parse {uri}: ");
-                Console.WriteLine(ex);
+                Log.Error(ex, $"Failed to parse {{Endpoint}}", uri);
                 return default(T);
             }
         }
@@ -317,12 +318,18 @@ namespace UB3RB0T
             {
                 return await (await (await guild.GetOwnerAsync()).GetOrCreateDMChannelAsync()).SendMessageAsync(message);
             }
-            catch (Exception ex)
+            catch (HttpException ex) when (ex.HttpCode == HttpStatusCode.Forbidden)
             {
                 blockedDMUsers.Add(guild.OwnerId);
-                Console.WriteLine($"Failed to send guild owner message: {ex}");
-                return null;
+                Log.Debug(ex, "Failed to send guild owner message (forbidden");
             }
+            catch (Exception ex)
+            { 
+                blockedDMUsers.Add(guild.OwnerId);
+                Log.Warning(ex, "Failed to send guild owner message");
+            }
+
+            return null;
         }
 
         // port from discord.net .9x

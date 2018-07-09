@@ -12,6 +12,9 @@
     using System.Text;
     using System.Threading.Tasks;
     using Newtonsoft.Json;
+    using Serilog;
+    using Serilog.Core;
+    using Serilog.Events;
 
     public enum ExitCode : int
     {
@@ -76,7 +79,7 @@
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(ex);
+                    Log.Error(ex, "Exception in kesteral handler");
                 }
 
                 // if empty, response was not handled
@@ -92,16 +95,17 @@
                 {
                     await context.Response.WriteAsync(response);
                 }
-                catch (Exception e)
+                catch (Exception ex)
                 {
-                    Console.WriteLine(e);
+                    Log.Error(ex, "Error writing response in kestral handler");
                 }
             });
         }
 
         static Bot BotInstance;
+        static LoggingLevelSwitch levelSwitch;
 
-        static void Main(string[] args)
+        static int Main(string[] args)
         {
             var botType = BotType.Discord;
             var shard = 0;
@@ -120,7 +124,7 @@
                             Console.WriteLine("/t:type \t The type of bot to create. [Irc, Discord]");
                             Console.WriteLine("/s:shard \t The shard for this instance (Discord only)");
                             Console.WriteLine("/c:path \t The path to botconfig.json");
-                            return;
+                            return 0;
 
                         case "/t":
                             if (!Enum.TryParse(argParts[1], /* ignoreCase */true, out botType))
@@ -144,6 +148,29 @@
                     }
                 }
             }
+
+            // Logging
+            levelSwitch = new LoggingLevelSwitch
+            {
+                MinimumLevel = BotConfig.Instance.LogEventLevel
+            };
+
+            var logConfiguration = new LoggerConfiguration()
+                .MinimumLevel.ControlledBy(levelSwitch)
+                .Enrich.WithProperty("Shard", shard.ToString().PadLeft(2))
+                .WriteTo.Console(outputTemplate:
+                "[{Timestamp:HH:mm:ss} {Level:u3} {Shard}] {Message:lj}{NewLine}{Exception}");
+
+            if (!string.IsNullOrWhiteSpace(BotConfig.Instance.LogsPath))
+            {
+                logConfiguration.WriteTo.File($"{BotConfig.Instance.LogsPath}\\{botType}_shard{shard}_.txt",
+                    restrictedToMinimumLevel: LogEventLevel.Debug,
+                    buffered: true,
+                    rollingInterval: RollingInterval.Day,
+                    flushToDiskInterval: TimeSpan.FromSeconds(5));
+            }
+
+            Log.Logger = logConfiguration.CreateLogger();
 
             // setup a watcher for configs
             var watcher = new FileSystemWatcher
@@ -180,18 +207,24 @@
                             }, true);
                         }
 
+                        Log.Information($"Starting shard {shard}");
+
                         exitCode = bot.StartAsync().GetAwaiter().GetResult();
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(ex);
+                    Log.Fatal(ex, "Failure in bot loop");
                 }
 
                 instanceCount++;
             } while (exitCode == (int)ExitCode.UnexpectedError); // re-create the bot on failures.  Only exit if a clean shutdown occurs.
 
-            Console.WriteLine("Game over man, game over!");
+            Log.CloseAndFlush();
+
+            Log.Fatal("Game over man, {{GameOver}}", "game over!");
+
+            return exitCode;
         }
 
         static async Task ReloadConfigs()
@@ -208,11 +241,13 @@
                 CommandsConfig.Instance.Reset();
                 BotConfig.Instance.Reset();
 
-                Console.WriteLine("Configs reloaded.");
+                levelSwitch.MinimumLevel = BotConfig.Instance.LogEventLevel;
+
+                Log.Information("Configs reloaded.");
             }
             catch (IOException ex) // of course, never assume...
             {
-                Console.WriteLine($"Config reload failed: {ex}");
+                Log.Error(ex, "Config reload failed");
             }
         }
     }

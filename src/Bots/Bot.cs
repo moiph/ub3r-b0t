@@ -17,7 +17,7 @@ namespace UB3RB0T
     using Microsoft.Azure.ServiceBus;
     using Newtonsoft.Json;
     using StatsdClient;
-    using UB3RIRC;
+    using Serilog;
 
     /// <summary>
     /// It's...UB3R-B0T
@@ -45,7 +45,6 @@ namespace UB3RB0T
         private readonly SemaphoreSlim settingsLock = new SemaphoreSlim(1, 1);
 
         protected int Shard { get; private set; } = 0;
-        protected Logger Logger { get; }
         protected TelemetryClient AppInsights { get; private set; }
         protected BotApi BotApi { get; }
 
@@ -58,7 +57,6 @@ namespace UB3RB0T
 
         protected Bot(int shard, int totalShards)
         {
-            this.Logger = new Logger(LogType.Warn, new List<ILog> { new ConsoleLog() });
             this.Shard = shard;
             this.TotalShards = totalShards;
             if (!string.IsNullOrEmpty(this.Config.QueueNamePrefix))
@@ -71,7 +69,7 @@ namespace UB3RB0T
 
             if (this.Config.AlertEndpoint != null)
             {
-                this.Logger.AddLogger(new WebhookLog(this.BotType, this.Shard, this.Config.AlertEndpoint));
+                // this.Logger.AddLogger(new WebhookLog(this.BotType, this.Shard, this.Config.AlertEndpoint));
             }
 
             // If a custom API endpoint is supported...support it
@@ -143,7 +141,7 @@ namespace UB3RB0T
             }
 
             await this.StopAsync(this.exitCode == (int)ExitCode.UnexpectedError);
-            this.Logger.Log(LogType.Info, "Exited.");
+            Log.Information("Exited.");
             return this.exitCode;
         }
 
@@ -168,7 +166,7 @@ namespace UB3RB0T
                     }
                     catch (JsonSerializationException ex)
                     {
-                        this.Logger.Log(LogType.Warn, $"Failed to deserialize notification: {ex}");
+                        Log.Warning($"Failed to deserialize notification: {ex}");
                     }
 
                     if (notificationData != null)
@@ -183,11 +181,11 @@ namespace UB3RB0T
                                     await this.UpdateSettingsAsync();
                                     break;
                                 case SubType.Shutdown:
-                                    this.Logger.Log(LogType.Info, "Shutdown notification received");
+                                    Log.Information("Shutdown notification received");
                                     this.exitCode = (int)ExitCode.ExpectedShutdown;
                                     break;
                                 default:
-                                    this.Logger.Log(LogType.Error, $"Error processing notification, unrecognized subtype: {notificationData.SubType}");
+                                    Log.Error($"Error processing notification, unrecognized subtype: {notificationData.SubType}");
                                     break;
                             }
                         }
@@ -199,7 +197,7 @@ namespace UB3RB0T
                             }
                             catch (Exception ex)
                             {
-                                this.Logger.Log(LogType.Error, "Error processing notification: {0}", ex);
+                                Log.Error(ex, "Error processing notification");
                             }
                         }
                     }
@@ -225,12 +223,12 @@ namespace UB3RB0T
 
         public virtual void Dispose(bool disposing)
         {
-            this.Logger.Log(LogType.Debug, "dispose start");
+            Log.Debug("dispose start");
             this.queueClient?.CloseAsync();
             this.heartbeatTimer?.Dispose();
             this.seenTimer?.Dispose();
             this.listenerHost?.Dispose();
-            this.Logger.Log(LogType.Debug, "dispose end");
+            Log.Debug("dispose end");
         }
 
         protected void UpdateSeen(string key, SeenUserData seenUserData)
@@ -536,15 +534,15 @@ namespace UB3RB0T
 
             try
             {
-                this.Logger.Log(LogType.Debug, "Fetching server settings...");
+                Log.Debug("Fetching server settings...");
                 var sinceToken = SettingsConfig.Instance.SinceToken;
                 var configEndpoint = this.Config.SettingsEndpoint.AppendQueryParam("since", sinceToken.ToString()).AppendQueryParam("shard", this.Shard.ToString()).AppendQueryParam("shardcount", this.TotalShards.ToString());
                 await SettingsConfig.Instance.OverrideAsync(configEndpoint);
-                this.Logger.Log(LogType.Debug, "Server settings updated.");
+                Log.Debug("Server settings updated.");
             }
             catch (Exception ex)
             {
-                this.Logger.Log(LogType.Warn, $"Failed to update server settings: {ex}");
+                Log.Warning(ex, "Failed to update server settings");
             }
             finally
             {
@@ -581,7 +579,7 @@ namespace UB3RB0T
                 }
                 catch (Exception ex)
                 {
-                    this.Logger.Log(LogType.Error, $"Error in seen callback {ex}");
+                    Log.Error(ex, "Error in seen callback");
                 }
             }
         }
@@ -592,7 +590,7 @@ namespace UB3RB0T
         /// <param name="state">State object (unused).</param>
         private async void HeartbeatTimerAsync(object state)
         {
-            this.Logger.Log(LogType.Debug, "Heartbeat");
+            Log.Verbose("Heartbeat");
 
             if (this is DiscordBot discordBot)
             {
@@ -620,7 +618,7 @@ namespace UB3RB0T
                 }
                 catch (Exception ex)
                 {
-                    this.Logger.Log(LogType.Error, "Error sending heartbeat data: {0}", ex);
+                    Log.Error(ex, "Error sending heartbeat data");
                 }
             }
 
@@ -641,7 +639,7 @@ namespace UB3RB0T
                         }
                         catch (Exception ex)
                         {
-                            this.Logger.Log(LogType.Error, "Heartbeat failure alert error: {0}", ex);
+                            Log.Error(ex, "Heartbeat failure alert error");
                         }
                     }
                 }

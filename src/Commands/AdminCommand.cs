@@ -4,6 +4,7 @@
     using System.Net;
     using System.Threading.Tasks;
     using Discord;
+    using Serilog;
 
     [UserPermissions(GuildPermission.ManageGuild, "You must have manage server permissions to use that command. nice try, dungheap")]
     public class AdminCommand : IDiscordCommand
@@ -21,8 +22,7 @@
                 }
                 catch (Exception ex)
                 {
-                    // TODO: proper logging
-                    Console.WriteLine(ex);
+                    Log.Error(ex, "Failure in admin command");
                 }
             }
 

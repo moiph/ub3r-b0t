@@ -3,6 +3,7 @@
     using System;
     using System.Threading.Tasks;
     using Discord.WebSocket;
+    using Serilog;
 
     public class VoiceLeaveCommand : IDiscordCommand
     {
@@ -18,8 +19,7 @@
                     }
                     catch (Exception ex)
                     {
-                        // TODO: proper logging
-                        Console.WriteLine(ex);
+                        Log.Error(ex, "Failure in voice leave command");
                     }
                 }).Forget();
             }

@@ -1,5 +1,6 @@
 ﻿namespace UB3RB0T
 {
+    using Serilog;
     using System;
     using System.Collections.Generic;
     using System.Linq;
@@ -36,8 +37,7 @@
             }
             else
             {
-                // TODO: proper logging
-                Console.WriteLine($"Config overide for {uri} was null");
+                Log.Error($"Config overide for {uri} was null");
             }
         }
 
@@ -183,7 +183,7 @@
                         catch (ArgumentException)
                         {
                             // TODO: Handle logging to alert the server owner
-                            Console.WriteLine($"Regex failure on {this.Id} for {r}");
+                            Log.Warning("Censor regex failure on guild {{Guild}} for {{Regex}}", this.Id, r);
                         }
 
                         return null;
@@ -199,7 +199,7 @@
                     catch (RegexMatchTimeoutException)
                     {
                         // TODO: Handle logging to alert server owner
-                        Console.WriteLine($"Timeout on {this.Id} for {r}");
+                        Log.Warning("Censor regex timeout on guild {{Guild}} for {{Regex}}", this.Id, r);
                     }
 
                     return false;

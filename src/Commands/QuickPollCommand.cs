@@ -20,6 +20,11 @@
                 return new CommandResponse { Text = "Ask a question for your poll, jeez" };
             }
 
+            if (!(guildChannel as ITextChannel).GetCurrentUserPermissions().AddReactions)
+            {
+                return new CommandResponse { Text = "oy barfbag I don't have permissions to add reactions in here." };
+            }
+
             await context.Message.AddReactionAsync(Emote.Parse("<:check:363764608969867274>"));
             await context.Message.AddReactionAsync(Emote.Parse("<:xmark:363764632160043008>"));
 

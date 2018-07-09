@@ -2,6 +2,7 @@
 namespace UB3RB0T
 {
     using Newtonsoft.Json;
+    using Serilog;
     using System;
     using System.Threading.Tasks;
 
@@ -31,9 +32,7 @@ namespace UB3RB0T
             }
             catch (Exception ex)
             {
-                // TODO: proper logger
-                Console.WriteLine($"Failed to parse {this.apiEndpoint}: ");
-                Console.WriteLine(ex);
+                Log.Error(ex, "Failed to parse {{Endpoint}}", this.apiEndpoint.ToString());
                 return new BotResponseData();
             }
         }

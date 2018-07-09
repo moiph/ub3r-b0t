@@ -6,6 +6,7 @@
     using System.Threading.Tasks;
     using Discord;
     using Discord.WebSocket;
+    using Serilog;
 
     [BotPermissions(ChannelPermission.ManageMessages, "yeah I don't have the permissions to delete messages, buttwad.")]
     [UserPermissions(ChannelPermission.ManageMessages, "you don't have permissions to clear messages fartface")]
@@ -85,7 +86,7 @@
                     catch (Exception ex)
                     {
                         downloadedMsgs = new IMessage[0];
-                        Console.WriteLine(ex);
+                        Log.Error(ex, "Failure to download messages in clear command");
                     }
 
                     if (downloadedMsgs.Count() > 0)

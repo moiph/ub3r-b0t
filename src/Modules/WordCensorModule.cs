@@ -15,8 +15,7 @@
         public override async Task<ModuleResult> ProcessDiscordModule(IDiscordBotContext context)
         {
             // check for word censors; ignore if we can't delete messages
-            var guildUser = (context.Message.Author as SocketGuildUser).Guild.CurrentUser;
-            var canDeleteMessages = guildUser.Guild.CurrentUser.GuildPermissions.ManageRoles;
+            var canDeleteMessages = (context.GuildChannel as ITextChannel).GetCurrentUserPermissions().ManageMessages;
 
             if (context.Message != null && context.Settings.TriggersCensor(context.Message.Content, out string offendingWord) && canDeleteMessages)
             {
