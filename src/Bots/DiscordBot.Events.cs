@@ -165,7 +165,7 @@ namespace UB3RB0T
 
                 var defaultChannel = guild.DefaultChannel;
                 var owner = guild.Owner;
-                if (guild.CurrentUser.GetPermissions(defaultChannel).SendMessages)
+                if (defaultChannel != null && guild.CurrentUser.GetPermissions(defaultChannel).SendMessages)
                 {
                     await defaultChannel.SendMessageAsync($"(HELLO, I AM UB3R-B0T! .halp for info. {owner.Mention} you're the kickass owner-- you can use .admin to configure some stuff. By using me you agree to these terms: https://discordapp.com/developers/docs/legal)");
                 }
@@ -403,15 +403,17 @@ namespace UB3RB0T
         /// <summary>
         /// Sends mod log messages for user bans, if configured.
         /// </summary>
-        private async Task HandleUserBanned(SocketUser user, SocketGuild guild)
+        private Task HandleUserBanned(SocketUser user, SocketGuild guild)
         {
             // mod log
             var settings = SettingsConfig.GetSettings(guild.Id);
             if (settings.HasFlag(ModOptions.Mod_LogUserBan) && this.Client.GetChannel(settings.Mod_LogId) is ITextChannel modLogChannel && modLogChannel.GetCurrentUserPermissions().SendMessages)
             {
                 string userIdentifier = user != null ? $"{user.Username}#{user.Discriminator}" : "Unknown user";
-                await modLogChannel.SendMessageAsync($"{userIdentifier} was banned.");
+                this.BatchSendMessageAsync(modLogChannel, $"{userIdentifier} was banned.");
             }
+
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -474,16 +476,16 @@ namespace UB3RB0T
                 return;
             }
 
+            if (this.Throttler.IsThrottled(message.Author.Id.ToString(), ThrottleType.User))
+            {
+                Log.Debug($"messaging throttle from user: {message.Author.Id} on chan {message.Channel.Id} server {guildId}");
+                return;
+            }
+
             // Bail out with help info if it's a PM
             if (message.Channel is IDMChannel)
             {
                 await this.RespondAsync(message, "Info and commands can be found at: https://ub3r-b0t.com [Commands don't work in direct messages]");
-                return;
-            }
-
-            if (this.Throttler.IsThrottled(message.Author.Id.ToString(), ThrottleType.User))
-            {
-                Log.Warning($"messaging throttle from user: {message.Author.Id} on chan {message.Channel.Id}");
                 return;
             }
 
@@ -557,8 +559,12 @@ namespace UB3RB0T
             }
             else
             {
+                // Enter typing state for valid commands; skip if throttled
                 IDisposable typingState = null;
-                if (CommandsConfig.Instance.Commands.ContainsKey(command))
+                var commandKey = command + botContext.MessageData.Server;
+                if (this.Config.Discord.TriggerTypingOnCommands &&
+                    CommandsConfig.Instance.Commands.ContainsKey(command) &&
+                    !this.Throttler.IsThrottled(commandKey, ThrottleType.Command))
                 {
                     // possible bug with typing state
                     Log.Debug($"typing triggered by {command}");
@@ -583,17 +589,17 @@ namespace UB3RB0T
                     }
                     else if (responseData.Embed != null)
                     {
-                        var sentMessage = await this.RespondAsync(message, string.Empty, responseData.Embed.CreateEmbedBuilder().Build());
+                        var sentMessage = await this.RespondAsync(message, string.Empty, responseData.Embed.CreateEmbedBuilder().Build(), bypassEdit: false, rateLimitChecked: botContext.MessageData.RateLimitChecked);
                         this.botResponsesCache.Add(message.Id, sentMessage);
                     }
                     else
                     {
                         foreach (string response in responseData.Responses)
                         {
-                            if (!string.IsNullOrEmpty(response))
+                            if (!string.IsNullOrWhiteSpace(response))
                             {
                                 // if sending a multi part message, skip the edit optimization.
-                                var sentMessage = await this.RespondAsync(message, response, embedResponse: null, bypassEdit: responseData.Responses.Count > 1);
+                                var sentMessage = await this.RespondAsync(message, response, embedResponse: null, bypassEdit: responseData.Responses.Count > 1, rateLimitChecked: botContext.MessageData.RateLimitChecked);
                                 this.botResponsesCache.Add(message.Id, sentMessage);
                             }
                         }
@@ -726,12 +732,15 @@ namespace UB3RB0T
 
         protected override async Task RespondAsync(BotMessageData messageData, string response)
         {
-            await this.RespondAsync(messageData.DiscordMessageData, response);
+            await this.RespondAsync(messageData.DiscordMessageData, response, rateLimitChecked: messageData.RateLimitChecked);
         }
 
-        private async Task<IUserMessage> RespondAsync(SocketUserMessage message, string response, Embed embedResponse = null, bool bypassEdit = false)
+        private async Task<IUserMessage> RespondAsync(SocketUserMessage message, string response, Embed embedResponse = null, bool bypassEdit = false, bool rateLimitChecked = false)
         {
-            this.Throttler.Increment(message.Author.Id.ToString(), ThrottleType.User);
+            if (!rateLimitChecked)
+            {
+                this.Throttler.Increment(message.Author.Id.ToString(), ThrottleType.User);
+            }
 
             var props = new Dictionary<string, string> {
                 { "server", (message.Channel as SocketGuildChannel)?.Guild.Id.ToString() ?? "private" },

@@ -32,7 +32,7 @@ namespace UB3RB0T
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Failed to parse {{Endpoint}}", this.apiEndpoint.ToString());
+                Log.Error(ex, "Failed to parse {Endpoint}", this.apiEndpoint.ToString());
                 return new BotResponseData();
             }
         }

@@ -7,6 +7,7 @@
     using Discord.WebSocket;
     using Flurl.Http;
     using Newtonsoft.Json;
+    using Serilog;
 
     // OCR for fun if requested (patrons only)
     // TODO: need to drive this via config
@@ -48,13 +49,60 @@
                         }
                         else if (context.Reaction == "👁" || BotConfig.Instance.OcrAutoIds.Contains(message.Channel.Id))
                         {
-                            var ocrData = await this.GetVisionData<OcrData>(imageUrl);
-                            var ocrText = ocrData?.GetText();
+                            Log.Information("Running OCR");
+                            string ocrText = null;
 
-                            if (!string.IsNullOrEmpty(ocrText))
+                            var result = await BotConfig.Instance.OcrEndpoint.ToString()
+                                .WithHeader("Ocp-Apim-Subscription-Key", BotConfig.Instance.VisionKey)
+                                .PostJsonAsync(new { url = imageUrl });
+
+                            if (result.IsSuccessStatusCode)
                             {
+                                Log.Information("OCR success, waiting on operation");
+
+                                var operationUrl = result.GetHeaderValue("Operation-Location");
+
+                                // The actual process runs as a seprate operation that we need to query.
+                                // Unfortunately we just need to poll, so query a few times and give up if it takes too long.
+                                RecognitionResultData textData = null;
+                                for (var i = 0; i < 5; i++)
+                                {
+                                    await Task.Delay(3000);
+                                    textData = await operationUrl.WithHeader("Ocp-Apim-Subscription-Key", BotConfig.Instance.VisionKey).GetJsonAsync<RecognitionResultData>();
+
+                                    if (textData.Status == "Succeeded")
+                                    {
+                                        break;
+                                    }
+                                }
+
+                                ocrText = textData.Status == "Succeeded" ? textData.GetText() : null;
+
+                                if (!string.IsNullOrEmpty(ocrText))
+                                {
+                                    // Run some external processing and prioritize that over replacing existing content
+                                    var response = await new Uri($"{BotConfig.Instance.ApiEndpoint}/ocr").PostJsonAsync(textData);
+                                    var ocrProcessResponse = JsonConvert.DeserializeObject<OcrProcessResponse>(await response.Content.ReadAsStringAsync());
+
+                                    if (ocrProcessResponse.Response != null)
+                                    {
+                                        // clear out the processed OCR text and use the API response
+                                        await message.Channel.SendMessageAsync(ocrProcessResponse.Response);
+                                        ocrText = null;
+                                    }
+                                }
+                            }
+
+                            if (string.IsNullOrEmpty(ocrText))
+                            {
+                                Log.Information($"Failed to parse OCR text for {imageUrl}");
+                            }
+                            else
+                            {
+                                Log.Information("OCR text found, looking for match");
                                 newMessageContent = ocrText;
                                 var ocrTextLower = ocrText.ToLowerInvariant();
+
                                 var ocrPhrase = PhrasesConfig.Instance.OcrPhrases.FirstOrDefault(o => ocrTextLower.Contains(o.Key)).Value;
 
                                 if (ocrPhrase != null)
@@ -66,7 +114,8 @@
                     }
                 }
 
-                if (newMessageContent != null)
+                // only update the message content if it was a reaction
+                if (newMessageContent != null && !string.IsNullOrEmpty(context.Reaction))
                 {
                     context.MessageData.Content = newMessageContent;
                 }
@@ -84,7 +133,8 @@
         private async Task<T> GetVisionData<T>(string imageUrl)
         {
             var data = default(T);
-            Uri endpoint = typeof(T) == typeof(OcrData) ? BotConfig.Instance.OcrEndpoint : BotConfig.Instance.AnalyzeEndpoint;
+
+            Uri endpoint = BotConfig.Instance.AnalyzeEndpoint;
 
             var result = await endpoint.ToString()
                 .WithHeader("Ocp-Apim-Subscription-Key", BotConfig.Instance.VisionKey)
@@ -106,8 +156,18 @@
         /// <returns>Image URL</returns>
         private string ParseImageUrl(SocketUserMessage message)
         {
-            var attachmentUrl = message.Attachments?.FirstOrDefault()?.Url;
-            if (attachmentUrl == null)
+            string attachmentUrl = null;
+
+            var attachment = message.Attachments?.FirstOrDefault();
+            if (attachment != null)
+            {
+                // attachment needs to be larger than 40x40 (API restrictions)
+                if (attachment.Height > 40 && attachment.Width > 40)
+                {
+                    attachmentUrl = attachment.Url;
+                }
+            }
+            else
             {
                 if (Uri.TryCreate(message.Content, UriKind.Absolute, out Uri attachmentUri))
                 {

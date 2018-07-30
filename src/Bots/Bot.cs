@@ -284,7 +284,18 @@ namespace UB3RB0T
 
                     if (repeat.Nicks.Count == 3)
                     {
-                        await this.RespondAsync(messageData, messageData.Content);
+                        var commandKey = $"{messageData.Channel}_{messageData.Server}_repeat";
+                        this.Throttler.Increment(commandKey, ThrottleType.Repeat);
+
+                        if (!this.Throttler.IsThrottled(commandKey, ThrottleType.Repeat))
+                        {
+                            await this.RespondAsync(messageData, messageData.Content);
+                        }
+                        else
+                        {
+                            Log.Debug("repeat throttled");
+                        }
+
                         repeat.Reset(string.Empty, string.Empty);
                     }
                 }
@@ -400,6 +411,11 @@ namespace UB3RB0T
                             responses.Add("rate limited try later");
                             return responseData;
                         }
+
+                        // increment the user throttler as well
+                        this.Throttler.Increment(messageData.UserId, ThrottleType.User);
+
+                        messageData.RateLimitChecked = true;
                     }
 
                     var props = new Dictionary<string, string> {
@@ -560,7 +576,7 @@ namespace UB3RB0T
                 seenTimer = new Timer(SeenTimerAsync, null, 60000, 60000);
             }
 
-            heartbeatTimer = new Timer(HeartbeatTimerAsync, null, 60000, 60000);
+            heartbeatTimer = new Timer(HeartbeatTimerAsync, null, 60000, 60000 * 5);
         }
 
         /// <summary>

@@ -5,67 +5,51 @@ namespace UB3RB0T
     using System.Collections.Generic;
     using System.Text.RegularExpressions;
 
-    public class OcrData
-    {
+    public class RecognitionResultData
+    { 
         private readonly Regex botName = new Regex("(.*ub3r-b)o(t.*)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-        [JsonProperty(PropertyName = "language")]
-        public string Language { get; set; }
+        [JsonProperty(PropertyName = "recognitionResult")]
+        public RecognitionResult Result { get; set; }
 
-        [JsonProperty(PropertyName = "orientation")]
-        public string Orientation { get; set; }
-
-        [JsonProperty(PropertyName = "regions")]
-        public Region[] Regions { get; set; }
+        [JsonProperty(PropertyName = "status")]
+        public string Status { get; set; }
 
         public string GetText()
         {
             var words = new List<string>();
-            foreach (var r in this.Regions)
+            foreach (var l in this.Result.Lines)
             {
-                foreach (var l in r.Lines)
+                // HACK: map ub3r-bot to ub3r-b0t to account for possible misdetection 
+                var text = l.Text;
+                if (botName.IsMatch(text))
                 {
-                    foreach (var w in l.Words)
-                    {
-                        // HACK: map ub3r-bot to ub3r-b0t to account for possible misdetection 
-                        var text = w.Text;
-                        if (botName.IsMatch(text))
-                        {
-                            text = botName.Replace(text, "${1}0${2}");
-                        }
-                        words.Add(text);
-                    }
+                    text = botName.Replace(text, "${1}0${2}");
                 }
+                words.Add(text);
             }
 
             return string.Join(" ", words);
         }
     }
 
-    public class Region
+    public class RecognitionResult
     {
-        [JsonProperty(PropertyName = "boundingBox")]
-        public string BoundingBox { get; set; }
-
         [JsonProperty(PropertyName = "lines")]
-        public Line[] Lines { get; set; }
+        public RecognitionLine[] Lines { get; set; }
     }
 
-    public class Line
+    public class RecognitionLine
     {
         [JsonProperty(PropertyName = "boundingBox")]
-        public string BoundingBox { get; set; }
-
-        [JsonProperty(PropertyName = "words")]
-        public Word[] Words { get; set; }
-    }
-
-    public class Word
-    {
-        [JsonProperty(PropertyName = "boundingBox")]
-        public string BoundingBox { get; set; }
+        public int[] BoundingBox { get; set; }
 
         [JsonProperty(PropertyName = "text")]
         public string Text { get; set; }
+    }
+
+    public class OcrProcessResponse
+    {
+        public string Response { get; set; }
     }
 }

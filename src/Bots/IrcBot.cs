@@ -1,6 +1,7 @@
 ﻿
 namespace UB3RB0T
 {
+    using Serilog;
     using System;
     using System.Collections.Generic;
     using System.Linq;
@@ -37,7 +38,9 @@ namespace UB3RB0T
                 this.serverData.Add(server.Host, new ServerData());
                 var ircClient = new IrcClient(server.Host, server.Nick ?? this.Config.Name, server.Host, server.Port, server.UseSsl, server.Password);
                 this.ircClients.Add(server.Host, ircClient);
+
                 ircClient.OnIrcEvent += this.OnIrcEventAsync;
+                ircClient.OnLogEvent += this.OnLogEventAsync;
 
                 await ircClient.ConnectAsync();
             }
@@ -122,6 +125,37 @@ namespace UB3RB0T
             }
         }
 
+        public void OnLogEventAsync(LogData logData)
+        {
+            switch (logData.LogType)
+            {
+                case LogType.Fatal:
+                    Log.Fatal(logData.Exception, logData.Message);
+                    break;
+                case LogType.Error:
+                    Log.Error(logData.Exception, logData.Message);
+                    break;
+                case LogType.Warn:
+                    Log.Warning(logData.Exception, logData.Message);
+                    break;
+                case LogType.Info:
+                    Log.Information(logData.Exception, logData.Message);
+                    break;
+                case LogType.Debug:
+                    Log.Debug(logData.Exception, logData.Message);
+                    break;
+                case LogType.Incoming:
+                    Log.Verbose($"{{Incoming}} {logData.Message}", "<<<");
+                    break;
+                case LogType.Outgoing:
+                    if (this.Config.LogOutgoing)
+                    {
+                        Log.Verbose($"{{Outgoing}} {logData.Message}", ">>>");
+                    }
+                    break;
+            }
+        }
+
         // TODO: Just a quick helper until the irc library side cleans up its act
         public int GetIrcUserCount()
         {
@@ -137,8 +171,7 @@ namespace UB3RB0T
         /// <inheritdoc />
         protected override Task<bool> SendNotification(NotificationData notification)
         {
-            var ircClient = this.ircClients[notification.Server];
-            if (ircClient != null)
+            if (this.ircClients.TryGetValue(notification.Server, out var ircClient))
             {
                 ircClient.Command("PRIVMSG", notification.Channel, notification.Text);
                 var props = new Dictionary<string, string> {

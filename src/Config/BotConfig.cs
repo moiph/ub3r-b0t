@@ -103,6 +103,12 @@
         /// Outgoing webhooks, to send messages for particular channels to...wherever
         /// </summary>
         public Dictionary<ulong, OutgoingWebhook> OutgoingWebhooks { get; set; } = new Dictionary<ulong, OutgoingWebhook>();
+
+        /// <summary>
+        /// Set to true to trigger typing state when command usage is detected
+        /// Typing state will be exited after the command is processed and reply sent.
+        /// </summary>
+        public bool TriggerTypingOnCommands { get; set; }
     }
 
     public class OutgoingWebhook

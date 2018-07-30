@@ -5,5 +5,6 @@ namespace UB3RB0T
     {
         User,
         Command,
+        Repeat,
     }
 }
