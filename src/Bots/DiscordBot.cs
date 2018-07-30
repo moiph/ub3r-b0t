@@ -81,7 +81,7 @@ namespace UB3RB0T
             this.Client.ReactionAdded += (message, channel, reaction) => this.HandleEvent(DiscordEventType.ReactionAdded, message, channel, reaction);
 
             // TODO: Add these via reflection processing or config instead of this nonsense
-            this.discordCommands = new Dictionary<string, IDiscordCommand>
+            this.discordCommands = new Dictionary<string, IDiscordCommand>(StringComparer.OrdinalIgnoreCase)
             {
                 { "debug", new DebugCommand() },
                 { "seen", new SeenCommand() },
