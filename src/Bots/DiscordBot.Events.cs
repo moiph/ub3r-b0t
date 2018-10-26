@@ -693,7 +693,7 @@ namespace UB3RB0T
                         delText = "```Word Censor Triggered```";
                     }
 
-                    delText += $"**{message.Author.Username}#{message.Author.Discriminator}** deleted in {textChannel.Mention}: {message.Content}";
+                    delText += $"**{message.Author.Username}#{message.Author.Discriminator}** deleted in {textChannel.Mention}: `{message.Content}`";
 
                     // Include attachment URLs, if applicable
                     if (message.Attachments?.Count > 0)
