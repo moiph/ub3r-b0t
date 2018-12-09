@@ -95,7 +95,7 @@
             // if the user does not have @everyone permissions, block its use
             if (!(message.Author as SocketGuildUser)?.GetPermissions(message.Channel as SocketGuildChannel).MentionEveryone ?? false)
             {
-                messageData.Content = messageData.Content.Replace("@everyone", "@every\x200Bone").Replace("@here", "@he\x200Bre"); ;
+                messageData.Content = messageData.Content.Replace("@everyone", "@every\x200Bone").Replace("@here", "@he\x200Bre");
             }
 
             return messageData;

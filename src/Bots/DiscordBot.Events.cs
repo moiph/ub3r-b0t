@@ -681,6 +681,7 @@ namespace UB3RB0T
             {
                 var message = cachedMessage.Value;
                 var textChannel = guildChannel as ITextChannel;
+                var guild = guildChannel.Guild as SocketGuild;
                 var settings = SettingsConfig.GetSettings(guildChannel.GuildId);
 
                 if (settings.HasFlag(ModOptions.Mod_LogDelete) && guildChannel.Id != settings.Mod_LogId && !message.Author.IsBot &&
@@ -693,7 +694,33 @@ namespace UB3RB0T
                         delText = "```Word Censor Triggered```";
                     }
 
-                    delText += $"**{message.Author.Username}#{message.Author.Discriminator}** deleted in {textChannel.Mention}: {message.Content}";
+                    var deletedContent = message.Content.Replace("@everyone", "@every\x200Bone").Replace("@here", "@he\x200Bre");
+                    if (message.MentionedUserIds.Count > 0)
+                    {
+                        var guildUsers = guild.Users;
+
+                        foreach (var userId in message.MentionedUserIds)
+                        {
+                            var guildUser = guildUsers.FirstOrDefault(u => u.Id == userId);
+                            if (guildUser != null)
+                            {
+                                deletedContent = deletedContent.Replace($"{userId}", guildUser.Nickname ?? guildUser.Username);
+                            }
+                        }
+                    }
+
+                    if (message.MentionedRoleIds.Count > 0)
+                    {
+                        var guildRoles = guild.Roles;
+
+                        foreach (var roleId in message.MentionedRoleIds)
+                        {
+                            var guildRole = guildRoles.FirstOrDefault(u => u.Id == roleId);
+                            deletedContent = deletedContent.Replace($"{roleId}", guildRole.Name);
+                        }
+                    }
+
+                    delText += $"**{message.Author.Username}#{message.Author.Discriminator}** deleted in {textChannel.Mention}: {deletedContent}";
 
                     // Include attachment URLs, if applicable
                     if (message.Attachments?.Count > 0)
