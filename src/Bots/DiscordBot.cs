@@ -23,6 +23,12 @@ namespace UB3RB0T
 
         private List<IModule> modules;
 
+        private BlockingCollection<DiscordEvent> eventQueue = new BlockingCollection<DiscordEvent>();
+        private BlockingCollection<DiscordEvent> voiceEventQueue = new BlockingCollection<DiscordEvent>();
+
+        private SemaphoreSlim eventProcessLock;
+        private SemaphoreSlim voiceEventProcessLock;
+
         public DiscordBot(int shard, int totalShards) : base(shard, totalShards)
         {
             // TODO: Add these via reflection processing or config instead of this nonsense
@@ -108,8 +114,12 @@ namespace UB3RB0T
             await this.Client.LoginAsync(TokenType.Bot, this.Config.Discord.Token);
             await this.Client.StartAsync();
 
-            this.statsTimer = new Timer(StatsTimerAsync, null, 3600000, 3600000);
+            this.statsTimer = new Timer(StatsTimerAsync, null, 3600000 + this.Shard * 10000, 3600000);
             this.StartBatchMessageProcessing();
+
+            this.eventProcessLock = new SemaphoreSlim(this.Config.Discord.EventQueueSize, this.Config.Discord.EventQueueSize);
+            this.voiceEventProcessLock = new SemaphoreSlim(this.Config.Discord.VoiceEventQueueSize, this.Config.Discord.VoiceEventQueueSize);
+            Task.Run(() => this.ProcessEvents()).Forget();
         }
 
         protected override async Task StopAsyncInternal(bool unexpected)

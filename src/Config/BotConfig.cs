@@ -80,8 +80,11 @@
 
         public string Status { get; set; }
 
+        public int EventQueueSize { get; set; } = 10;
+        public int VoiceEventQueueSize { get; set; } = 2;
+
         // Servers that are blocked from normal usage (owner being exempt)
-        // Useful for things liek large test servers.
+        // Useful for things like large test servers.
         public HashSet<ulong> BlockedServers { get; set; } = new HashSet<ulong>();
 
         // Globally blocked users (e.g. rule breakers, bot abusers, rustlers, cut throats, murderers, bounty hunters, desperados, mugs, pugs, thugs, nitwits, halfwits, dimwits, vipers, snipers, con men, and so on)

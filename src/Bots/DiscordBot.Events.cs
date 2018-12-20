@@ -2,18 +2,20 @@
 namespace UB3RB0T
 {
     using System;
+    using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
     using System.Net;
     using System.Reflection;
     using System.Text.RegularExpressions;
+    using System.Threading;
     using System.Threading.Tasks;
     using Discord;
     using Discord.Net;
     using Discord.WebSocket;
-    using UB3RB0T.Commands;
     using Serilog;
+    using UB3RB0T.Commands;
 
     public partial class DiscordBot
     {
@@ -28,60 +30,121 @@ namespace UB3RB0T
         /// <returns></returns>
         private Task HandleEvent(DiscordEventType eventType, params object[] args)
         {
-            Task.Run(async () =>
+            var discordEvent = new DiscordEvent
             {
-                try
-                {
-                    switch (eventType)
-                    {
-                        case DiscordEventType.Disconnected:
-                            await this.HandleDisconnected(args[0] as Exception);
-                            break;
-                        case DiscordEventType.JoinedGuild:
-                            await this.HandleJoinedGuildAsync((SocketGuild)args[0]);
-                            break;
-                        case DiscordEventType.LeftGuild:
-                            await this.HandleLeftGuildAsync((SocketGuild)args[0]);
-                            break;
-                        case DiscordEventType.UserJoined:
-                            await this.HandleUserJoinedAsync((SocketGuildUser)args[0]);
-                            break;
-                        case DiscordEventType.UserLeft:
-                            await this.HandleUserLeftAsync((SocketGuildUser)args[0]);
-                            break;
-                        case DiscordEventType.UserVoiceStateUpdated:
-                            await this.HandleUserVoiceStateUpdatedAsync((SocketUser)args[0], (SocketVoiceState)args[1], (SocketVoiceState)args[2]);
-                            break;
-                        case DiscordEventType.GuildMemberUpdated:
-                            await this.HandleGuildMemberUpdated(args[0] as SocketGuildUser, args[1] as SocketGuildUser);
-                            break;
-                        case DiscordEventType.UserBanned:
-                            await this.HandleUserBanned(args[0] as SocketGuildUser, (SocketGuild)args[1]);
-                            break;
-                        case DiscordEventType.MessageReceived:
-                            await this.HandleMessageReceivedAsync((SocketMessage)args[0]);
-                            break;
-                        case DiscordEventType.MessageUpdated:
-                            await this.HandleMessageUpdated((Cacheable<IMessage, ulong>)args[0], (SocketMessage)args[1], (ISocketMessageChannel)args[2]);
-                            break;
-                        case DiscordEventType.MessageDeleted:
-                            await this.HandleMessageDeleted((Cacheable <IMessage, ulong>)args[0], (ISocketMessageChannel)args[1]);
-                            break;
-                        case DiscordEventType.ReactionAdded:
-                            await this.HandleReactionAdded((Cacheable<IUserMessage, ulong>)args[0], (ISocketMessageChannel)args[1], (SocketReaction)args[2]);
-                            break;
-                        default:
-                            throw new ArgumentException("Unrecognized event type");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Log.Warning(ex, $"Error in {eventType} handler");
-                    this.AppInsights?.TrackException(ex);
-                }
-            }).Forget();
+                EventType = eventType,
+                Args = args,
+            };
+
+            if (eventType == DiscordEventType.UserVoiceStateUpdated)
+            {
+                this.voiceEventQueue.Add(discordEvent);
+            }
+            else
+            {
+                this.eventQueue.Add(discordEvent);
+            }
 
             return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// Processes events in the queue.
+        /// </summary>
+        public async Task ProcessEvents()
+        {
+            // Kick off voice event processing separately
+            Task.Run(() => this.ProcessVoiceEvents()).Forget();
+
+            foreach (var eventToProcess in this.eventQueue.GetConsumingEnumerable())
+            {
+                await this.eventProcessLock.WaitAsync();
+
+                Task.Run(async () =>
+                {
+                    var eventType = eventToProcess.EventType;
+                    var args = eventToProcess.Args;
+                    try
+                    {
+                        switch (eventType)
+                        {
+                            case DiscordEventType.Disconnected:
+                                await this.HandleDisconnected(args[0] as Exception);
+                                break;
+                            case DiscordEventType.JoinedGuild:
+                                await this.HandleJoinedGuildAsync((SocketGuild)args[0]);
+                                break;
+                            case DiscordEventType.LeftGuild:
+                                await this.HandleLeftGuildAsync((SocketGuild)args[0]);
+                                break;
+                            case DiscordEventType.UserJoined:
+                                await this.HandleUserJoinedAsync((SocketGuildUser)args[0]);
+                                break;
+                            case DiscordEventType.UserLeft:
+                                await this.HandleUserLeftAsync((SocketGuildUser)args[0]);
+                                break;
+                            case DiscordEventType.GuildMemberUpdated:
+                                await this.HandleGuildMemberUpdated(args[0] as SocketGuildUser, args[1] as SocketGuildUser);
+                                break;
+                            case DiscordEventType.UserBanned:
+                                await this.HandleUserBanned(args[0] as SocketGuildUser, (SocketGuild)args[1]);
+                                break;
+                            case DiscordEventType.MessageReceived:
+                                await this.HandleMessageReceivedAsync((SocketMessage)args[0]);
+                                break;
+                            case DiscordEventType.MessageUpdated:
+                                await this.HandleMessageUpdated((Cacheable<IMessage, ulong>)args[0], (SocketMessage)args[1], (ISocketMessageChannel)args[2]);
+                                break;
+                            case DiscordEventType.MessageDeleted:
+                                await this.HandleMessageDeleted((Cacheable<IMessage, ulong>)args[0], (ISocketMessageChannel)args[1]);
+                                break;
+                            case DiscordEventType.ReactionAdded:
+                                await this.HandleReactionAdded((Cacheable<IUserMessage, ulong>)args[0], (ISocketMessageChannel)args[1], (SocketReaction)args[2]);
+                                break;
+                            default:
+                                throw new ArgumentException("Unrecognized event type");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Warning(ex, $"Error in {eventType} handler");
+                        this.AppInsights?.TrackException(ex);
+                    }
+                    finally
+                    {
+                        this.eventProcessLock.Release();
+                    }
+                }).Forget();
+            }
+        }
+
+        /// <summary>
+        /// Processes voice events in the queue.
+        /// </summary>
+        private async Task ProcessVoiceEvents()
+        {
+            foreach (var eventToProcess in this.voiceEventQueue.GetConsumingEnumerable())
+            {
+                await this.voiceEventProcessLock.WaitAsync();
+
+                Task.Run(async () =>
+                {
+                    var args = eventToProcess.Args;
+                    try
+                    {
+                        await this.HandleUserVoiceStateUpdatedAsync((SocketUser)args[0], (SocketVoiceState)args[1], (SocketVoiceState)args[2]);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Warning(ex, $"Error in {eventToProcess.EventType} handler");
+                        this.AppInsights?.TrackException(ex);
+                    }
+                    finally
+                    {
+                        this.voiceEventProcessLock.Release();
+                    }
+                }).Forget();
+            }
         }
 
         //
