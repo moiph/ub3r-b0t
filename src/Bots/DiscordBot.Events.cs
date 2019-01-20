@@ -275,7 +275,7 @@ namespace UB3RB0T
                 {
                     string channelName = chanMatch.Groups[1].Value;
                     var channel = guildUser.Guild.Channels.Where(c => c is ITextChannel && c.Name.Equals(channelName, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
-                    return (channel as ITextChannel)?.Mention ?? channelName;
+                    return (channel as ITextChannel)?.Mention ?? $"#{channelName}";
                 }));
 
                 var greetingChannel = this.Client.GetChannel(settings.GreetingId) as ITextChannel ?? guildUser.Guild.DefaultChannel;
@@ -330,9 +330,9 @@ namespace UB3RB0T
 
                 farewell = Consts.ChannelRegex.Replace(farewell, new MatchEvaluator((Match chanMatch) =>
                 {
-                    string channelName = chanMatch.Captures[0].Value;
+                    string channelName = chanMatch.Groups[1].Value;
                     var channel = guildUser.Guild.Channels.Where(c => c is ITextChannel && c.Name.Equals(channelName, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
-                    return (channel as ITextChannel)?.Mention ?? channelName;
+                    return (channel as ITextChannel)?.Mention ?? $"#{channelName}";
                 }));
 
                 var farewellChannel = this.Client.GetChannel(settings.FarewellId) as ITextChannel ?? guildUser.Guild.DefaultChannel;

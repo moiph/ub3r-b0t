@@ -382,13 +382,6 @@ namespace UB3RB0T
         /// <summary>
         /// Helper to get a unix timestamp.
         /// </summary>
-        public static long Utime
-        {
-            get
-            {
-                TimeSpan span = DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0);
-                return (int)span.TotalSeconds;
-            }
-        }
+        public static long Utime => (long)(DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0)).TotalSeconds;
     }
 }
