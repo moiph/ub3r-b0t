@@ -5,7 +5,6 @@
     using System.Threading.Tasks;
     using Discord;
     using Discord.Net;
-    using Discord.WebSocket;
 
     [BotPermissions(GuildPermission.ManageMessages)]
     public class WordCensorModule : BaseDiscordModule

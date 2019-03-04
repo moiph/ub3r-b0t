@@ -156,10 +156,28 @@ namespace UB3RB0T
                 return false;
             }
 
+            string extraText = string.Empty;
             var channelToUse = this.Client.GetChannel(Convert.ToUInt64(notification.Channel)) as ITextChannel;
+
             // if the channel doesn't exist or we don't have send permissions, try to get the default channel instead.
             if (!channelToUse?.GetCurrentUserPermissions().SendMessages ?? true)
             {
+                // add some hint text about the misconfigured channel
+                string hint = "fix it in the admin panel";
+                if (notification.Type == NotificationType.Reminder)
+                {
+                    hint = "server owner: `.remove timer ###` and recreate it";
+                }
+
+                if (channelToUse == null)
+                {
+                    extraText = $" [Note: the channel configured is missing; {hint}]";
+                }
+                else
+                {
+                    extraText = $" [Note: missing permissions for the channel configured; adjust permissions or {hint}]";
+                }
+
                 channelToUse = await guild.GetDefaultChannelAsync() as ITextChannel;
 
                 // if the default channel couldn't be found or we don't have permissions, then we're SOL.
@@ -195,7 +213,7 @@ namespace UB3RB0T
                         var messageText = string.IsNullOrEmpty(notification.Embed.Url) ? string.Empty : $"<{notification.Embed.Url}>";
                         if (!string.IsNullOrEmpty(customText))
                         {
-                            messageText += $" {customText}";
+                            messageText += $" {customText}{extraText}";
                         }
 
                         await channelToUse.SendMessageAsync(messageText, false, notification.Embed.CreateEmbedBuilder().Build());
@@ -203,7 +221,8 @@ namespace UB3RB0T
                 }
                 else
                 {
-                    await channelToUse.SendMessageAsync(notification.Text.SubstringUpTo(Discord.DiscordConfig.MaxMessageSize));
+                    var messageText = $"{notification.Text}{extraText}";
+                    await channelToUse.SendMessageAsync(messageText.SubstringUpTo(Discord.DiscordConfig.MaxMessageSize));
                 }
 
                 var props = new Dictionary<string, string> {

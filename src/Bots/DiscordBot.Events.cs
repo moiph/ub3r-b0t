@@ -552,6 +552,12 @@ namespace UB3RB0T
                 return;
             }
 
+            if (this.Throttler.IsThrottled(guildId.ToString(), ThrottleType.Guild))
+            {
+                Log.Debug($"messaging throttle from guild: {message.Author.Id} on chan {message.Channel.Id} server {guildId}");
+                return;
+            }
+
             var botContext = new DiscordBotContext(this.Client, message)
             {
                 Reaction = reactionType,
@@ -827,13 +833,20 @@ namespace UB3RB0T
 
         private async Task<IUserMessage> RespondAsync(SocketUserMessage message, string response, Embed embedResponse = null, bool bypassEdit = false, bool rateLimitChecked = false)
         {
+            SocketGuild guild = (message.Channel as SocketGuildChannel)?.Guild;
+
             if (!rateLimitChecked)
             {
                 this.Throttler.Increment(message.Author.Id.ToString(), ThrottleType.User);
+
+                if (guild != null)
+                {
+                    this.Throttler.Increment(guild.Id.ToString(), ThrottleType.Guild);
+                }
             }
 
             var props = new Dictionary<string, string> {
-                { "server", (message.Channel as SocketGuildChannel)?.Guild.Id.ToString() ?? "private" },
+                { "server", guild?.Id.ToString() ?? "private" },
                 { "channel", message.Channel.Id.ToString() },
             };
 

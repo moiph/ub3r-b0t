@@ -412,8 +412,9 @@ namespace UB3RB0T
                             return responseData;
                         }
 
-                        // increment the user throttler as well
+                        // increment the user/guild throttlers as well
                         this.Throttler.Increment(messageData.UserId, ThrottleType.User);
+                        this.Throttler.Increment(messageData.Server, ThrottleType.Guild);
 
                         messageData.RateLimitChecked = true;
                     }
