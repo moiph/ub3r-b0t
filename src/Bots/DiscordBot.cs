@@ -111,7 +111,8 @@ namespace UB3RB0T
                 { "fr", new FeedbackCommand() },
             };
 
-            await this.Client.LoginAsync(TokenType.Bot, this.Config.Discord.Token);
+            // Token validation bug; suppress validation for now. Fixed in upcoming discord.net build
+            await this.Client.LoginAsync(TokenType.Bot, this.Config.Discord.Token, validateToken: false);
             await this.Client.StartAsync();
 
             this.statsTimer = new Timer(StatsTimerAsync, null, 3600000 + this.Shard * 10000, 3600000);
@@ -346,7 +347,7 @@ namespace UB3RB0T
                                 }
                             }
 
-                            if (!string.IsNullOrEmpty(messageToSend))
+                            if (!string.IsNullOrWhiteSpace(messageToSend))
                             {
                                 await channel.SendMessageAsync(messageToSend);
                             }
