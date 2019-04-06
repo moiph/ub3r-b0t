@@ -574,7 +574,7 @@ namespace UB3RB0T
         {
             if (this.Config.SeenEndpoint != null)
             {
-                seenTimer = new Timer(SeenTimerAsync, null, 60000, 60000);
+                seenTimer = new Timer(SeenTimerAsync, null, 120000, 120000);
             }
 
             heartbeatTimer = new Timer(HeartbeatTimerAsync, null, 60000, 60000 * 5);

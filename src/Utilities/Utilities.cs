@@ -28,6 +28,7 @@ namespace UB3RB0T
                              
 
         private static HashSet<ulong> blockedDMUsers = new HashSet<ulong>();
+        private static Random timerRandom = new Random();
 
         public static void Forget(this Task task) { }
 
@@ -231,6 +232,13 @@ namespace UB3RB0T
 
             GroupCollection matchGroups = timerMatch.Groups;
             string reason = matchGroups["reason"].ToString();
+
+            if (matchGroups["rand"].Success)
+            {
+                var randValue = timerRandom.Next(20, 360);
+                duration += randValue * 60;
+                durationStr = $"{randValue}m";
+            }
 
             if (matchGroups["years"].Success)
             {

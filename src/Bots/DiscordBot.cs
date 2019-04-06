@@ -115,7 +115,7 @@ namespace UB3RB0T
             await this.Client.LoginAsync(TokenType.Bot, this.Config.Discord.Token, validateToken: false);
             await this.Client.StartAsync();
 
-            this.statsTimer = new Timer(StatsTimerAsync, null, 3600000 + this.Shard * 10000, 3600000);
+            this.statsTimer = new Timer(StatsTimerAsync, null, 3600000 + this.Shard * 120000, 7200000);
             this.StartBatchMessageProcessing();
 
             this.eventProcessLock = new SemaphoreSlim(this.Config.Discord.EventQueueSize, this.Config.Discord.EventQueueSize);
