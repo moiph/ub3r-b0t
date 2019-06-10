@@ -617,6 +617,14 @@ namespace UB3RB0T
                         var sentMessage = await message.Channel.SendFileAsync(response.Attachment.Stream, response.Attachment.Name, response.Text);
                         this.botResponsesCache.Add(message.Id, sentMessage);
                     }
+                    else if (response?.MultiText != null)
+                    {
+                        foreach (var messageText in response.MultiText)
+                        {
+                            var sentMessage = await this.RespondAsync(message, messageText, response.Embed, bypassEdit: true);
+                            this.botResponsesCache.Add(message.Id, sentMessage);
+                        }
+                    }
                     else if (!string.IsNullOrEmpty(response?.Text) || response?.Embed != null)
                     {
                         var sentMessage = await this.RespondAsync(message, response.Text, response.Embed);

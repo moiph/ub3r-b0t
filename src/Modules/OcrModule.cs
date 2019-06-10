@@ -24,7 +24,7 @@
 
                 if (context.Reaction == "💬" || context.Reaction == "🗨️")
                 {
-                    var quote = context.MessageData.Content.Replace("\"", "&quot;");
+                    var quote = context.MessageData.Content.ReplaceMulti(new[] { "\"", "”", "“" }, "&quot;");
                     newMessageContent = $"{context.Settings.Prefix}quote add \"{quote}\" - userid:{message.Author.Id} {message.Author.Username}";
                     await message.AddReactionAsync(new Emoji("💬"));
                 }

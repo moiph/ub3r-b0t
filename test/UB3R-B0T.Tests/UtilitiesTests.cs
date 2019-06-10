@@ -36,5 +36,23 @@ namespace UB3RB0T.Tests
 
             Assert.AreEqual(text, result);
         }
+
+        [TestMethod]
+        public void TestReplaceMulti()
+        {
+            var text = "foo'bar";
+            var result = text.ReplaceMulti(new[] { "'" }, "&quot;");
+
+            Assert.AreEqual("foo&quot;bar", result);
+        }
+
+        [TestMethod]
+        public void TestReplaceMultiSingle()
+        {
+            var text = "“foo'bar”";
+            var result = text.ReplaceMulti(new[] { "'", "”", "“" }, "&quot;");
+
+            Assert.AreEqual("&quot;foo&quot;bar&quot;", result);
+        }
     }
 }

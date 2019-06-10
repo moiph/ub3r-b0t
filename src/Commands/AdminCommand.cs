@@ -23,6 +23,7 @@
                 catch (Exception ex)
                 {
                     Log.Error(ex, "Failure in admin command");
+                    return new CommandResponse { Text = "Settings creation failed, report this to the support server" };
                 }
             }
 

@@ -1,11 +1,13 @@
 ﻿namespace UB3RB0T.Commands
 {
+    using System.Collections.Generic;
     using System.IO;
     using Discord;
 
     public class CommandResponse
     {
         public string Text { get; set; }
+        public List<string> MultiText { get; set; }
         public Embed Embed { get; set; }
         public FileResponse Attachment { get; set; }
     }

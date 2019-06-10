@@ -15,6 +15,7 @@ namespace UB3RB0T
     using System.Linq;
     using System.Net;
     using System.Net.Http;
+    using System.Text;
     using System.Text.RegularExpressions;
     using System.Threading.Tasks;
 
@@ -66,6 +67,17 @@ namespace UB3RB0T
         public static bool IEquals(this string first, string second)
         {
             return first.ToLowerInvariant().Equals(second.ToLowerInvariant());
+        }
+
+        public static string ReplaceMulti(this string s, string[] oldValues, string newValue)
+        {
+            var sb = new StringBuilder(s);
+            foreach (var oldValue in oldValues)
+            {
+                sb.Replace(oldValue, newValue);
+            }
+
+            return sb.ToString();
         }
 
         public static EmbedBuilder CreateEmbedBuilder(this EmbedData embedData)
