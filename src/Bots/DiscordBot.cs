@@ -64,6 +64,7 @@ namespace UB3RB0T
                 TotalShards = this.TotalShards,
                 LogLevel = LogSeverity.Verbose,
                 MessageCacheSize = 25,
+                ExclusiveBulkDelete = false
             });
 
             this.Client.Ready += Client_Ready;
@@ -342,8 +343,19 @@ namespace UB3RB0T
                                 }
                                 else
                                 {
-                                    await channel.SendMessageAsync(messageToSend);
-                                    messageToSend = message + "\n";
+                                    if (!string.IsNullOrEmpty(messageToSend))
+                                    {
+                                        await channel.SendMessageAsync(messageToSend);
+                                    }
+
+                                    if (message.Length == Consts.MaxMessageLength)
+                                    {
+                                        messageToSend = message;
+                                    }
+                                    else
+                                    {
+                                        messageToSend = message + "\n";
+                                    }
                                 }
                             }
 

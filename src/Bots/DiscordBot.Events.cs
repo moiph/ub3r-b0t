@@ -513,8 +513,9 @@ namespace UB3RB0T
             }
 
             // Ignore other bots unless it's an allowed webhook
+            // Always ignore bot reactions
             var webhookUser = message.Author as IWebhookUser;
-            if (message.Author.IsBot && !this.Config.Discord.AllowedWebhooks.Contains(webhookUser?.WebhookId ?? 0))
+            if (message.Author.IsBot && !this.Config.Discord.AllowedWebhooks.Contains(webhookUser?.WebhookId ?? 0) || reactionUser?.IsBot == true)
             {
                 return;
             }
@@ -829,6 +830,24 @@ namespace UB3RB0T
                 }
 
                 await this.HandleMessageReceivedAsync(reaction.Message.Value, reaction.Emote.Name, reaction.User.Value);
+            }
+            else if (reaction.Emote.Name == "➕" || reaction.Emote.Name == "➖")
+            {
+                // handle possible role adds/removes
+                IUserMessage reactionMessage = null;
+                if (reaction.Message.IsSpecified)
+                {
+                    reactionMessage = reaction.Message.Value;
+                }
+                else
+                {
+                    reactionMessage = await reaction.Channel.GetMessageAsync(reaction.MessageId) as IUserMessage;
+                }
+
+                if (await RoleCommand.AddRoleViaReaction(reactionMessage, reaction))
+                {
+                    await reactionMessage.RemoveReactionAsync(reaction.Emote, reaction.User.Value);
+                }
             }
         }
 
