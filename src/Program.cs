@@ -48,31 +48,28 @@
                 {
                     if (BotInstance is DiscordBot discordBot)
                     {
-                        if (context.Request.Query["guilds"] == "1" && BotInstance != null)
+                        if (context.Request.Query["guilds"] == "1")
                         {
                             response = string.Join($",{Environment.NewLine}",
                                 discordBot.Client.Guilds.OrderByDescending(g => g.Users.Count).Select(g => $"{g.Id} | {g.Name} | {g.Users.Count}"));
                         }
-                        else if (!string.IsNullOrEmpty(context.Request.Query["guildId"]) && BotInstance != null)
+                        else if (ulong.TryParse(context.Request.Query["guildId"], out ulong guildId))
                         {
-                            if (ulong.TryParse(context.Request.Query["guildId"], out ulong guildId))
+                            var guild = discordBot.Client.GetGuild(guildId);
+                            if (guild != null)
                             {
-                                var guild = discordBot.Client.GetGuild(guildId);
-                                if (guild != null)
+                                var channelsResponse = new GuildPermisssionsData();
+
+                                var botGuildUser = guild.CurrentUser;
+                                var channels = guild.Channels.Where(c => c is ITextChannel || c is IVoiceChannel);
+
+                                foreach (var chan in channels)
                                 {
-                                    var channelsResponse = new GuildPermisssionsData();
-
-                                    var botGuildUser = guild.CurrentUser;
-                                    var channels = guild.Channels.Where(c => c is ITextChannel || c is IVoiceChannel);
-
-                                    foreach (var chan in channels)
-                                    {
-                                        var channelPermissions = botGuildUser.GetPermissions(chan);
-                                        channelsResponse.Channels.Add(chan.Id, new GuildChannelPermissions { CanRead = channelPermissions.ViewChannel, CanSend = channelPermissions.SendMessages });
-                                    }
-
-                                    response = JsonConvert.SerializeObject(channelsResponse);
+                                    var channelPermissions = botGuildUser.GetPermissions(chan);
+                                    channelsResponse.Channels.Add(chan.Id, new GuildChannelPermissions { CanRead = channelPermissions.ViewChannel, CanSend = channelPermissions.SendMessages });
                                 }
+
+                                response = JsonConvert.SerializeObject(channelsResponse);
                             }
                         }
                     }

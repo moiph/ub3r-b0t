@@ -81,6 +81,7 @@
                                 if (!string.IsNullOrEmpty(ocrText))
                                 {
                                     // Run some external processing and prioritize that over replacing existing content
+                                    textData.AuthorName = message.Author.Username;
                                     var response = await new Uri($"{BotConfig.Instance.ApiEndpoint}/ocr").PostJsonAsync(textData);
                                     var ocrProcessResponse = JsonConvert.DeserializeObject<OcrProcessResponse>(await response.Content.ReadAsStringAsync());
 
@@ -161,8 +162,8 @@
             var attachment = message.Attachments?.FirstOrDefault();
             if (attachment != null)
             {
-                // attachment needs to be larger than 40x40 (API restrictions)
-                if (attachment.Height > 40 && attachment.Width > 40)
+                // attachment needs to be larger than 50x50 (API restrictions)
+                if (attachment.Height > 50 && attachment.Width > 50)
                 {
                     attachmentUrl = attachment.Url;
                 }

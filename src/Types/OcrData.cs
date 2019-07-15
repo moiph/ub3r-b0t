@@ -15,6 +15,8 @@ namespace UB3RB0T
         [JsonProperty(PropertyName = "status")]
         public string Status { get; set; }
 
+        public string AuthorName { get; set; }
+
         public string GetText()
         {
             var words = new List<string>();
