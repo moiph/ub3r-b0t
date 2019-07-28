@@ -13,6 +13,7 @@ namespace UB3RB0T
     using Discord.Net;
     using Discord.WebSocket;
     using Serilog;
+    using StatsdClient;
     using UB3RB0T.Commands;
 
     public partial class DiscordBot
@@ -606,12 +607,24 @@ namespace UB3RB0T
 
             if (this.discordCommands.TryGetValue(command, out IDiscordCommand discordCommand))
             {
+                var commandProps = new Dictionary<string, string> {
+                        { "command",  command.ToLowerInvariant() },
+                        { "server", botContext.MessageData.Server },
+                        { "channel", botContext.MessageData.Channel }
+                    };
+                this.TrackEvent("commandProcessed", commandProps);
+
                 var typeInfo = discordCommand.GetType().GetTypeInfo();
                 var permissionChecksPassed = await this.CheckPermissions(botContext, typeInfo);
 
                 if (permissionChecksPassed)
                 {
-                    var response = await discordCommand.Process(botContext);
+                    CommandResponse response;
+
+                    using (DogStatsd.StartTimer("commandDuration", tags: new[] { $"shard:{this.Shard}", $"command:{command.ToLowerInvariant()}", $"{this.BotType}" }))
+                    {
+                        response = await discordCommand.Process(botContext);
+                    }
 
                     if (response?.Attachment != null)
                     {
