@@ -143,7 +143,7 @@
             Process p = null;
             if (!audioBytes.ContainsKey(filename))
             {
-                Log.Debug($"{{Indicator}} [{filename}] reading data", "[audio]");
+                Log.Verbose($"{{Indicator}} [{filename}] reading data", "[audio]");
                 p = Process.Start(new ProcessStartInfo
                 {
                     FileName = "c:\\audio\\ffmpeg",
@@ -155,18 +155,18 @@
             }
             else
             {
-                Log.Debug($"{{Indicator}} [{filename}] using cached bytes", "[audio]");
+                Log.Verbose($"{{Indicator}} [{filename}] using cached bytes", "[audio]");
             }
 
             await audioInstance.streamLock.WaitAsync();
 
-            Log.Debug($"{{Indicator}} [{filename}] lock obtained", "[audio]");
+            Log.Verbose($"{{Indicator}} [{filename}] lock obtained", "[audio]");
 
             try
             {
                 if (audioInstance.Stream != null)
                 {
-                    Log.Debug($"{{Indicator}} [{filename}] stream copy", "[audio]");
+                    Log.Verbose($"{{Indicator}} [{filename}] stream copy", "[audio]");
 
                     if (p != null)
                     {

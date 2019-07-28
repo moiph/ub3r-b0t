@@ -685,8 +685,8 @@ namespace UB3RB0T
                 });
 
                 TelemetryConfiguration.Active.TelemetryChannel.DeveloperMode = this.Config.IsDevMode;
-                this.AppInsights.Context.Properties.Add("Shard", this.Shard.ToString());
-                this.AppInsights.Context.Properties.Add("BotType", this.BotType.ToString());
+                this.AppInsights.Context.GlobalProperties.Add("Shard", this.Shard.ToString());
+                this.AppInsights.Context.GlobalProperties.Add("BotType", this.BotType.ToString());
             }
 
             var dogstatsdConfig = new StatsdConfig
