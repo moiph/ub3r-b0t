@@ -1,37 +1,16 @@
-## Welcome to GitHub Pages
+## UB3R-B0T
 
-You can use the [editor on GitHub](https://github.com/moiph/ub3r-b0t/edit/master/README.md) to maintain and preview the content for your website in Markdown files.
+### The hell is an UB3R-B0T?
+UB3R-B0T is primarily a utility bot for Discord and IRC. You can read more about UB3R-B0T as an application and adding to your own servers at https://ub3r.bot
 
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
+### The code
+This repo hosts the main bot application code. Some if it is old and gnarly. Some of it's kind of okay. This repo isn't really intended for use to clone and spin up your own bot. You can certainly try, but there isn't any support provided to do that. It's mostly intended for version control and letting UB3R be an open source buddy. Because bots are buddies. They are our friends. Do not fear the bots.
 
-### Markdown
+### I found a bug in the code
+You can open an issue in github or swing by the UB3R-B0T Discord server: https://discord.gg/0t6waxpRf4xvyNHj
 
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
+### I don't like UB3R-B0T
+that is unfortunate
 
-```markdown
-Syntax highlighted code block
-
-# Header 1
-## Header 2
-### Header 3
-
-- Bulleted
-- List
-
-1. Numbered
-2. List
-
-**Bold** and _Italic_ and `Code` text
-
-[Link](url) and ![Image](src)
-```
-
-For more details see [GitHub Flavored Markdown](https://guides.github.com/features/mastering-markdown/).
-
-### Jekyll Themes
-
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/moiph/ub3r-b0t/settings). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
-
-### Support or Contact
-
-Having trouble with Pages? Check out our [documentation](https://help.github.com/categories/github-pages-basics/) or [contact support](https://github.com/contact) and we’ll help you sort it out.
+### I like UB3R-B0T
+that is awesome thanks for saying that
