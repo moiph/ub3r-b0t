@@ -46,6 +46,7 @@ namespace UB3RB0T
 
         protected int Shard { get; private set; } = 0;
         protected TelemetryClient AppInsights { get; private set; }
+        protected DogStatsdService DogStats { get; private set; }
         protected BotApi BotApi { get; }
 
         protected virtual string UserId { get; }
@@ -228,6 +229,7 @@ namespace UB3RB0T
             this.heartbeatTimer?.Dispose();
             this.seenTimer?.Dispose();
             this.listenerHost?.Dispose();
+            this.DogStats?.Dispose();
             Log.Debug("dispose end");
         }
 
@@ -432,7 +434,7 @@ namespace UB3RB0T
                         query += $" {this.urls[messageData.Channel]}";
                     }
 
-                    using (DogStatsd.StartTimer("commandDuration", tags: new[] { $"shard:{this.Shard}", $"command:{command.ToLowerInvariant()}", $"{this.BotType}" }))
+                    using (this.DogStats?.StartTimer("commandDuration", tags: new[] { $"shard:{this.Shard}", $"command:{command.ToLowerInvariant()}", $"{this.BotType}" }))
                     {
                         messageData.Content = $"{settings.Prefix}{query}";
                         responseData = await this.BotApi.IssueRequestAsync(messageData);
@@ -501,7 +503,7 @@ namespace UB3RB0T
                 tags.Add($"{kvp.Key}:{kvp.Value}");
             }
 
-            DogStatsd.Increment(eventName, tags: tags.ToArray());
+            this.DogStats?.Increment(eventName, tags: tags.ToArray());
         }
 
         private void StartWebListener()
@@ -619,7 +621,7 @@ namespace UB3RB0T
 
                 this.AppInsights?.TrackMetric(metric);
 
-                DogStatsd.Gauge("guildsCount", discordBot.Client.Guilds.Count(), tags: new[] { $"shard:{this.Shard}", $"{this.BotType}" });
+                this.DogStats?.Gauge("guildsCount", discordBot.Client.Guilds.Count(), tags: new[] { $"shard:{this.Shard}", $"{this.BotType}" });
             }
 
             if (this.Config.HeartbeatEndpoint != null && !this.Config.IsDevMode)
@@ -646,7 +648,7 @@ namespace UB3RB0T
                 if (missedHeartbeats >= 3)
                 {
                     this.missedHeartbeats = 0;
-                    this.exitCode = (int)ExitCode.UnexpectedError;
+                    this.exitCode = (int)ExitCode.ConnectionRestart;
                     if (this.Config.AlertEndpoint != null)
                     {
                         string messageContent = $"\U0001F501 {this.BotType} Shard {this.Shard} triggered automatic restart due to inactivity";
@@ -694,7 +696,8 @@ namespace UB3RB0T
                 StatsdServerName = "127.0.0.1"
             };
 
-            DogStatsd.Configure(dogstatsdConfig);
+            this.DogStats = new DogStatsdService();
+            this.DogStats.Configure(dogstatsdConfig);
         }
     }
 }

@@ -21,6 +21,7 @@
         Success = 0,
         UnexpectedError = 1,
         ExpectedShutdown = 2,
+        ConnectionRestart = 3,
     }
 
     class Program

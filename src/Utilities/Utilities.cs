@@ -352,6 +352,39 @@ namespace UB3RB0T
             return null;
         }
 
+        /// <summary>
+        /// Grabs the attachment URL from the message attachment, if present, else tries to parse an image URL out of the message contents.
+        /// </summary>
+        /// <param name="message">The message to parse</param>
+        /// <returns>Image URL</returns>
+        public static string ParseImageUrl(this SocketUserMessage message)
+        {
+            string attachmentUrl = null;
+
+            var attachment = message.Attachments?.FirstOrDefault();
+            if (attachment != null)
+            {
+                // attachment needs to be larger than 50x50 (API restrictions)
+                if (attachment.Height > 50 && attachment.Width > 50)
+                {
+                    attachmentUrl = attachment.Url;
+                }
+            }
+            else
+            {
+                if (Uri.TryCreate(message.Content, UriKind.Absolute, out Uri attachmentUri))
+                {
+                    attachmentUrl = attachmentUri.ToString();
+                    if (!attachmentUrl.EndsWith(".jpg") && !attachmentUrl.EndsWith(".png"))
+                    {
+                        attachmentUrl = null;
+                    }
+                }
+            }
+
+            return attachmentUrl;
+        }
+
         // port from discord.net .9x
         public static IEnumerable<IUser> Find(this IEnumerable<IUser> users, string name, ushort? discriminator = null, bool exactMatch = false)
         {

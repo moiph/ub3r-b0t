@@ -621,7 +621,7 @@ namespace UB3RB0T
                 {
                     CommandResponse response;
 
-                    using (DogStatsd.StartTimer("commandDuration", tags: new[] { $"shard:{this.Shard}", $"command:{command.ToLowerInvariant()}", $"{this.BotType}" }))
+                    using (this.DogStats?.StartTimer("commandDuration", tags: new[] { $"shard:{this.Shard}", $"command:{command.ToLowerInvariant()}", $"{this.BotType}" }))
                     {
                         response = await discordCommand.Process(botContext);
                     }
@@ -827,10 +827,14 @@ namespace UB3RB0T
             // if an Eye emoji was added, let's process it
             if ((reaction.Emote.Name == "👁" || reaction.Emote.Name == "🖼") &&
                 reaction.Message.IsSpecified &&
-                IsAuthorPatron(reaction.UserId) &&
-                string.IsNullOrEmpty(reaction.Message.Value.Content) &&
-                reaction.Message.Value.Attachments.Count > 0)
+                (IsAuthorPatron(reaction.UserId) || BotConfig.Instance.OcrAutoIds.Contains(channel.Id)) &&
+                reaction.Message.Value.ParseImageUrl() != null)
             {
+                if (reaction.Message.Value.Reactions.Any(r => r.Key.Name == "👁" && r.Value.ReactionCount > 1) || reaction.Message.Value.Reactions.Any(r => r.Key.Name == "🖼" && r.Value.ReactionCount > 1))
+                {
+                    return;
+                }
+
                 await this.HandleMessageReceivedAsync(reaction.Message.Value, reaction.Emote.Name);
             }
 

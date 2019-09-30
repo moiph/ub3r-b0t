@@ -17,6 +17,8 @@ namespace UB3RB0T
 
         public string AuthorName { get; set; }
 
+        public string CommandType { get; set; }
+
         public string GetText()
         {
             var words = new List<string>();

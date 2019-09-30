@@ -12,8 +12,8 @@ namespace UB3RB0T
     using Discord.WebSocket;
     using Flurl.Http;
     using Newtonsoft.Json;
-    using UB3RB0T.Commands;
     using Serilog;
+    using UB3RB0T.Commands;
 
     public partial class DiscordBot : Bot
     {

@@ -4,7 +4,6 @@
     using System.Linq;
     using System.Threading.Tasks;
     using Discord;
-    using Discord.WebSocket;
     using Flurl.Http;
     using Newtonsoft.Json;
     using Serilog;
@@ -18,7 +17,8 @@
         public override async Task<ModuleResult> ProcessDiscordModule(IDiscordBotContext context)
         {
             var message = context.Message;
-            if (!string.IsNullOrEmpty(context.Reaction) || BotConfig.Instance.OcrAutoIds.Contains(message.Channel.Id))
+            // don't auto process if the message was edited
+            if (!string.IsNullOrEmpty(context.Reaction) || (BotConfig.Instance.OcrAutoIds.Contains(message.Channel.Id) && context.Message.EditedTimestamp == null))
             {
                 string newMessageContent = null;
 
@@ -30,7 +30,7 @@
                 }
                 else if (string.IsNullOrEmpty(message.Content) || BotConfig.Instance.OcrAutoIds.Contains(message.Channel.Id))
                 {
-                    var imageUrl = this.ParseImageUrl(context.Message);
+                    var imageUrl = context.Message.ParseImageUrl();
 
                     if (imageUrl != null)
                     {
@@ -82,11 +82,18 @@
                                 {
                                     // Run some external processing and prioritize that over replacing existing content
                                     textData.AuthorName = message.Author.Username;
+                                    textData.CommandType = context.Reaction ?? "auto";
+     
                                     var response = await new Uri($"{BotConfig.Instance.ApiEndpoint}/ocr").PostJsonAsync(textData);
                                     var ocrProcessResponse = JsonConvert.DeserializeObject<OcrProcessResponse>(await response.Content.ReadAsStringAsync());
 
                                     if (ocrProcessResponse.Response != null)
                                     {
+                                        if (context.Reaction == "👁")
+                                        {
+                                            await message.AddReactionAsync(new Emoji("👁"));
+                                        }
+
                                         // clear out the processed OCR text and use the API response
                                         await message.Channel.SendMessageAsync(ocrProcessResponse.Response);
                                         ocrText = null;
@@ -148,39 +155,6 @@
             }
 
             return data;
-        }
-
-        /// <summary>
-        /// Grabs the attachment URL from the message attachment, if present, else tries to parse an image URL out of the message contents.
-        /// </summary>
-        /// <param name="message">The message to parse</param>
-        /// <returns>Image URL</returns>
-        private string ParseImageUrl(SocketUserMessage message)
-        {
-            string attachmentUrl = null;
-
-            var attachment = message.Attachments?.FirstOrDefault();
-            if (attachment != null)
-            {
-                // attachment needs to be larger than 50x50 (API restrictions)
-                if (attachment.Height > 50 && attachment.Width > 50)
-                {
-                    attachmentUrl = attachment.Url;
-                }
-            }
-            else
-            {
-                if (Uri.TryCreate(message.Content, UriKind.Absolute, out Uri attachmentUri))
-                {
-                    attachmentUrl = attachmentUri.ToString();
-                    if (!attachmentUrl.EndsWith(".jpg") && !attachmentUrl.EndsWith(".png"))
-                    {
-                        attachmentUrl = null;
-                    }
-                }
-            }
-
-            return attachmentUrl;
         }
     }
 }
