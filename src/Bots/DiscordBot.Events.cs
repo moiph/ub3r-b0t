@@ -501,13 +501,10 @@ namespace UB3RB0T
 
             if (message == null || (isOutbound = message.Author.Id == this.Client.CurrentUser.Id))
             {
-                if (isOutbound)
+                if (isOutbound && this.Config.LogOutgoing)
                 {
                     var logMessage = message.Embeds?.Count > 0 ? $"Sending [embed content] to {message.Channel.Name}" : $"Sending to {message.Channel.Name}: {message.Content}";
-                    if (this.Config.LogOutgoing)
-                    {
-                        Log.Verbose($"{{Outgoing}} {logMessage}", ">>>");
-                    }
+                    Log.Verbose($"{{Outgoing}} {logMessage}", ">>>");
                 }
 
                 return;

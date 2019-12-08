@@ -1,6 +1,14 @@
 ﻿
 namespace UB3RB0T
 {
+    using Microsoft.ApplicationInsights;
+    using Microsoft.ApplicationInsights.DataContracts;
+    using Microsoft.ApplicationInsights.Extensibility;
+    using Microsoft.AspNetCore.Hosting;
+    using Microsoft.Azure.ServiceBus;
+    using Newtonsoft.Json;
+    using Serilog;
+    using StatsdClient;
     using System;
     using System.Collections.Concurrent;
     using System.Collections.Generic;
@@ -10,14 +18,6 @@ namespace UB3RB0T
     using System.Text.RegularExpressions;
     using System.Threading;
     using System.Threading.Tasks;
-    using Microsoft.ApplicationInsights;
-    using Microsoft.ApplicationInsights.DataContracts;
-    using Microsoft.ApplicationInsights.Extensibility;
-    using Microsoft.AspNetCore.Hosting;
-    using Microsoft.Azure.ServiceBus;
-    using Newtonsoft.Json;
-    using Serilog;
-    using StatsdClient;
 
     /// <summary>
     /// It's...UB3R-B0T

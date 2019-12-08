@@ -156,13 +156,12 @@
             var logConfiguration = new LoggerConfiguration()
                 .MinimumLevel.ControlledBy(levelSwitch)
                 .Enrich.WithProperty("Shard", shard.ToString().PadLeft(2))
-                .WriteTo.Console(outputTemplate:
-                "[{Timestamp:HH:mm:ss} {Level:u3} {Shard}] {Message:lj}{NewLine}{Exception}");
+                .WriteTo.Console(restrictedToMinimumLevel: LogEventLevel.Error,
+                    outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3} {Shard}] {Message:lj}{NewLine}{Exception}");
 
             if (!string.IsNullOrWhiteSpace(BotConfig.Instance.LogsPath))
             {
                 logConfiguration.WriteTo.File($"{BotConfig.Instance.LogsPath}\\{botType}_shard{shard}_.txt",
-                    restrictedToMinimumLevel: LogEventLevel.Debug,
                     buffered: true,
                     rollingInterval: RollingInterval.Day,
                     flushToDiskInterval: TimeSpan.FromSeconds(5));
