@@ -164,7 +164,8 @@
                 logConfiguration.WriteTo.File($"{BotConfig.Instance.LogsPath}\\{botType}_shard{shard}_.txt",
                     buffered: true,
                     rollingInterval: RollingInterval.Day,
-                    flushToDiskInterval: TimeSpan.FromSeconds(5));
+                    flushToDiskInterval: TimeSpan.FromSeconds(5),
+                    retainedFileCountLimit: BotConfig.Instance.LogsRetainedFileCount);
             }
 
             Log.Logger = logConfiguration.CreateLogger();

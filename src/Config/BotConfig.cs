@@ -63,6 +63,7 @@
         public bool LogOutgoing { get; set; }
 
         public string LogsPath { get; set; }
+        public int LogsRetainedFileCount { get; set; } = 7;
 
         public Dictionary<ThrottleType, Throttle> Throttles { get; set; } = new Dictionary<ThrottleType, Throttle>();
     }
