@@ -13,8 +13,10 @@
         {
             // special case FAQ channel
             var message = context.Message;
-            if (message.Channel.Id == BotConfig.Instance.FaqChannel && message.Content.EndsWith("?") && BotConfig.Instance.FaqEndpoint != null)
+            if (message.Channel.Id == BotConfig.Instance.FaqChannel && BotConfig.Instance.FaqEndpoint != null && (message.Content.EndsWith("?") || context.Reaction == "❓"))
             {
+                await message.AddReactionAsync(new Emoji("❓"));
+
                 string content = message.Content.Replace("<@85614143951892480>", "ub3r-b0t");
                 var result = await BotConfig.Instance.FaqEndpoint.ToString().WithHeader("Authorization", BotConfig.Instance.FaqKey).PostJsonAsync(new { question = content });
                 if (result.IsSuccessStatusCode)

@@ -821,31 +821,33 @@ namespace UB3RB0T
 
         private async Task HandleReactionAdded(Cacheable<IUserMessage, ulong> message, ISocketMessageChannel channel, SocketReaction reaction)
         {
+            string reactionEmote = reaction.Emote.Name;
+
             // if an Eye emoji was added, let's process it
-            if ((reaction.Emote.Name == "👁" || reaction.Emote.Name == "🖼") &&
+            if ((reactionEmote == "👁" || reactionEmote == "🖼") &&
                 reaction.Message.IsSpecified &&
                 (IsAuthorPatron(reaction.UserId) || BotConfig.Instance.OcrAutoIds.Contains(channel.Id)) &&
                 reaction.Message.Value.ParseImageUrl() != null)
             {
-                if (reaction.Message.Value.Reactions.Any(r => r.Key.Name == "👁" && r.Value.ReactionCount > 1) || reaction.Message.Value.Reactions.Any(r => r.Key.Name == "🖼" && r.Value.ReactionCount > 1))
+                if (reaction.Message.Value.Reactions.Any(r => (r.Key.Name == "👁" || r.Key.Name == "🖼") && r.Value.ReactionCount > 1))
                 {
                     return;
                 }
 
-                await this.HandleMessageReceivedAsync(reaction.Message.Value, reaction.Emote.Name);
+                await this.HandleMessageReceivedAsync(reaction.Message.Value, reactionEmote);
             }
 
-            if ((reaction.Emote.Name == "💬" || reaction.Emote.Name == "🗨️") && reaction.Message.IsSpecified && !string.IsNullOrEmpty(reaction.Message.Value?.Content))
+            if ((reactionEmote == "💬" || reactionEmote == "🗨️" || reactionEmote == "❓") && reaction.Message.IsSpecified && !string.IsNullOrEmpty(reaction.Message.Value?.Content))
             {
                 // if the reaction already exists, don't re-process.
-                if (reaction.Message.Value.Reactions.Any(r => r.Key.Name == "💬" && r.Value.ReactionCount > 1) || reaction.Message.Value.Reactions.Any(r => r.Key.Name == "🗨️" && r.Value.ReactionCount > 1))
+                if (reaction.Message.Value.Reactions.Any(r => (r.Key.Name == "💬" || r.Key.Name == "🗨️" || r.Key.Name == "❓") && r.Value.ReactionCount > 1))
                 {
                     return;
                 }
 
-                await this.HandleMessageReceivedAsync(reaction.Message.Value, reaction.Emote.Name, reaction.User.Value);
+                await this.HandleMessageReceivedAsync(reaction.Message.Value, reactionEmote, reaction.User.Value);
             }
-            else if (reaction.Emote.Name == "➕" || reaction.Emote.Name == "➖")
+            else if (reactionEmote == "➕" || reactionEmote == "➖")
             {
                 // handle possible role adds/removes
                 IUserMessage reactionMessage = null;
