@@ -219,6 +219,17 @@ namespace UB3RB0T
             if (DateTime.TryParse(dateTimeString, DateTimeFormatInfo.InvariantInfo, DateTimeStyles.AdjustToUniversal, out DateTime dt))
             {
                 duration = (long)dt.Subtract(DateTime.UtcNow).TotalSeconds;
+
+                // if duration was negative then set the date for tomorrow.
+                if (duration < 0)
+                {
+                    dateTimeString = $"{DateTime.UtcNow.Year}/{DateTime.UtcNow.Month}/{DateTime.UtcNow.Day + 1} " + dateTimeString;
+                    if (DateTime.TryParse(dateTimeString, DateTimeFormatInfo.InvariantInfo, DateTimeStyles.AdjustToUniversal, out dt))
+                    {
+                        duration = (long)dt.Subtract(DateTime.UtcNow).TotalSeconds;
+                    }
+                }
+
                 durationStr = $"{duration}s";
             }
 

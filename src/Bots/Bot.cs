@@ -286,7 +286,7 @@ namespace UB3RB0T
 
                     if (repeat.Nicks.Count == 3)
                     {
-                        var commandKey = $"{messageData.Channel}_{messageData.Server}_repeat";
+                        var commandKey = $"{messageData.Channel}_{messageData.Server}";
                         this.Throttler.Increment(commandKey, ThrottleType.Repeat);
 
                         if (!this.Throttler.IsThrottled(commandKey, ThrottleType.Repeat))

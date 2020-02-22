@@ -138,6 +138,7 @@
     {
         public uint Limit { get; set; }
         public uint PeriodInMinutes { get; set; }
+        public uint PeriodInSeconds { get; set; }
     }
 
     public class Irc

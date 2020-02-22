@@ -93,7 +93,7 @@
                     {
                         lastMsgId = downloadedMsgs.Last().Id;
 
-                        var msgs = downloadedMsgs.Where(m => (deletionUser == null || m.Author?.Id == deletionUser.Id)).Take(count - msgsToDeleteCount);
+                        var msgs = downloadedMsgs.Where(m => (deletionUser == null || m.Author?.Id == deletionUser.Id) && !m.IsPinned).Take(count - msgsToDeleteCount);
                         msgsToDeleteCount += msgs.Count();
                         msgsToDelete.AddRange(msgs);
                     }

@@ -12,7 +12,7 @@ namespace UB3RB0T
         {
             if (BotConfig.Instance.Throttles.TryGetValue(throttleType, out var throttle))
             {
-                this.AddOrUpdate(key, throttle, true);
+                this.AddOrUpdate($"{throttleType}_{key}", throttle, true);
             }
         }
 
@@ -20,7 +20,7 @@ namespace UB3RB0T
         {
             if (BotConfig.Instance.Throttles.TryGetValue(throttleType, out var throttle))
             {
-                return this.AddOrUpdate(key, throttle, false).TimesInvoked > throttle.Limit;
+                return this.AddOrUpdate($"{throttleType}_{key}", throttle, false).TimesInvoked > throttle.Limit;
             }
 
             return false;
@@ -32,7 +32,8 @@ namespace UB3RB0T
 
             return this.invokeTracker.AddOrUpdate(key, new MessageTimeout(now), (k, val) =>
             {
-                if ((now - val.FirstInvoke) > TimeSpan.FromMinutes(throttle.PeriodInMinutes))
+                TimeSpan timespan = throttle.PeriodInMinutes > 0 ? TimeSpan.FromMinutes(throttle.PeriodInMinutes) : TimeSpan.FromSeconds(throttle.PeriodInSeconds);
+                if ((now - val.FirstInvoke) > timespan)
                 {
                     val = new MessageTimeout(now);
                 }

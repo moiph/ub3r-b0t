@@ -229,7 +229,7 @@ namespace UB3RB0T
                 var owner = guild.Owner;
                 if (defaultChannel != null && guild.CurrentUser.GetPermissions(defaultChannel).SendMessages)
                 {
-                    await defaultChannel.SendMessageAsync($"(HELLO, I AM UB3R-B0T! .halp for info. {owner.Mention} you're the kickass owner-- you can use .admin to configure some stuff. By using me you agree to these terms: https://discordapp.com/developers/docs/legal)");
+                    await defaultChannel.SendMessageAsync($"(HELLO, I AM UB3R-B0T! .halp for info. {owner.Mention} you're the kickass owner-- you can use .admin to configure some stuff. By using me you agree to these terms: https://ub3r-b0t.com/terms)");
                 }
 
                 if (this.Config.PruneEndpoint != null)
