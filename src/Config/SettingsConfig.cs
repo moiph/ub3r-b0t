@@ -123,6 +123,9 @@
         public ulong Mod_LogId { get; set; }
         public ModOptions Mod_LogOptions { get; set; }
 
+        public ulong RoleAddEmoteId { get; set; }
+        public ulong RoleRemoveEmoteId { get; set; }
+
         public bool FunResponsesEnabled { get; set; }
         public int FunResponseChance { get; set; } = 100;
         public bool AutoTitlesEnabled { get; set; }

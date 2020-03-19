@@ -117,13 +117,17 @@
                         if (requestedRole != null)
                         {
                             var guildAuthor = reaction.User.Value as IGuildUser;
+                            var customEmote = reaction.Emote as Emote;
+                            var isAdd = reaction.Emote.Name == "➕" || customEmote?.Id == settings.RoleAddEmoteId;
+                            var isRemove = reaction.Emote.Name == "➖" || customEmote?.Id == settings.RoleRemoveEmoteId;
+
                             try
                             {
-                                if (reaction.Emote.Name == "➕")
+                                if (isAdd)
                                 {
                                     await guildAuthor.AddRoleAsync(requestedRole);
                                 }
-                                else
+                                else if (isRemove)
                                 {
                                     await guildAuthor.RemoveRoleAsync(requestedRole);
                                 }

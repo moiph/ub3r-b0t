@@ -28,8 +28,7 @@
 
         public Uri SeenEndpoint { get; set; }
 
-        public ulong FaqChannel { get; set; }
-        public Uri FaqEndpoint { get; set; }
+        public Dictionary<ulong, Faq> FaqEndpoints { get; set; }
         public string FaqKey { get; set; }
 
         public string VisionKey { get; set; }
@@ -139,6 +138,13 @@
         public uint Limit { get; set; }
         public uint PeriodInMinutes { get; set; }
         public uint PeriodInSeconds { get; set; }
+    }
+
+    public class Faq
+    {
+        public Uri Endpoint { get; set; }
+        public string Reaction { get; set; }
+        public string EndsWith { get; set; }
     }
 
     public class Irc

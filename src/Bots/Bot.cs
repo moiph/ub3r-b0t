@@ -268,7 +268,7 @@ namespace UB3RB0T
                 //Text = messageData.Content, removed due to discord tos
             });
 
-            var httpMatch = Consts.HttpRegex.Match(messageData.Content);
+            var httpMatch = Consts.UrlRegex.Match(messageData.Content);
             if (httpMatch.Success)
             {
                 this.urls[messageData.Channel] = httpMatch.Value;

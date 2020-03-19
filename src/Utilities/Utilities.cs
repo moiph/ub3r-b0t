@@ -61,12 +61,12 @@ namespace UB3RB0T
 
         public static bool IContains(this string haystack, string needle)
         {
-            return haystack.ToLowerInvariant().Contains(needle.ToLowerInvariant());
+            return haystack.Contains(needle, StringComparison.OrdinalIgnoreCase);
         }
 
         public static bool IEquals(this string first, string second)
         {
-            return first.ToLowerInvariant().Equals(second.ToLowerInvariant());
+            return first.Equals(second, StringComparison.OrdinalIgnoreCase);
         }
 
         public static string ReplaceMulti(this string s, string[] oldValues, string newValue)

@@ -837,17 +837,21 @@ namespace UB3RB0T
                 await this.HandleMessageReceivedAsync(reaction.Message.Value, reactionEmote);
             }
 
-            if ((reactionEmote == "💬" || reactionEmote == "🗨️" || reactionEmote == "❓") && reaction.Message.IsSpecified && !string.IsNullOrEmpty(reaction.Message.Value?.Content))
+            var guildChannel = channel as SocketTextChannel;
+            var settings = SettingsConfig.GetSettings(guildChannel.Guild.Id);
+            var customEmote = reaction.Emote as Emote;
+
+            if ((reactionEmote == "💬" || reactionEmote == "🗨️" || reactionEmote == "❓" || reactionEmote == "🤖") && reaction.Message.IsSpecified && !string.IsNullOrEmpty(reaction.Message.Value?.Content))
             {
                 // if the reaction already exists, don't re-process.
-                if (reaction.Message.Value.Reactions.Any(r => (r.Key.Name == "💬" || r.Key.Name == "🗨️" || r.Key.Name == "❓") && r.Value.ReactionCount > 1))
+                if (reaction.Message.Value.Reactions.Any(r => (r.Key.Name == "💬" || r.Key.Name == "🗨️" || r.Key.Name == "❓" || r.Key.Name == "🤖") && r.Value.ReactionCount > 1))
                 {
                     return;
                 }
 
                 await this.HandleMessageReceivedAsync(reaction.Message.Value, reactionEmote, reaction.User.Value);
             }
-            else if (reactionEmote == "➕" || reactionEmote == "➖")
+            else if (reactionEmote == "➕" || reactionEmote == "➖" || customEmote?.Id == settings.RoleAddEmoteId || customEmote?.Id == settings.RoleRemoveEmoteId)
             {
                 // handle possible role adds/removes
                 IUserMessage reactionMessage = null;

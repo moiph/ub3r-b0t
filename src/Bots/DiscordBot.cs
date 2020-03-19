@@ -202,28 +202,26 @@ namespace UB3RB0T
 
             try
             {
+                var customText = settings.NotificationText.FirstOrDefault(n => n.Type == notification.Type)?.Text;
+
                 if (notification.Embed != null && settings.HasFlag(notification.Type))
                 {
                     // TODO: discord handles twitter embeds nicely; should adjust the notification data accordingly so we don't need this explicit check here
                     if (notification.Type == NotificationType.Twitter)
                     {
-                        await channelToUse.SendMessageAsync(notification.Embed.Url);
+                        var messageText = $"{notification.Embed.Url} {customText}{extraText}".TrimEnd();
+                        await channelToUse.SendMessageAsync(messageText);
                     }
                     else
                     {
-                        var customText = settings.NotificationText.FirstOrDefault(n => n.Type == notification.Type)?.Text;
                         var messageText = string.IsNullOrEmpty(notification.Embed.Url) ? string.Empty : $"<{notification.Embed.Url}>";
-                        if (!string.IsNullOrEmpty(customText))
-                        {
-                            messageText += $" {customText}{extraText}";
-                        }
-
+                        messageText += $" {customText}{extraText}".TrimEnd();
                         await channelToUse.SendMessageAsync(messageText, false, notification.Embed.CreateEmbedBuilder().Build());
                     }
                 }
                 else
                 {
-                    var messageText = $"{notification.Text}{extraText}";
+                    var messageText = $"{notification.Text} {customText}{extraText}".TrimEnd();
                     await channelToUse.SendMessageAsync(messageText.SubstringUpTo(Discord.DiscordConfig.MaxMessageSize));
                 }
 
