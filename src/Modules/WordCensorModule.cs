@@ -9,7 +9,7 @@
     [BotPermissions(GuildPermission.ManageMessages)]
     public class WordCensorModule : BaseDiscordModule
     {
-        private HashSet<ulong> blockedDMUsers = new HashSet<ulong>();
+        private readonly HashSet<ulong> blockedDMUsers = new HashSet<ulong>();
 
         public override async Task<ModuleResult> ProcessDiscordModule(IDiscordBotContext context)
         {

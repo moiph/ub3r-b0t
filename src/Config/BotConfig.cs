@@ -22,10 +22,6 @@
         // Server settings endpoint, if applicable.
         public Uri SettingsEndpoint { get; set; }
 
-        // Server pruning endpoint, if applicable.
-        // Called upon guild leave (useful to clear out service state, e.g. settings, reminders, etc)
-        public Uri PruneEndpoint { get; set; }
-
         public Uri SeenEndpoint { get; set; }
 
         public Dictionary<ulong, Faq> FaqEndpoints { get; set; }
@@ -34,7 +30,7 @@
         public string VisionKey { get; set; }
         public Uri OcrEndpoint { get; set; }
         public Uri AnalyzeEndpoint { get; set; }
-        public ulong[] OcrAutoIds { get; set; } = new ulong[] { };
+        public ulong[] OcrAutoIds { get; set; } = Array.Empty<ulong>();
 
         public DiscordConfig Discord { get; set; }
         public Irc Irc { get; set; }
@@ -100,7 +96,7 @@
         /// <summary>
         /// Endpoints for bot lists
         /// </summary>
-        public BotStatData[] BotStats { get; set; } = new BotStatData[] { };
+        public BotStatData[] BotStats { get; set; } = Array.Empty<BotStatData>();
 
         /// <summary>
         /// Outgoing webhooks, to send messages for particular channels to...wherever
@@ -196,6 +192,14 @@
     {
         public InvalidConfigException(string message)
             : base(message)
+        {
+        }
+
+        public InvalidConfigException()
+        {
+        }
+
+        public InvalidConfigException(string message, Exception innerException) : base(message, innerException)
         {
         }
     }

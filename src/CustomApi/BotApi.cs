@@ -12,15 +12,11 @@ namespace UB3RB0T
     /// </summary>
     public class BotApi
     {
-        private Uri apiEndpoint;
-        private string apiKey;
-        private BotType botType;
+        private readonly Uri apiEndpoint;
 
-        public BotApi(Uri endpoint, string key, BotType botType)
+        public BotApi(Uri endpoint)
         {
             this.apiEndpoint = endpoint;
-            this.apiKey = key;
-            this.botType = botType;
         }
 
         public async Task<BotResponseData> IssueRequestAsync(BotMessageData messageData)

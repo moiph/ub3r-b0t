@@ -5,7 +5,7 @@
     using Discord.WebSocket;
 
     [AttributeUsage(AttributeTargets.Class)]
-    public class BotPermissionsAttribute : PermissionsAttribute
+    public sealed class BotPermissionsAttribute : PermissionsAttribute
     {
         public ChannelPermission? ChannelPermission { get; }
         public GuildPermission? GuildPermission { get; }

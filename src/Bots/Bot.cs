@@ -24,6 +24,7 @@ namespace UB3RB0T
     /// </summary>
     public abstract class Bot : IDisposable
     {
+        private bool isDisposed;
         private int instanceCount;
         private int exitCode = 0;
         private int messageCount = 0;
@@ -76,7 +77,7 @@ namespace UB3RB0T
             // If a custom API endpoint is supported...support it
             if (this.Config.ApiEndpoint != null)
             {
-                this.BotApi = new BotApi(this.Config.ApiEndpoint, this.Config.ApiKey, this.BotType);
+                this.BotApi = new BotApi(this.Config.ApiEndpoint);
             }
         }
 
@@ -220,17 +221,26 @@ namespace UB3RB0T
             }
         }
 
-        public void Dispose() => Dispose(true);
-
-        public virtual void Dispose(bool disposing)
+        public void Dispose()
         {
-            Log.Debug("dispose start");
-            this.queueClient?.CloseAsync();
-            this.heartbeatTimer?.Dispose();
-            this.seenTimer?.Dispose();
-            this.listenerHost?.Dispose();
-            this.DogStats?.Dispose();
-            Log.Debug("dispose end");
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!this.isDisposed && disposing)
+            {
+                Log.Debug("dispose start");
+                this.queueClient?.CloseAsync();
+                this.heartbeatTimer?.Dispose();
+                this.seenTimer?.Dispose();
+                this.listenerHost?.Dispose();
+                this.DogStats?.Dispose();
+                Log.Debug("dispose end");
+            }
+
+            this.isDisposed = true;
         }
 
         protected void UpdateSeen(string key, SeenUserData seenUserData)
@@ -317,7 +327,7 @@ namespace UB3RB0T
             {
                 // match fun
                 bool mentionsBot = messageData.MentionsBot(this.Config.Name, Convert.ToUInt64(this.UserId));
-                if (CommandsConfig.Instance.TryParseForCommand(messageData.Content, mentionsBot, out string parsedCommand, out string query))
+                if (CommandsConfig.Instance.TryParseForCommand(messageData.Content, mentionsBot, out _, out string query))
                 {
                     messageData.Content = $"{settings.Prefix}{query}";
                 }

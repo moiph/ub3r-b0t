@@ -23,7 +23,7 @@
         public async Task<CommandResponse> Process(IDiscordBotContext context)
         {
             var script = context.Message.Content.Split(new[] { ' ' }, 2)[1];
-            string result = "no result";
+            string result;
             try
             {
                 var evalResult = await CSharpScript.EvaluateAsync<object>(script, scriptOptions, globals: new ScriptHost { Message = context.Message, Client = context.Client });

@@ -28,15 +28,15 @@ namespace UB3RB0T
         const long TOOLONG = 315360000;
                              
 
-        private static HashSet<ulong> blockedDMUsers = new HashSet<ulong>();
-        private static Random timerRandom = new Random();
+        private static readonly HashSet<ulong> blockedDMUsers = new HashSet<ulong>();
+        private static readonly Random timerRandom = new Random();
 
         public static void Forget(this Task task) { }
 
         public static Uri AppendQueryParam(this Uri uri, string key, string value)
         {
             var newQueryParams = new Dictionary<string, string> { { key, value } };
-            return new Uri(QueryHelpers.AddQueryString(uri.ToString(), newQueryParams)); 
+            return new Uri(QueryHelpers.AddQueryString(uri.ToString(), newQueryParams));
         }
 
         public static Task<HttpResponseMessage> PostJsonAsync(this Uri uri, object data)
@@ -193,7 +193,7 @@ namespace UB3RB0T
             catch (Exception ex)
             {
                 Log.Error(ex, $"Failed to parse {{Endpoint}}", uri);
-                return default(T);
+                return default;
             }
         }
 
@@ -276,6 +276,10 @@ namespace UB3RB0T
             if (matchGroups["weeks"].Success)
             {
                 string weekString = matchGroups["weeks"].ToString();
+                if (weekString.IEquals("a week"))
+                {
+                    weekString = "1 week";
+                }
                 if (int.TryParse(weekString.Remove(weekString.Length - 5, 5), out int weekValue))
                 {
                     duration += weekValue * ONEWEEK;
@@ -286,6 +290,10 @@ namespace UB3RB0T
             if (matchGroups["days"].Success)
             {
                 string dayString = matchGroups["days"].ToString();
+                if (dayString.IEquals("a day"))
+                {
+                    dayString = "1 day";
+                }
                 if (int.TryParse(dayString.Remove(dayString.Length - 4, 4), out int dayValue))
                 {
                     duration += dayValue * ONEDAY;
@@ -296,6 +304,10 @@ namespace UB3RB0T
             if (matchGroups["hours"].Success)
             {
                 string hourString = matchGroups["hours"].ToString();
+                if (hourString.IEquals("an hour"))
+                {
+                    hourString = "1 hour";
+                }
                 if (int.TryParse(hourString.Remove(hourString.Length - 5, 5), out int hourValue))
                 {
                     duration += hourValue * ONEHOUR;
@@ -328,7 +340,7 @@ namespace UB3RB0T
                 return false;
             }
 
-            query = $"timer for:\"{to}\" {durationStr} {reason}";
+            query = $"timer for:\"{WebUtility.UrlEncode(to)}\" {durationStr} {reason}";
 
             return true;
         }

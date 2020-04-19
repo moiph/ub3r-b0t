@@ -16,7 +16,7 @@
 
                 if (parts.Length != 3)
                 {
-                    return new CommandResponse { Text = "Usage: .remove type #; valid types are timer and wc" };
+                    return new CommandResponse { Text = "Usage: .remove type #; valid types are timer, wc, user, or bday" };
                 }
 
                 var type = parts[1].ToLowerInvariant();

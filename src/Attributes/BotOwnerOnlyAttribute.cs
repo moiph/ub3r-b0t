@@ -4,7 +4,7 @@
     using Discord.WebSocket;
 
     [AttributeUsage(AttributeTargets.Class)]
-    public class BotOwnerOnlyAttribute : PermissionsAttribute
+    public sealed class BotOwnerOnlyAttribute : PermissionsAttribute
     {
         public BotOwnerOnlyAttribute(string failureMessage = null)
         {

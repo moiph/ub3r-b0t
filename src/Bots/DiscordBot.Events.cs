@@ -13,12 +13,11 @@ namespace UB3RB0T
     using Discord.Net;
     using Discord.WebSocket;
     using Serilog;
-    using StatsdClient;
     using UB3RB0T.Commands;
 
     public partial class DiscordBot
     {
-        private MessageCache botResponsesCache = new MessageCache();
+        private readonly MessageCache botResponsesCache = new MessageCache();
         private bool isReady;
 
         /// <summary>
@@ -232,10 +231,16 @@ namespace UB3RB0T
                     await defaultChannel.SendMessageAsync($"(HELLO, I AM UB3R-B0T! .halp for info. {owner.Mention} you're the kickass owner-- you can use .admin to configure some stuff. By using me you agree to these terms: https://ub3r-b0t.com/terms)");
                 }
 
-                if (this.Config.PruneEndpoint != null)
+                if (this.BotApi != null)
                 {
-                    var req = WebRequest.Create($"{this.Config.PruneEndpoint}?id={guild.Id}&restore=1");
-                    await req.GetResponseAsync();
+                    try
+                    {
+                        await this.BotApi.IssueRequestAsync(new BotMessageData(BotType.Discord) { Content = ".prune restore", Prefix = ".", Server = guild.Id.ToString() });
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, $"Error calling prune restore command");
+                    }
                 }
             }
         }
@@ -249,10 +254,16 @@ namespace UB3RB0T
 
             SettingsConfig.RemoveSettings(guild.Id.ToString());
 
-            if (this.Config.PruneEndpoint != null)
+            if (this.BotApi != null)
             {
-                var req = WebRequest.Create($"{this.Config.PruneEndpoint}?id={guild.Id}");
-                await req.GetResponseAsync();
+                try
+                { 
+                    await this.BotApi.IssueRequestAsync(new BotMessageData(BotType.Discord) { Content = ".prune", Prefix = ".", Server = guild.Id.ToString() });
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, $"Error calling prune command");
+                }
             }
 
             await audioManager.LeaveAudioAsync(guild.Id);

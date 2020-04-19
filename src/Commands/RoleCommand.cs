@@ -14,7 +14,7 @@
         private static readonly Regex RoleIdRegex = new Regex("roleid:(?<roleid>[0-9]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex RoleMentionRegex = new Regex("<@&(?<roleid>[0-9]+)>", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-        private bool isAdd;
+        private readonly bool isAdd;
 
         public RoleCommand(bool isAdd)
         {
@@ -42,7 +42,7 @@
 
                     if (requestedRole == null)
                     {
-                        return new CommandResponse { Text = "wtf? role not found, spel teh name beter or something." };
+                        return new CommandResponse { Text = "I couldn't find that role. either the role is sponsored by waldo or carmen sandiego, or you need to improve your spelling" };
                     }
                 }
 

@@ -85,7 +85,7 @@
                     }
                     catch (Exception ex)
                     {
-                        downloadedMsgs = new IMessage[0];
+                        downloadedMsgs = Array.Empty<IMessage>();
                         Log.Error(ex, "Failure to download messages in clear command");
                     }
 

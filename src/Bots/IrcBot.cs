@@ -13,7 +13,7 @@ namespace UB3RB0T
     {
         private readonly Dictionary<string, IrcClient> ircClients = new Dictionary<string, IrcClient>();
         private readonly Dictionary<string, ServerData> serverData = new Dictionary<string, ServerData>(StringComparer.OrdinalIgnoreCase);
-        private static Regex namesRegex = new Regex(".*(#[^ ]+) :(.*)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex namesRegex = new Regex(".*(#[^ ]+) :(.*)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         public IrcBot(int shard) : base(shard, 1)
         {

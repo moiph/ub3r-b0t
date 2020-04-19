@@ -44,7 +44,7 @@
 
         public void Reset()
         {
-            JsonConfig.ConfigInstances.TryRemove(instanceKey, out object oldConfig);
+            JsonConfig.ConfigInstances.TryRemove(instanceKey, out _);
         }
 
         public virtual async Task OverrideAsync(Uri uri)
@@ -63,7 +63,7 @@
         private static T Parse()
         {
             var config = new T();
-            string contents = string.Empty;
+            string contents;
 
             if (!string.IsNullOrEmpty(config.FileName))
             {

@@ -17,9 +17,12 @@
         public IAudioClient AudioClient { get; set; }
         public Stream Stream { get; set; }
 
-        public void Dispose() => Dispose(true);
+        public void Dispose()
+        {
+            this.Dispose(true);
+        }
 
-        public void Dispose(bool isDisposing)
+        protected virtual void Dispose(bool isDisposing)
         {
             if (!this.isDisposed)
             {

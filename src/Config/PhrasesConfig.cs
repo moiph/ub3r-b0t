@@ -7,7 +7,7 @@
 
     public class PhrasesConfig : JsonConfig<PhrasesConfig>
     {
-        private Dictionary<VoicePhraseType, string[]> voiceFileNames = new Dictionary<VoicePhraseType, string[]>();
+        private readonly Dictionary<VoicePhraseType, string[]> voiceFileNames = new Dictionary<VoicePhraseType, string[]>();
 
         protected override string FileName => "phrasesconfig.json";
 

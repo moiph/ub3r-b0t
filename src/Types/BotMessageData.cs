@@ -23,6 +23,7 @@
         public string UserHost { get; set; }
         public string Channel { get; set; }
         public string Server { get; set; }
+        public string MessageId { get; set; }
         public string Content { get; set; }
         public string Command => Query.Split(new[] { ' ' }, 2)?[0];
         public string Prefix { get; set; }
@@ -79,6 +80,8 @@
 
         public static BotMessageData Create(SocketUserMessage message, Settings serverSettings)
         {
+            var preferEmbeds = (message.Channel as SocketTextChannel).GetCurrentUserPermissions().EmbedLinks && serverSettings.PreferEmbeds;
+
             var messageData = new BotMessageData(BotType.Discord)
             {
                 DiscordMessageData = message,
@@ -87,8 +90,9 @@
                 UserHost = message.Author.Id.ToString(),
                 Channel = message.Channel.Id.ToString(),
                 Server = (message.Channel as IGuildChannel)?.GuildId.ToString() ?? "private",
+                MessageId = message.Id.ToString(),
                 Content = message.Content,
-                Format = serverSettings.PreferEmbeds ? "embed" : string.Empty,
+                Format = preferEmbeds ? "embed" : string.Empty,
                 Prefix = serverSettings.Prefix,
             };
 

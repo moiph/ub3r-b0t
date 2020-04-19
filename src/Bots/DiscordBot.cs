@@ -17,14 +17,14 @@ namespace UB3RB0T
 
     public partial class DiscordBot : Bot
     {
-        private AudioManager audioManager = new AudioManager();
+        private readonly AudioManager audioManager = new AudioManager();
         private Timer statsTimer;
         private Dictionary<string, IDiscordCommand> discordCommands;
 
-        private List<IModule> modules;
+        private readonly List<IModule> modules;
 
-        private BlockingCollection<DiscordEvent> eventQueue = new BlockingCollection<DiscordEvent>();
-        private BlockingCollection<DiscordEvent> voiceEventQueue = new BlockingCollection<DiscordEvent>();
+        private readonly BlockingCollection<DiscordEvent> eventQueue = new BlockingCollection<DiscordEvent>();
+        private readonly BlockingCollection<DiscordEvent> voiceEventQueue = new BlockingCollection<DiscordEvent>();
 
         private SemaphoreSlim eventProcessLock;
         private SemaphoreSlim voiceEventProcessLock;
@@ -138,13 +138,14 @@ namespace UB3RB0T
             await Task.Delay(5000);
         }
 
-        public override void Dispose(bool disposing)
+        protected override void Dispose(bool disposing)
         {
             base.Dispose(disposing);
 
             this.statsTimer?.Dispose();
             Log.Debug("disposing of client");
-            this.Client?.Dispose();
+            // TODO: Library bug -- investigate hang in DiscordSocketClient.Dispose
+            // this.Client?.Dispose();
             Log.Debug("disposing of audio manager");
             this.audioManager?.Dispose();
         }

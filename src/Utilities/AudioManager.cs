@@ -11,8 +11,8 @@
 
     public class AudioManager : IDisposable
     {
-        private ConcurrentDictionary<ulong, AudioInstance> audioInstances = new ConcurrentDictionary<ulong, AudioInstance>();
-        private ConcurrentDictionary<string, byte[]> audioBytes = new ConcurrentDictionary<string, byte[]>();
+        private readonly ConcurrentDictionary<ulong, AudioInstance> audioInstances = new ConcurrentDictionary<ulong, AudioInstance>();
+        private readonly ConcurrentDictionary<string, byte[]> audioBytes = new ConcurrentDictionary<string, byte[]>();
 
         public async Task<bool> JoinAudioAsync(IVoiceChannel voiceChannel)
         {
@@ -28,7 +28,7 @@
                 };
 
                 audioInstances[voiceChannel.GuildId] = audioInstance;
-                audioInstance.Stream = audioInstance.AudioClient.CreatePCMStream(Discord.Audio.AudioApplication.Voice, null, 250);
+                audioInstance.Stream = audioInstance.AudioClient.CreatePCMStream(Discord.Audio.AudioApplication.Voice, null, 400);
 
                 joinedAudio = true;
             }
@@ -105,7 +105,7 @@
                 {
                     if (audioInstances.TryGetValue(voiceChannel.GuildId, out AudioInstance audioInstance))
                     {
-                        string[] voiceFileNames = null;
+                        string[] voiceFileNames;
                         if (voicePhraseType == VoicePhraseType.UserJoin)
                         {
                             // if it's a first time rejoin, let's make it special
@@ -238,9 +238,13 @@
             return array;
         }
 
-        public void Dispose() => Dispose(true);
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
 
-        public void Dispose(bool isDisposing)
+        protected virtual void Dispose(bool isDisposing)
         {
             foreach (var kvp in this.audioInstances)
             {
