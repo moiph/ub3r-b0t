@@ -717,9 +717,9 @@ namespace UB3RB0T
             {
                 if (!attr.CheckPermissions(context))
                 {
-                    if (!string.IsNullOrEmpty(attr.FailureMessage))
+                    if (!string.IsNullOrEmpty(attr.FailureString))
                     {
-                        await this.RespondAsync(context.Message, attr.FailureMessage);
+                        await this.RespondAsync(context.Message, context.Settings.GetString(attr.FailureString));
                     }
 
                     attributeChecksPassed = false;
@@ -832,6 +832,11 @@ namespace UB3RB0T
 
         private async Task HandleReactionAdded(Cacheable<IUserMessage, ulong> message, ISocketMessageChannel channel, SocketReaction reaction)
         {
+            if (reaction.User.IsSpecified && reaction.User.Value.IsBot)
+            {
+                return;
+            }
+
             string reactionEmote = reaction.Emote.Name;
 
             // if an Eye emoji was added, let's process it

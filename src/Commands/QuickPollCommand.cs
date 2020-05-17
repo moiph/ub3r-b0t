@@ -3,7 +3,7 @@
     using System.Threading.Tasks;
     using Discord;
 
-    [BotPermissions(ChannelPermission.AddReactions, "I need to have add reactions permissions.")]
+    [BotPermissions(ChannelPermission.AddReactions, "RequireReactionAdd")]
     public class QuickPollCommand : IDiscordCommand
     {
         public async Task<CommandResponse> Process(IDiscordBotContext context)

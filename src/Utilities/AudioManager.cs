@@ -24,7 +24,7 @@
                 audioInstance = new AudioInstance
                 {
                     GuildId = voiceChannel.GuildId,
-                    AudioClient = await voiceChannel.ConnectAsync().ConfigureAwait(false)
+                    AudioClient = await voiceChannel.ConnectAsync(selfDeaf: true).ConfigureAwait(false)
                 };
 
                 audioInstances[voiceChannel.GuildId] = audioInstance;

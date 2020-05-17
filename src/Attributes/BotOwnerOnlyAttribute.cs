@@ -6,9 +6,9 @@
     [AttributeUsage(AttributeTargets.Class)]
     public sealed class BotOwnerOnlyAttribute : PermissionsAttribute
     {
-        public BotOwnerOnlyAttribute(string failureMessage = null)
+        public BotOwnerOnlyAttribute(string failureString = null)
         {
-            this.FailureMessage = failureMessage;
+            this.FailureString = failureString;
         }
 
         public override bool CheckPermissions(IDiscordBotContext context) =>

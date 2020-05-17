@@ -10,16 +10,16 @@
         public ChannelPermission? ChannelPermission { get; }
         public GuildPermission? GuildPermission { get; }
 
-        public UserPermissionsAttribute(ChannelPermission channelPermission, string failureMessage = null)
+        public UserPermissionsAttribute(ChannelPermission channelPermission, string failureString = null)
         {
             this.ChannelPermission = channelPermission;
-            this.FailureMessage = failureMessage;
+            this.FailureString = failureString;
         }
 
-        public UserPermissionsAttribute(GuildPermission guildPermission, string failureMessage = null)
+        public UserPermissionsAttribute(GuildPermission guildPermission, string failureString = null)
         {
             this.GuildPermission = guildPermission;
-            this.FailureMessage = failureMessage;
+            this.FailureString = failureString;
         }
 
         public override bool CheckPermissions(IDiscordBotContext context)

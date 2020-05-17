@@ -8,8 +8,8 @@
     using Discord.WebSocket;
     using Serilog;
 
-    [BotPermissions(ChannelPermission.ManageMessages, "yeah I don't have the permissions to delete messages, buttwad.")]
-    [UserPermissions(ChannelPermission.ManageMessages, "you don't have permissions to clear messages fartface")]
+    [BotPermissions(ChannelPermission.ManageMessages, "RequireManageMessages")]
+    [UserPermissions(ChannelPermission.ManageMessages, "RequireUserManageMessages")]
     public class ClearCommand : IDiscordCommand
     {
         public async Task<CommandResponse> Process(IDiscordBotContext context)

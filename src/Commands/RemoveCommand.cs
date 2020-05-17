@@ -3,7 +3,7 @@
     using System.Linq;
     using System.Threading.Tasks;
 
-    [GuildOwnerOnly("Restricted to server owner.")]
+    [GuildOwnerOnly("RequireUserGuildOwner")]
     public class RemoveCommand : IDiscordCommand
     {
         public async Task<CommandResponse> Process(IDiscordBotContext context)

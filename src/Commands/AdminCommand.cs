@@ -6,7 +6,7 @@
     using Discord;
     using Serilog;
 
-    [UserPermissions(GuildPermission.ManageGuild, "You must have manage server permissions to use that command. nice try, dungheap")]
+    [UserPermissions(GuildPermission.ManageGuild, "RequireUserManageGuild")]
     public class AdminCommand : IDiscordCommand
     {
         public async Task<CommandResponse> Process(IDiscordBotContext context)

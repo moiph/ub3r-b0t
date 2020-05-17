@@ -6,9 +6,9 @@
     [AttributeUsage(AttributeTargets.Class)]
     public class SpecialUserOnlyAttribute : PermissionsAttribute
     {
-        public SpecialUserOnlyAttribute(string failureMessage = null)
+        public SpecialUserOnlyAttribute(string failureString = null)
         {
-            this.FailureMessage = failureMessage;
+            this.FailureString = failureString;
         }
 
         public override bool CheckPermissions(IDiscordBotContext context) =>

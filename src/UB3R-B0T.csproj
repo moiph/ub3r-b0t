@@ -16,15 +16,14 @@
     <UpdateAssemblyInfoVersion>False</UpdateAssemblyInfoVersion>
     <AssemblyVersionSettings>IncrementOnDemand.IncrementOnDemand.DateStamp.Increment</AssemblyVersionSettings>
     <Version>4.3.0</Version>
-    <AssemblyVersion>4.3.2004.3</AssemblyVersion>
-    <FileVersion>4.3.2004.3</FileVersion>
+    <AssemblyVersion>4.3.2005.1</AssemblyVersion>
+    <FileVersion>4.3.2005.1</FileVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <DebugType>pdbonly</DebugType>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="**\*.cs" />
-    <EmbeddedResource Include="**\*.resx" />
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="obj\**" />
@@ -47,7 +46,7 @@
     <Content Include="ub3rb0t.ico" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Discord.Net.WebSocket" Version="2.3.0-dev-20200417.1" />
+    <PackageReference Include="Discord.Net.WebSocket" Version="2.3.0-dev-20200425.1" />
     <PackageReference Include="DogStatsD-CSharp-Client" Version="3.3.0" />
     <PackageReference Include="Flurl.Http" Version="2.4.2" />
     <PackageReference Include="Microsoft.ApplicationInsights" Version="2.10.0" />
@@ -60,5 +59,18 @@
     <PackageReference Include="Serilog.Sinks.Console" Version="3.1.1" />
     <PackageReference Include="Serilog.Sinks.File" Version="4.0.0" />
     <PackageReference Include="UB3RIRC" Version="2.1.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Update="Config\Strings.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Strings.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Update="Config\Strings.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Strings.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
   </ItemGroup>
 </Project>

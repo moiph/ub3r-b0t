@@ -5,9 +5,9 @@
     [AttributeUsage(AttributeTargets.Class)]
     public class GuildOwnerOnlyAttribute : PermissionsAttribute
     {
-        public GuildOwnerOnlyAttribute(string failureMessage = null)
+        public GuildOwnerOnlyAttribute(string failureString = null)
         {
-            this.FailureMessage = failureMessage;
+            this.FailureString = failureString;
         }
 
         public override bool CheckPermissions(IDiscordBotContext context) =>

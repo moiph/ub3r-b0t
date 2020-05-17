@@ -6,6 +6,7 @@
     using System.Linq;
     using System.Text.RegularExpressions;
     using System.Threading.Tasks;
+    using UB3RB0T.Config;
 
     /// <summary>
     /// Settings for individual servers
@@ -126,6 +127,7 @@
         public ulong RoleAddEmoteId { get; set; }
         public ulong RoleRemoveEmoteId { get; set; }
 
+        public bool SasshatEnabled { get; set; }
         public bool FunResponsesEnabled { get; set; }
         public int FunResponseChance { get; set; } = 100;
         public bool AutoTitlesEnabled { get; set; }
@@ -156,6 +158,11 @@
             }
 
             return commandsConfig.Commands.ContainsKey(command) && this.DisabledCommands.Contains(commandsConfig.Commands[command]);
+        }
+
+        public string GetString(string stringName)
+        {
+            return (this.SasshatEnabled ? StringHelper.GetString($"{stringName}Nice") : null) ?? StringHelper.GetString(stringName);
         }
 
         public bool TriggersCensor(string text, out string offendingWord)

@@ -1,5 +1,6 @@
 ﻿namespace UB3RB0T.Commands
 {
+    using System;
     using System.Linq;
     using System.Threading.Tasks;
     using System.Net;
@@ -8,7 +9,7 @@
     using Discord.Net;
     using Discord.WebSocket;
 
-    [BotPermissions(GuildPermission.ManageRoles, "gee thanks asswad I can't manage roles in this server. not much I can do for ya here buddy. unless you wanna, y'know, up my permissions")]
+    [BotPermissions(GuildPermission.ManageRoles, "RequireManageRoles")]
     public class RoleCommand : IDiscordCommand
     {
         private static readonly Regex RoleIdRegex = new Regex("roleid:(?<roleid>[0-9]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -33,6 +34,15 @@
                     return new CommandResponse { Text = $"Usage: {settings.Prefix}role rolename | {settings.Prefix}derole rolename" };
                 }
 
+                if (roleArgs[1].StartsWith("generate "))
+                {
+                    var roleGenArgs = context.Message.Content.Split(new[] { ' ' }, 5);
+                    if (roleGenArgs.Length >= 3)
+                    {
+                        return await this.RoleGenerate(context, roleGenArgs);
+                    }
+                }
+
                 IRole requestedRole = context.Message.MentionedRoles.FirstOrDefault();
                 if (requestedRole == null)
                 {
@@ -50,7 +60,6 @@
                 {
                     return new CommandResponse { Text = $"woah there buttmunch tryin' to cheat the system? you don't have the AUTHORITY to self-assign the {requestedRole.Name.ToUpperInvariant()} role. now make like a tree and get outta here" };
                 }
-
 
                 var guildAuthor = context.Message.Author as IGuildUser;
                 if (isAdd && guildAuthor.RoleIds.Contains(requestedRole.Id))
@@ -144,6 +153,66 @@
             }
 
             return false;
+        }
+
+        private async Task<CommandResponse> RoleGenerate(IDiscordBotContext context, string[] roleGenArgs)
+        {
+            var guildUser = context.Message.Author as SocketGuildUser;
+            var settings = context.Settings;
+
+            if (!guildUser.GuildPermissions.Has(GuildPermission.ManageRoles))
+            {
+                return new CommandResponse { Text = "You need manage roles permission do that." };
+            }
+
+            var helpText = $"Usage: {settings.Prefix}role generate @role channelId Text to pair with the message here";
+
+            IRole genRole = context.Message.MentionedRoles.FirstOrDefault();
+            if (genRole == null && ulong.TryParse(roleGenArgs[2], out var roleId))
+            {
+                genRole = context.GuildChannel.Guild.GetRole(roleId);
+            }
+
+            if (genRole == null)
+            {
+                return new CommandResponse { Text = helpText };
+            }
+
+            if (!context.Settings.SelfRoles.Contains(genRole.Id))
+            {
+                return new CommandResponse { Text = $"That role is not currently self-assignable. Fix the settings first." };
+            }
+
+            var channel = context.Message.MentionedChannels.FirstOrDefault() as SocketTextChannel;
+            if (channel == null && ulong.TryParse(roleGenArgs[3], out var chanId))
+            {
+                channel = context.GuildChannel.Guild.GetChannel(chanId) as SocketTextChannel;
+            }
+
+            if (channel != null)
+            {
+                try
+                {
+                    var genMessage = await channel.SendMessageAsync($"{genRole.Mention} - {roleGenArgs[4]}");
+                    var addEmote = settings.RoleAddEmoteId != 0 ? 
+                        await context.GuildChannel.Guild.GetEmoteAsync(settings.RoleAddEmoteId) :
+                        new Emoji("➕") as IEmote;
+                    var removeEmote = settings.RoleRemoveEmoteId != 0 ?
+                        await context.GuildChannel.Guild.GetEmoteAsync(settings.RoleRemoveEmoteId) :
+                        new Emoji("➖") as IEmote;
+
+                    await genMessage.AddReactionAsync(addEmote);
+                    await genMessage.AddReactionAsync(removeEmote);
+
+                    return new CommandResponse { Text = $"Role generate message sent to {channel.Mention}" };
+                }
+                catch (HttpException ex) when (ex.HttpCode == HttpStatusCode.Forbidden)
+                {
+                    return new CommandResponse { Text = "Missing permissions to send messages or add reactions to target channel." };
+                }
+            }
+
+            return new CommandResponse { Text = $"Couldn't find that channel. {helpText}" };
         }
     }
 }

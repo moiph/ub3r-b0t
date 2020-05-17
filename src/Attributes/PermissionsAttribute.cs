@@ -5,7 +5,7 @@
     [AttributeUsage(AttributeTargets.Class)]
     public abstract class PermissionsAttribute : Attribute
     {
-        public string FailureMessage { get; protected set; }
+        public string FailureString { get; protected set; }
         public abstract bool CheckPermissions(IDiscordBotContext botContext);
     }
 }
