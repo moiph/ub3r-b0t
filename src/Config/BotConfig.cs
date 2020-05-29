@@ -1,9 +1,10 @@
 ﻿namespace UB3RB0T
 {
     using System;
-    using Newtonsoft.Json;
     using System.Collections.Generic;
+    using Newtonsoft.Json;
     using Serilog.Events;
+    using UB3RIRC;
 
     public class BotConfig : JsonConfig<BotConfig>
     {
@@ -58,7 +59,7 @@
         public bool LogOutgoing { get; set; }
 
         public string LogsPath { get; set; }
-        public int LogsRetainedFileCount { get; set; } = 7;
+        public int LogsRetainedFileCount { get; set; } = 5;
 
         public Dictionary<ThrottleType, Throttle> Throttles { get; set; } = new Dictionary<ThrottleType, Throttle>();
     }
@@ -78,6 +79,7 @@
 
         public int EventQueueSize { get; set; } = 10;
         public int VoiceEventQueueSize { get; set; } = 2;
+        public int MessageCacheSize { get; set; } = 20;
 
         // Servers that are blocked from normal usage (owner being exempt)
         // Useful for things like large test servers.
@@ -147,6 +149,8 @@
     {
         [JsonRequired]
         public IrcServer[] Servers { get; set; }
+
+        public LogType LogType { get; set; } = LogType.Info;
     }
 
     public class IrcServer

@@ -36,7 +36,7 @@ namespace UB3RB0T
             foreach (IrcServer server in this.Config.Irc.Servers.Where(s => s.Enabled))
             {
                 this.serverData.Add(server.Host, new ServerData());
-                var ircClient = new IrcClient(server.Host, server.Nick ?? this.Config.Name, server.Host, server.Port, server.UseSsl, server.Password);
+                var ircClient = new IrcClient(server.Host, server.Nick ?? this.Config.Name, server.Host, server.Port, server.UseSsl, server.Password, this.Config.Irc.LogType);
                 this.ircClients.Add(server.Host, ircClient);
 
                 ircClient.OnIrcEvent += this.OnIrcEventAsync;

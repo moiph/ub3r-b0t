@@ -63,7 +63,7 @@ namespace UB3RB0T
                 ShardId = this.Shard,
                 TotalShards = this.TotalShards,
                 LogLevel = LogSeverity.Verbose,
-                MessageCacheSize = 25,
+                MessageCacheSize = this.Config.Discord.MessageCacheSize,
                 ExclusiveBulkDelete = false
             });
 

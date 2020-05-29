@@ -7,6 +7,7 @@
     using System.Collections.Generic;
     using System.Diagnostics;
     using System.IO;
+    using System.Runtime.InteropServices;
     using System.Threading.Tasks;
 
     public class AudioManager : IDisposable
@@ -182,7 +183,8 @@
 
                             if (!audioBytes.ContainsKey(filename))
                             {
-                                audioBytes[filename] = AdjustVolume(data, .8f);
+                                ScaleVolumeSpan(data, .75f);
+                                audioBytes[filename] = data;
                             }
                         }
                     }
@@ -217,25 +219,18 @@
             }
         }
 
-        private static byte[] AdjustVolume(byte[] audioSamples, float volume)
+        // from https://gist.github.com/Joe4evr/e102d8d8627989a61624237e44210838
+        private static void ScaleVolumeSpan(Span<byte> audioSamples, float volume)
         {
-            var array = new byte[audioSamples.Length];
-            for (var i = 0; i < array.Length; i += 2)
+            // 16-bit precision for the multiplication
+            int volumeFixed = (int)Math.Round(volume * 65536d);
+
+            // Reinterpret the bytes as shorts
+            var asShorts = MemoryMarshal.Cast<byte, short>(audioSamples);
+            for (int i = 0; i < asShorts.Length; i++)
             {
-                short buf1 = audioSamples[i + 1];
-                short buf2 = audioSamples[i];
-
-                buf1 = (short)((buf1 & 0xff) << 8);
-                buf2 = (short)(buf2 & 0xff);
-
-                var res = (short)(buf1 | buf2);
-                res = (short)(res * volume);
-
-                array[i] = (byte)res;
-                array[i + 1] = (byte)(res >> 8);
+                asShorts[i] = (short)((asShorts[i] * volumeFixed) >> 16);
             }
-
-            return array;
         }
 
         public void Dispose()
