@@ -1,6 +1,8 @@
 ﻿namespace UB3RB0T
 {
     using System;
+    using System.Collections.Generic;
+    using System.Net;
     using System.Threading.Tasks;
     using Discord;
     using Flurl.Http;
@@ -19,14 +21,21 @@
                 await message.AddReactionAsync(new Emoji(faq.Reaction));
 
                 string content = message.Content.Replace("<@85614143951892480>", "ub3r-b0t");
-                var result = await faq.Endpoint.ToString().WithHeader("Authorization", BotConfig.Instance.FaqKey).PostJsonAsync(new { question = content });
+                var result = await faq.Endpoint.ToString().WithHeader("Authorization", BotConfig.Instance.FaqKey).PostJsonAsync(new { question = content, top = 2 });
                 if (result.IsSuccessStatusCode)
                 {
                     var response = await result.Content.ReadAsStringAsync();
-                    var qnaData = JsonConvert.DeserializeObject<QnAMakerData>(response).Answers[0];
-                    var score = Math.Floor(qnaData.Score);
-                    var answer = System.Net.WebUtility.HtmlDecode(qnaData.Answer);
-                    await message.Channel.SendMessageAsync($"{answer} ({score}% match)");
+                    var qnaData = JsonConvert.DeserializeObject<QnAMakerData>(response);
+
+                    var responses = new List<string>();
+                    foreach (var answer in qnaData.Answers)
+                    {
+                        var score = Math.Floor(answer.Score);
+                        var answerText = WebUtility.HtmlDecode(answer.Answer);
+                        responses.Add($"{answerText} ({score}% match)");
+                    }
+
+                    await message.Channel.SendMessageAsync(string.Join(" | ", responses));
                 }
                 else
                 {

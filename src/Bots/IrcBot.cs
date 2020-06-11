@@ -67,6 +67,7 @@ namespace UB3RB0T
             var settings = new Settings
             {
                 FunResponsesEnabled = true,
+                AutoTitlesEnabled = true,
             };
 
             if (data.Verb == ReplyCode.RPL_ENDOFMOTD || data.Verb == ReplyCode.RPL_NOMOTD) //  motd end or motd missing

@@ -7,19 +7,19 @@
 
     public class ServerInfoCommand : IDiscordCommand
     {
-        public async Task<CommandResponse> Process(IDiscordBotContext context)
+        public Task<CommandResponse> Process(IDiscordBotContext context)
         {
             EmbedBuilder embedBuilder = null;
             string text = string.Empty;
 
-            if (context.Message.Channel is IGuildChannel guildChannel && context.Message.Channel is ITextChannel textChannel)
+            if (context.Message.Channel is SocketGuildChannel guildChannel && context.Message.Channel is ITextChannel textChannel)
             {
                 var guild = guildChannel.Guild;
                 var emojiCount = guild.Emotes.Count();
                 var emojiText = "no custom emojis? I am ASHAMED to be here";
                 if (emojiCount > 100)
                 {
-                    emojiText = $"...{emojiCount} emojis? IMPOSSIBLE";
+                    emojiText = $"...{emojiCount} emojis? is this from boosting?? IMPOSSIBLE";
                 }
                 else if (emojiCount == 100)
                 {
@@ -58,17 +58,16 @@
                     emojiText = $"really, only {emojiCount} custom emoji? tsk tsk.";
                 }
 
-                await (context.Message.Channel as SocketGuildChannel).Guild.DownloadUsersAsync();
                 var serverInfo = new
                 {
                     Title = $"Server Info for {guild.Name}",
-                    UserCount = (await guild.GetUsersAsync()).Count(),
-                    Owner = (await guild.GetOwnerAsync()).Username,
-                    Created = $"{guild.CreatedAt.ToString("dd MMM yyyy")} {guild.CreatedAt.ToString("hh:mm:ss tt")} UTC",
+                    UserCount = guild.MemberCount,
+                    Owner = guild.Owner.Username,
+                    Created = $"{guild.CreatedAt:dd MMM yyyy} {guild.CreatedAt:hh:mm:ss tt} UTC",
                     EmojiText = emojiText,
                 };
 
-                var settings = SettingsConfig.GetSettings(guildChannel.GuildId.ToString());
+                var settings = SettingsConfig.GetSettings(guild.Id);
 
                 if (textChannel.GetCurrentUserPermissions().EmbedLinks && settings.PreferEmbeds)
                 {
@@ -126,7 +125,7 @@
                 text = "This command only works in servers, you scoundrel";
             }
 
-            return new CommandResponse { Text = text, Embed = embedBuilder?.Build() };
+            return Task.FromResult(new CommandResponse { Text = text, Embed = embedBuilder?.Build() });
         }
     }
 }

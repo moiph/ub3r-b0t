@@ -17,8 +17,11 @@ namespace UB3RB0T
 
     public partial class DiscordBot : Bot
     {
+        private const int TWELVE_HOURS = 1000 * 60 * 60 * 12;
+        private const int FIVE_MINUTES = 1000 * 60 * 5;
         private readonly AudioManager audioManager = new AudioManager();
         private Timer statsTimer;
+        private Timer cacheTimer;
         private Dictionary<string, IDiscordCommand> discordCommands;
 
         private readonly List<IModule> modules;
@@ -110,13 +113,15 @@ namespace UB3RB0T
                 { "role", new RoleCommand(true) },
                 { "derole", new RoleCommand(false) },
                 { "fr", new FeedbackCommand() },
+                { "override", new OverrideCommand() },
             };
 
             // Token validation bug; suppress validation for now. Fixed in upcoming discord.net build
             await this.Client.LoginAsync(TokenType.Bot, this.Config.Discord.Token, validateToken: false);
             await this.Client.StartAsync();
 
-            this.statsTimer = new Timer(StatsTimerAsync, null, 3600000 + this.Shard * 120000, 7200000);
+            this.statsTimer = new Timer(StatsTimerAsync, null, TWELVE_HOURS + this.Shard * FIVE_MINUTES, TWELVE_HOURS * 2);
+            this.cacheTimer = new Timer(CacheTimerAsync, null, TWELVE_HOURS, TWELVE_HOURS);
             this.StartBatchMessageProcessing();
 
             this.eventProcessLock = new SemaphoreSlim(this.Config.Discord.EventQueueSize, this.Config.Discord.EventQueueSize);
@@ -143,6 +148,7 @@ namespace UB3RB0T
             base.Dispose(disposing);
 
             this.statsTimer?.Dispose();
+            this.cacheTimer.Dispose();
             Log.Debug("disposing of client");
             // TODO: Library bug -- investigate hang in DiscordSocketClient.Dispose
             // this.Client?.Dispose();
@@ -181,7 +187,7 @@ namespace UB3RB0T
                     extraText = $" [Note: missing permissions for the channel configured; adjust permissions or {hint}]";
                 }
 
-                channelToUse = await guild.GetDefaultChannelAsync() as ITextChannel;
+                channelToUse = await guild.GetDefaultChannelAsync();
 
                 // if the default channel couldn't be found or we don't have permissions, then we're SOL.
                 // flag as processed.
@@ -297,15 +303,33 @@ namespace UB3RB0T
 
                     try
                     {
-                        await endpoint.WithTimeout(5)
-                            .WithHeader("Authorization", botData.Key)
-                            .PostJsonAsync((object)botData.Payload);
+                        var flurlRequest = endpoint.WithTimeout(5).WithHeader("Authorization", botData.Key);
+                        
+                        if (!string.IsNullOrEmpty(botData.UserAgent))
+                        {
+                            flurlRequest = flurlRequest.WithHeader("User-Agent", botData.UserAgent);
+                        }
+
+                        await flurlRequest.PostJsonAsync((object)botData.Payload);
                     }
                     catch (Exception ex)
                     {
                         Log.Warning(ex, $"Failed to update {botData.Name} stats");
                     }
                 }
+            }
+        }
+
+        private void CacheTimerAsync(object state)
+        {
+            try
+            {
+                this.Client.PurgeDMChannelCache();
+                Log.Debug("DMChannel cache purged");
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Failed to purge DMChannel cache");
             }
         }
 

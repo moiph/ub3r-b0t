@@ -7,7 +7,7 @@
   </PropertyGroup>
   <PropertyGroup>
     <OutputType>exe</OutputType>
-    <TargetFramework>netcoreapp2.1</TargetFramework>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <PrimaryVersionType>AssemblyVersionAttribute</PrimaryVersionType>
     <AssemblyInfoFilePath>AssemblyInfo.cs</AssemblyInfoFilePath>
@@ -15,9 +15,9 @@
     <UpdateAssemblyFileVersion>False</UpdateAssemblyFileVersion>
     <UpdateAssemblyInfoVersion>False</UpdateAssemblyInfoVersion>
     <AssemblyVersionSettings>IncrementOnDemand.IncrementOnDemand.DateStamp.Increment</AssemblyVersionSettings>
-    <Version>4.3.0</Version>
-    <AssemblyVersion>4.3.2005.4</AssemblyVersion>
-    <FileVersion>4.3.2005.4</FileVersion>
+    <Version>4.4.0</Version>
+    <AssemblyVersion>4.4.2006.1</AssemblyVersion>
+    <FileVersion>4.4.2006.1</FileVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <DebugType>pdbonly</DebugType>

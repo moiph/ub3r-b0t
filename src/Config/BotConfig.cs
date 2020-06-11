@@ -47,6 +47,8 @@
 
         /// Hostname to listen on for incoming http requests (for monitoring)
         public string WebListenerHostName { get; set; }
+        // List of allowed incoming IPs for web queries
+        public List<string> WebListenerInboundAddresses { get; set; } = new List<string>();
 
         // Instrumentation key for application insights
         public string InstrumentationKey { get; set; }
@@ -125,6 +127,7 @@
         public string Name { get; set; }
         public string Key { get; set; }
         public string Endpoint { get; set; }
+        public string UserAgent { get; set; }
         public dynamic Payload { get; set; }
         public bool Enabled { get; set; }
         // Mapping of known property to payload property name, e.g. guildCount => server_count or guildCount => guilds

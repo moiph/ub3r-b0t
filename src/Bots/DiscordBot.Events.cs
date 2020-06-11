@@ -719,7 +719,8 @@ namespace UB3RB0T
                 {
                     if (!string.IsNullOrEmpty(attr.FailureString))
                     {
-                        await this.RespondAsync(context.Message, context.Settings.GetString(attr.FailureString));
+                        var sentMessage = await this.RespondAsync(context.Message, context.Settings.GetString(attr.FailureString));
+                        this.botResponsesCache.Add(context.Message.Id, sentMessage);
                     }
 
                     attributeChecksPassed = false;

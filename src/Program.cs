@@ -47,7 +47,7 @@
 
                 try
                 {
-                    if (BotInstance is DiscordBot discordBot)
+                    if (BotInstance is DiscordBot discordBot && BotConfig.Instance.WebListenerInboundAddresses.Contains(context.Connection.RemoteIpAddress.ToString()))
                     {
                         if (context.Request.Query["guilds"] == "1")
                         {
@@ -67,7 +67,7 @@
                                 foreach (var chan in channels)
                                 {
                                     var channelPermissions = botGuildUser.GetPermissions(chan);
-                                    channelsResponse.Channels.Add(chan.Id, new GuildChannelPermissions { CanRead = channelPermissions.ViewChannel, CanSend = channelPermissions.SendMessages });
+                                    channelsResponse.Channels.Add(chan.Id, new GuildChannelPermissions { CanRead = channelPermissions.ViewChannel, CanSend = channelPermissions.SendMessages, CanEmbed = channelPermissions.EmbedLinks });
                                 }
 
                                 response = JsonConvert.SerializeObject(channelsResponse);

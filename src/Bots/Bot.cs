@@ -275,7 +275,6 @@ namespace UB3RB0T
                 Name = messageData.UserId ?? messageData.UserName,
                 Channel = messageData.Channel,
                 Server = messageData.Server,
-                //Text = messageData.Content, removed due to discord tos
             });
 
             var httpMatch = Consts.UrlRegex.Match(messageData.Content);

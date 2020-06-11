@@ -34,7 +34,6 @@
                 }
             }
 
-
             if (!(targetUser is SocketGuildUser guildUser))
             {
                 return null;
@@ -48,8 +47,8 @@
                 AvatarUrl = targetUser.GetAvatarUrl(),
                 NicknameInfo = !string.IsNullOrEmpty(guildUser.Nickname) ? $" aka {guildUser.Nickname}" : "",
                 Footnote = CommandsConfig.Instance.UserInfoSnippets.Random(),
-                Created = $"{targetUser.GetCreatedDate().ToString("dd MMM yyyy")} {targetUser.GetCreatedDate().ToString("hh:mm:ss tt")} UTC",
-                Joined = guildUser.JoinedAt.HasValue ? $"{guildUser.JoinedAt.Value.ToString("dd MMM yyyy")} {guildUser.JoinedAt.Value.ToString("hh:mm:ss tt")} UTC" : "[data temporarily missing]",
+                Created = $"{targetUser.GetCreatedDate():dd MMM yyyy} {targetUser.GetCreatedDate():hh:mm:ss tt} UTC",
+                Joined = guildUser.JoinedAt.HasValue ? $"{guildUser.JoinedAt.Value:dd MMM yyyy} {guildUser.JoinedAt.Value:hh:mm:ss tt} UTC" : "[data temporarily missing]",
                 Id = targetUser.Id.ToString(),
                 JoinPosition = guildUser.Guild.Users.OrderBy(u => u.JoinedAt).Select((Value, Index) => new { Value, Index }).Single(u => u.Value.Id == targetUser.Id).Index
             };
