@@ -70,9 +70,9 @@ namespace UB3RB0T
                 ExclusiveBulkDelete = false,
                 GatewayIntents =
                     GatewayIntents.Guilds |
-                    GatewayIntents.GuildMembers|
-                    GatewayIntents.GuildBans|
-                    GatewayIntents.GuildVoiceStates|
+                    GatewayIntents.GuildMembers |
+                    GatewayIntents.GuildBans |
+                    GatewayIntents.GuildVoiceStates |
                     GatewayIntents.GuildMessages |
                     GatewayIntents.GuildMessageReactions |
                     GatewayIntents.DirectMessages
