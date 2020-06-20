@@ -7,7 +7,7 @@
     [SpecialUserOnly]
     public class FeedbackCommand : IDiscordCommand
     {
-        private static Regex FeedbackMessageRx = new Regex("^.*\\[server:([0-9]+) chan:([0-9]+) user:([0-9]+)\\]$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static Regex FeedbackMessageRx = new Regex("^.*\\[server:([0-9]+) chan:([0-9]+) user:([0-9]+)\\] \\(mid: [0-9]+\\)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         public async Task<CommandResponse> Process(IDiscordBotContext context)
         {

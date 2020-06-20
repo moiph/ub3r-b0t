@@ -67,7 +67,15 @@ namespace UB3RB0T
                 TotalShards = this.TotalShards,
                 LogLevel = LogSeverity.Verbose,
                 MessageCacheSize = this.Config.Discord.MessageCacheSize,
-                ExclusiveBulkDelete = false
+                ExclusiveBulkDelete = false,
+                GatewayIntents =
+                    GatewayIntents.Guilds |
+                    GatewayIntents.GuildMembers|
+                    GatewayIntents.GuildBans|
+                    GatewayIntents.GuildVoiceStates|
+                    GatewayIntents.GuildMessages |
+                    GatewayIntents.GuildMessageReactions |
+                    GatewayIntents.DirectMessages
             });
 
             this.Client.Ready += Client_Ready;
@@ -80,9 +88,7 @@ namespace UB3RB0T
             this.Client.UserJoined += (user) => this.HandleEvent(DiscordEventType.UserJoined, user);
             this.Client.UserLeft += (user) => this.HandleEvent(DiscordEventType.UserLeft, user);
             this.Client.UserVoiceStateUpdated += (user, beforeState, afterState) => this.HandleEvent(DiscordEventType.UserVoiceStateUpdated, user, beforeState, afterState);
-            // This fires *a lot* and acted upon infrequently;
-            // TOOD: re-evaluate this approach of generalizing event handling to Task.Run() everything...
-            this.Client.GuildMemberUpdated += (userBefore, userAfter) => this.HandleGuildMemberUpdated(userBefore, userAfter);
+            this.Client.GuildMemberUpdated += (userBefore, userAfter) => this.HandleEvent(DiscordEventType.GuildMemberUpdated, userBefore, userAfter);
             this.Client.UserBanned += (user, guild) => this.HandleEvent(DiscordEventType.UserBanned, user, guild);
 
             this.Client.MessageReceived += (message) => this.HandleEvent(DiscordEventType.MessageReceived, message);
@@ -116,8 +122,7 @@ namespace UB3RB0T
                 { "override", new OverrideCommand() },
             };
 
-            // Token validation bug; suppress validation for now. Fixed in upcoming discord.net build
-            await this.Client.LoginAsync(TokenType.Bot, this.Config.Discord.Token, validateToken: false);
+            await this.Client.LoginAsync(TokenType.Bot, this.Config.Discord.Token);
             await this.Client.StartAsync();
 
             this.statsTimer = new Timer(StatsTimerAsync, null, TWELVE_HOURS + this.Shard * FIVE_MINUTES, TWELVE_HOURS * 2);
@@ -229,7 +234,13 @@ namespace UB3RB0T
                 else
                 {
                     var messageText = $"{notification.Text} {customText}{extraText}".TrimEnd();
-                    await channelToUse.SendMessageAsync(messageText.SubstringUpTo(Discord.DiscordConfig.MaxMessageSize));
+                    var sentMesage = await channelToUse.SendMessageAsync(messageText.SubstringUpTo(Discord.DiscordConfig.MaxMessageSize));
+
+                    // update feedback messages to include the message ID
+                    if (notification.Type == NotificationType.Feedback && notification.SubType != SubType.Reply)
+                    {
+                        await sentMesage.ModifyAsync(m => m.Content = $"{sentMesage.Content} (mid: {sentMesage.Id})");
+                    }
                 }
 
                 var props = new Dictionary<string, string> {

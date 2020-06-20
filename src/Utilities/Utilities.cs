@@ -170,7 +170,7 @@ namespace UB3RB0T
             return false;
         }
 
-        public static DateTime GetCreatedDate(this SocketUser user)
+        public static DateTime GetCreatedDate(this IUser user)
         {
             var timeStamp = ((user.Id >> 22) + 1420070400000) / 1000;
             var createdDate = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);

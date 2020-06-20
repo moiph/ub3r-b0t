@@ -52,7 +52,7 @@
                         if (context.Request.Query["guilds"] == "1")
                         {
                             response = string.Join($",{Environment.NewLine}",
-                                discordBot.Client.Guilds.OrderByDescending(g => g.Users.Count).Select(g => $"{g.Id} | {g.Name} | {g.Users.Count}"));
+                                discordBot.Client.Guilds.OrderByDescending(g => g.Users.Count).Select(g => $"{g.Id} | {g.Name} | {g.MemberCount}"));
                         }
                         else if (ulong.TryParse(context.Request.Query["guildId"], out ulong guildId))
                         {

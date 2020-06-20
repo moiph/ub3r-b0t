@@ -766,13 +766,16 @@ namespace UB3RB0T
         private async Task HandleMessageDeleted(Cacheable<IMessage, ulong> cachedMessage, ISocketMessageChannel channel)
         {
             var msg = this.botResponsesCache.Remove(cachedMessage.Id);
-            try
+            if (msg != null)
             {
-                await msg?.DeleteAsync();
-            }
-            catch (Exception)
-            {
-                // ignore, don't care if we can't delete our own message
+                try
+                {
+                    await msg.DeleteAsync();
+                }
+                catch (Exception)
+                {
+                    // ignore, don't care if we can't delete our own message
+                }
             }
 
             if (cachedMessage.HasValue && channel is IGuildChannel guildChannel)

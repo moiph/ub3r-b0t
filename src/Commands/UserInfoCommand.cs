@@ -20,6 +20,7 @@
                 {
                     if (context.Message.Channel is SocketGuildChannel guildChannel)
                     {
+                        await guildChannel.Guild.DownloadUsersAsync();
                         targetUser = guildChannel.Guild.Users.Find(messageParts[1]).FirstOrDefault() as SocketUser;
                     }
 
@@ -38,8 +39,6 @@
             {
                 return null;
             }
-
-            await guildUser.Guild.DownloadUsersAsync();
 
             var userInfo = new
             {

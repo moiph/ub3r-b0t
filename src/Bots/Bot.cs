@@ -252,6 +252,11 @@ namespace UB3RB0T
             }
         }
 
+        public SeenUserData GetSeen(string key)
+        {
+            return this.seenUsers.TryGetValue(key, out var seenData) ? seenData : null;
+        }
+
         protected abstract Task StartAsyncInternal();
 
         protected abstract Task StopAsyncInternal(bool unexpected);
@@ -269,13 +274,16 @@ namespace UB3RB0T
         {
             this.messageCount++;
 
-            // Update the seen data
-            this.UpdateSeen(messageData.Channel + messageData.UserName, new SeenUserData
+            if (settings.SeenEnabled)
             {
-                Name = messageData.UserId ?? messageData.UserName,
-                Channel = messageData.Channel,
-                Server = messageData.Server,
-            });
+                var userKey = messageData.UserId ?? messageData.UserName;
+                this.UpdateSeen(messageData.Server + userKey, new SeenUserData
+                {
+                    Name = userKey,
+                    Channel = messageData.Channel,
+                    Server = messageData.Server,
+                });
+            }
 
             var httpMatch = Consts.UrlRegex.Match(messageData.Content);
             if (httpMatch.Success)
@@ -603,7 +611,7 @@ namespace UB3RB0T
             {
                 try
                 {
-                    await this.Config.SeenEndpoint.PostJsonAsync(seenCopy.Values);
+                    await this.Config.SeenEndpoint.PostJsonAsync(new { Users = seenCopy.Values});
                 }
                 catch (Exception ex)
                 {

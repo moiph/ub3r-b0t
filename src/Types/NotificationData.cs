@@ -14,12 +14,14 @@
         Picarto = 1 << 5,
         Reminder = 1 << 6,
         System = 1 << 7, // used for internal system notifications
+        Feedback = 1 << 8,
     }
 
     public enum SubType
     {
         SettingsUpdate,
         Shutdown,
+        Reply,
     }
 
     public class NotificationData
