@@ -301,7 +301,7 @@ namespace UB3RB0T
                         repeat.Nicks.Add(messageData.UserId ?? messageData.UserName);
                     }
 
-                    if (repeat.Nicks.Count == 3)
+                    if (repeat.Nicks.Count == settings.RepeatCount)
                     {
                         var commandKey = $"{messageData.Channel}_{messageData.Server}";
                         this.Throttler.Increment(commandKey, ThrottleType.Repeat);

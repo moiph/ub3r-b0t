@@ -34,5 +34,6 @@
         public string Text { get; set; }
         public BotType BotType { get; set; } = BotType.Discord;
         public EmbedData Embed { get; set; }
+        public bool AllowMentions { get; set; } = true;
     }
 }

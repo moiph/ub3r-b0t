@@ -106,8 +106,6 @@
         public ulong GreetingId { get; set; }
         public string Farewell { get; set; }
         public ulong FarewellId { get; set; }
-        public ulong VoiceId { get; set; }
-        public ulong UpdateId { get; set; }
         public ulong JoinRoleId { get; set; }
 
         public List<NotificationText> NotificationText = new List<NotificationText>();
@@ -130,6 +128,7 @@
         public bool SasshatEnabled { get; set; }
         public bool FunResponsesEnabled { get; set; }
         public int FunResponseChance { get; set; } = 100;
+        public int RepeatCount { get; set; } = 3;
         public bool AutoTitlesEnabled { get; set; }
         public bool SeenEnabled { get; set; }
 

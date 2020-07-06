@@ -279,7 +279,7 @@ namespace UB3RB0T
             if (!string.IsNullOrEmpty(settings.Greeting) && settings.GreetingId != 0)
             {
                 var greeting = settings.Greeting.Replace("%user%", guildUser.Mention);
-                greeting = greeting.Replace("%username%", $"{guildUser.Username}#{guildUser.Discriminator}");
+                greeting = greeting.Replace("%username%", $"{guildUser}");
 
                 greeting = Consts.ChannelRegex.Replace(greeting, new MatchEvaluator((Match chanMatch) =>
                 {
@@ -318,7 +318,7 @@ namespace UB3RB0T
             // mod log
             if (settings.Mod_LogId != 0 && settings.HasFlag(ModOptions.Mod_LogUserJoin))
             {
-                string joinText = $"{guildUser.Username}#{guildUser.Discriminator} joined.";
+                string joinText = $"{guildUser.Mention} ({guildUser}) joined.";
                 if (this.Client.GetChannel(settings.Mod_LogId) is ITextChannel modLogChannel && modLogChannel.GetCurrentUserPermissions().SendMessages)
                 {
                     this.BatchSendMessageAsync(modLogChannel, joinText);
@@ -336,7 +336,7 @@ namespace UB3RB0T
             if (!string.IsNullOrEmpty(settings.Farewell) && settings.FarewellId != 0)
             {
                 var farewell = settings.Farewell.Replace("%user%", guildUser.Mention);
-                farewell = farewell.Replace("%username%", $"{guildUser.Username}#{guildUser.Discriminator}");
+                farewell = farewell.Replace("%username%", $"{guildUser}");
 
                 farewell = Consts.ChannelRegex.Replace(farewell, new MatchEvaluator((Match chanMatch) =>
                 {
@@ -355,8 +355,13 @@ namespace UB3RB0T
             // mod log
             if (settings.HasFlag(ModOptions.Mod_LogUserLeave) && this.Client.GetChannel(settings.Mod_LogId) is ITextChannel modLogChannel && modLogChannel.GetCurrentUserPermissions().SendMessages)
             {
-                this.BatchSendMessageAsync(modLogChannel, $"{guildUser.Username}#{guildUser.Discriminator} left.");
+                this.BatchSendMessageAsync(modLogChannel, $"{guildUser.Mention} ({guildUser}) left.");
             }
+            
+            var messageData = BotMessageData.Create(guildUser, settings);
+            messageData.Content = ".timer clear";
+            messageData.Prefix = ".";
+            await this.BotApi.IssueRequestAsync(messageData);
         }
 
         /// <summary>
@@ -395,14 +400,14 @@ namespace UB3RB0T
 
                     if (settings.HasFlag(ModOptions.Mod_LogUserLeaveVoice) && beforeState.VoiceChannel != null && beforeState.VoiceChannel.Id != afterState.VoiceChannel?.Id)
                     {
-                        msg = $"{guildUser.Username} left voice channel { beforeState.VoiceChannel.Name}";
+                        msg = $"{guildUser.Mention} ({guildUser}) left voice channel { beforeState.VoiceChannel.Name}";
                     }
 
                     if (settings.HasFlag(ModOptions.Mod_LogUserJoinVoice) && afterState.VoiceChannel != null && afterState.VoiceChannel.Id != beforeState.VoiceChannel?.Id)
                     {
                         if (string.IsNullOrEmpty(msg))
                         {
-                            msg = $"{guildUser.Username} joined voice channel {afterState.VoiceChannel.Name}";
+                            msg = $"{guildUser.Mention} ({guildUser}) joined voice channel {afterState.VoiceChannel.Name}";
                         }
                         else
                         {
@@ -439,34 +444,34 @@ namespace UB3RB0T
 
                     if (rolesAdded.Count > 0)
                     {
-                        string roleText = $"**{guildUserAfter.Username}#{guildUserAfter.Discriminator}** had these roles added: `{string.Join(",", rolesAdded)}`";
+                        string roleText = $"**{guildUserAfter.Mention} ({guildUserAfter})** had these roles added: `{string.Join(",", rolesAdded)}`";
                         this.BatchSendMessageAsync(modLogChannel, roleText);
                     }
 
                     if (rolesRemoved.Count > 0)
                     {
-                        string roleText = $"**{guildUserAfter.Username}#{guildUserAfter.Discriminator}** had these roles removed: `{string.Join(",", rolesRemoved)}`";
+                        string roleText = $"**{guildUserAfter.Mention} ({guildUserAfter})** had these roles removed: `{string.Join(",", rolesRemoved)}`";
                         this.BatchSendMessageAsync(modLogChannel, roleText);
                     }
                 }
 
                 if (settings.HasFlag(ModOptions.Mod_LogUserNick) && guildUserAfter.Nickname != guildUserBefore.Nickname)
                 {
+                    string nickText = null;
                     if (string.IsNullOrEmpty(guildUserAfter.Nickname))
                     {
-                        string nickText = $"{guildUserAfter.Username}#{guildUserAfter.Discriminator} removed their nickname (was {guildUserBefore.Nickname})";
-                        this.BatchSendMessageAsync(modLogChannel, nickText);
+                        nickText = $"{guildUserAfter.Mention} ({guildUserAfter}) removed their nickname (was {guildUserBefore.Nickname})";
                     }
                     else if (string.IsNullOrEmpty(guildUserBefore.Nickname))
                     {
-                        string nickText = $"{guildUserAfter.Username}#{guildUserAfter.Discriminator} set a new nickname to {guildUserAfter.Nickname}";
-                        this.BatchSendMessageAsync(modLogChannel, nickText);
+                        nickText = $"{guildUserAfter.Mention} ({guildUserAfter}) set a new nickname to {guildUserAfter.Nickname}";
                     }
                     else
                     {
-                        string nickText = $"{guildUserAfter.Username}#{guildUserAfter.Discriminator} changed their nickname from {guildUserBefore.Nickname} to {guildUserAfter.Nickname}";
-                        this.BatchSendMessageAsync(modLogChannel, nickText);
+                        nickText = $"{guildUserAfter.Mention} ({guildUserAfter}) changed their nickname from {guildUserBefore.Nickname} to {guildUserAfter.Nickname}";
                     }
+
+                    this.BatchSendMessageAsync(modLogChannel, nickText);
                 }
             }
 
@@ -482,7 +487,7 @@ namespace UB3RB0T
             var settings = SettingsConfig.GetSettings(guild.Id);
             if (settings.HasFlag(ModOptions.Mod_LogUserBan) && this.Client.GetChannel(settings.Mod_LogId) is ITextChannel modLogChannel && modLogChannel.GetCurrentUserPermissions().SendMessages)
             {
-                string userIdentifier = user != null ? $"{user.Username}#{user.Discriminator}" : "Unknown user";
+                string userIdentifier = user != null ? $"{user}" : "Unknown user";
                 this.BatchSendMessageAsync(modLogChannel, $"{userIdentifier} was banned.");
             }
 
@@ -746,8 +751,10 @@ namespace UB3RB0T
                 {
                     if (messageBefore.HasValue && messageBefore.Value.Content != messageAfter.Content && !string.IsNullOrEmpty(messageBefore.Value.Content))
                     {
-                        string editText = $"**{messageAfter.Author.Username}** modified in {textChannel.Mention}: `{messageBefore.Value.Content}` to `{messageAfter.Content}`";
-                        await modLogChannel.SendMessageAsync(editText.SubstringUpTo(Discord.DiscordConfig.MaxMessageSize));
+                        var beforeContext = messageBefore.Value.Content.Replace("`", "\\`").Replace("> ", ">");
+                        var afterContent = messageAfter.Content.Replace("`", "\\`").Replace("> ", ">");
+                        string editText = $"**{messageAfter.Author.Mention} ({messageAfter.Author})** modified in {textChannel.Mention}:\n> {beforeContext}\nto\n> {afterContent}";
+                        await modLogChannel.SendMessageAsync(editText.SubstringUpTo(Discord.DiscordConfig.MaxMessageSize), allowedMentions: AllowedMentions.None);
                     }
                 }
 
@@ -795,33 +802,7 @@ namespace UB3RB0T
                         delText = "```Word Censor Triggered```";
                     }
 
-                    var deletedContent = message.Content.Replace("@everyone", "@every\x200Bone").Replace("@here", "@he\x200Bre");
-                    if (message.MentionedUserIds.Count > 0)
-                    {
-                        var guildUsers = guild.Users;
-
-                        foreach (var userId in message.MentionedUserIds)
-                        {
-                            var guildUser = guildUsers.FirstOrDefault(u => u.Id == userId);
-                            if (guildUser != null)
-                            {
-                                deletedContent = deletedContent.Replace($"{userId}", guildUser.Nickname ?? guildUser.Username);
-                            }
-                        }
-                    }
-
-                    if (message.MentionedRoleIds.Count > 0)
-                    {
-                        var guildRoles = guild.Roles;
-
-                        foreach (var roleId in message.MentionedRoleIds)
-                        {
-                            var guildRole = guildRoles.FirstOrDefault(u => u.Id == roleId);
-                            deletedContent = deletedContent.Replace($"{roleId}", guildRole.Name);
-                        }
-                    }
-
-                    delText += $"**{message.Author.Username}#{message.Author.Discriminator}** deleted in {textChannel.Mention}: {deletedContent}";
+                    delText += $"**{message.Author.Mention} ({message.Author})** deleted in {textChannel.Mention}: {message.Content}";
 
                     // Include attachment URLs, if applicable
                     if (message.Attachments?.Count > 0)
@@ -869,7 +850,18 @@ namespace UB3RB0T
                     return;
                 }
 
-                await this.HandleMessageReceivedAsync(reaction.Message.Value, reactionEmote, reaction.User.Value);
+                IUser reactionUser;
+                if (reaction.User.IsSpecified)
+                {
+                    reactionUser = reaction.User.Value;
+                }
+                else
+                {
+                    await guildChannel.Guild.DownloadUsersAsync();
+                    reactionUser = guildChannel.GetUser(reaction.UserId);
+                }
+
+                await this.HandleMessageReceivedAsync(reaction.Message.Value, reactionEmote, reactionUser);
             }
             else if (reactionEmote == "➕" || reactionEmote == "➖" || customEmote?.Id == settings.RoleAddEmoteId || customEmote?.Id == settings.RoleRemoveEmoteId)
             {

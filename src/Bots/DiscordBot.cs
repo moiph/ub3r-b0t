@@ -215,6 +215,7 @@ namespace UB3RB0T
             try
             {
                 var customText = settings.NotificationText.FirstOrDefault(n => n.Type == notification.Type)?.Text;
+                var allowedMentions = notification.AllowMentions ? null : AllowedMentions.None;
 
                 if (notification.Embed != null && settings.HasFlag(notification.Type))
                 {
@@ -222,19 +223,19 @@ namespace UB3RB0T
                     if (notification.Type == NotificationType.Twitter)
                     {
                         var messageText = $"{notification.Embed.Url} {customText}{extraText}".TrimEnd();
-                        await channelToUse.SendMessageAsync(messageText);
+                        await channelToUse.SendMessageAsync(messageText, allowedMentions: allowedMentions);
                     }
                     else
                     {
                         var messageText = string.IsNullOrEmpty(notification.Embed.Url) ? string.Empty : $"<{notification.Embed.Url}>";
                         messageText += $" {customText}{extraText}".TrimEnd();
-                        await channelToUse.SendMessageAsync(messageText, false, notification.Embed.CreateEmbedBuilder().Build());
+                        await channelToUse.SendMessageAsync(messageText, false, notification.Embed.CreateEmbedBuilder().Build(), allowedMentions: allowedMentions);
                     }
                 }
                 else
                 {
                     var messageText = $"{notification.Text} {customText}{extraText}".TrimEnd();
-                    var sentMesage = await channelToUse.SendMessageAsync(messageText.SubstringUpTo(Discord.DiscordConfig.MaxMessageSize));
+                    var sentMesage = await channelToUse.SendMessageAsync(messageText.SubstringUpTo(Discord.DiscordConfig.MaxMessageSize), allowedMentions: allowedMentions);
 
                     // update feedback messages to include the message ID
                     if (notification.Type == NotificationType.Feedback && notification.SubType != SubType.Reply)
@@ -379,7 +380,7 @@ namespace UB3RB0T
                                 {
                                     if (!string.IsNullOrEmpty(messageToSend))
                                     {
-                                        await channel.SendMessageAsync(messageToSend);
+                                        await channel.SendMessageAsync(messageToSend, allowedMentions: AllowedMentions.None);
                                     }
 
                                     if (message.Length == Consts.MaxMessageLength)
@@ -395,7 +396,7 @@ namespace UB3RB0T
 
                             if (!string.IsNullOrWhiteSpace(messageToSend))
                             {
-                                await channel.SendMessageAsync(messageToSend);
+                                await channel.SendMessageAsync(messageToSend, allowedMentions: AllowedMentions.None);
                             }
                         }
                     }

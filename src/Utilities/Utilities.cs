@@ -6,6 +6,7 @@ namespace UB3RB0T
     using Discord.WebSocket;
     using Flurl.Http;
     using Microsoft.AspNetCore.WebUtilities;
+    using Microsoft.CodeAnalysis;
     using Newtonsoft.Json;
     using Serilog;
     using System;
@@ -211,6 +212,17 @@ namespace UB3RB0T
             string reason = matchGroups["reason"].ToString();
 
             var dateTimeString = matchGroups["time"].ToString();
+            if (dateTimeString.Contains(".")) // fix up e.g. +5.5 to +5:30
+            {
+                var parts = dateTimeString.Split(new[] { '.' });
+                dateTimeString = parts[0];
+                for (var i = 1; i < parts.Length; i++)
+                {
+                    var time = (float)int.Parse(parts[i]) / 10 * 60;
+                    dateTimeString += $":{time}";
+                }
+            }
+
             if (matchGroups["date"].Success)
             {
                 dateTimeString = matchGroups["date"] + " " + dateTimeString;
@@ -223,11 +235,7 @@ namespace UB3RB0T
                 // if duration was negative then set the date for tomorrow.
                 if (duration < 0)
                 {
-                    dateTimeString = $"{DateTime.UtcNow.Year}/{DateTime.UtcNow.Month}/{DateTime.UtcNow.Day + 1} " + dateTimeString;
-                    if (DateTime.TryParse(dateTimeString, DateTimeFormatInfo.InvariantInfo, DateTimeStyles.AdjustToUniversal, out dt))
-                    {
-                        duration = (long)dt.Subtract(DateTime.UtcNow).TotalSeconds;
-                    }
+                    duration = (long)dt.AddDays(1).Subtract(DateTime.UtcNow).TotalSeconds;
                 }
 
                 durationStr = $"{duration}s";
@@ -239,6 +247,13 @@ namespace UB3RB0T
             }
 
             query = $"timer for:\"{to}\" {durationStr} {reason}";
+
+            // if we see a pattern of "on yy/mm/dd" it indicates the user was trying to do an absolute time
+            // reminder but parsing broke, so bail out. TODO: error messaging to the user
+            if (Consts.TimerDateCheckRegex.IsMatch(reason))
+            {
+                return false;
+            }
 
             return true;
         }
@@ -336,6 +351,13 @@ namespace UB3RB0T
             }
 
             if (duration < 10 || duration > TOOLONG)
+            {
+                return false;
+            }
+
+            // if we see a pattern of "on yy/mm/dd" it indicates the user was trying to do an absolute time
+            // reminder but parsing broke, so bail out. TODO: error messaging to the user
+            if (Consts.TimerDateCheckRegex.IsMatch(reason))
             {
                 return false;
             }

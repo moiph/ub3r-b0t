@@ -104,5 +104,19 @@
 
             return messageData;
         }
+
+        public static BotMessageData Create(SocketGuildUser guildUser, Settings serverSettings)
+        {
+            var messageData = new BotMessageData(BotType.Discord)
+            {
+                UserName = guildUser.Username,
+                UserId = guildUser.Id.ToString(),
+                UserHost = guildUser.Id.ToString(),
+                Server = guildUser.Guild.Id.ToString(),
+                Prefix = serverSettings.Prefix,
+            };
+
+            return messageData;
+        }
     }
 }
