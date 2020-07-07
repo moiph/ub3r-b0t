@@ -471,9 +471,12 @@ namespace UB3RB0T
                     }
                 }
 
-                if (response == null && PhrasesConfig.Instance.ExactPhrases.ContainsKey(messageData.Content) && (settings.FunResponsesEnabled && new Random().Next(1, 100) <= settings.FunResponseChance || IsAuthorOwner(messageData)))
+                if (response == null && PhrasesConfig.Instance.ExactPhrases.TryGetValue(messageData.Content, out var phrase) && (settings.FunResponsesEnabled && new Random().Next(1, 100) <= settings.FunResponseChance || IsAuthorOwner(messageData)))
                 {
-                    response = PhrasesConfig.Instance.Responses[PhrasesConfig.Instance.ExactPhrases[messageData.Content]].Random();
+                    if (settings.SasshatEnabled && PhrasesConfig.Instance.Responses.TryGetValue($"{phrase}_nice", out var phraseResponses) || PhrasesConfig.Instance.Responses.TryGetValue(phrase, out phraseResponses))
+                    {
+                        response = phraseResponses.Random();
+                    }
                 }
 
                 if (response == null)

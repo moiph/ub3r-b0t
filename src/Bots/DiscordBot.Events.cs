@@ -817,7 +817,7 @@ namespace UB3RB0T
 
         private async Task HandleReactionAdded(Cacheable<IUserMessage, ulong> message, ISocketMessageChannel channel, SocketReaction reaction)
         {
-            if (reaction.User.IsSpecified && reaction.User.Value.IsBot)
+            if (!reaction.User.IsSpecified || reaction.User.Value.IsBot)
             {
                 return;
             }

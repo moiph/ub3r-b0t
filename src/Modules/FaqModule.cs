@@ -16,7 +16,7 @@
             // special case FAQ channel
             var message = context.Message;
             if (BotConfig.Instance.FaqEndpoints != null && BotConfig.Instance.FaqEndpoints.TryGetValue(message.Channel.Id, out var faq) &&
-                faq.Endpoint != null && (context.Reaction == faq.Reaction || !string.IsNullOrEmpty(faq.EndsWith) && message.Content.EndsWith(faq.EndsWith)))
+                faq.Endpoint != null && (context.Reaction == faq.Reaction || string.IsNullOrEmpty(context.Reaction) && !string.IsNullOrEmpty(faq.EndsWith) && message.Content.EndsWith(faq.EndsWith)))
             {
                 await message.AddReactionAsync(new Emoji(faq.Reaction));
 
