@@ -96,7 +96,7 @@
 
         // TODO:
         // Share some of this logic with the command itself
-        public static async Task<bool> AddRoleViaReaction(IUserMessage message, SocketReaction reaction)
+        public static async Task<bool> AddRoleViaReaction(IUserMessage message, SocketReaction reaction, IUser user)
         {
             // +/- reaction indicates an add/remove role request.
             if (reaction.Channel is SocketGuildChannel guildChannel)
@@ -125,7 +125,7 @@
                         var requestedRole = guildChannel.Guild.Roles.FirstOrDefault(r => r.Id == roleId);
                         if (requestedRole != null)
                         {
-                            var guildAuthor = reaction.User.Value as IGuildUser;
+                            var guildAuthor = user as IGuildUser;
                             var customEmote = reaction.Emote as Emote;
                             var isAdd = reaction.Emote.Name == "➕" || customEmote?.Id == settings.RoleAddEmoteId;
                             var isRemove = reaction.Emote.Name == "➖" || customEmote?.Id == settings.RoleRemoveEmoteId;

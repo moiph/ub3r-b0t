@@ -40,6 +40,8 @@
                 return null;
             }
 
+            await guildUser.Guild.DownloadUsersAsync();
+
             var userInfo = new
             {
                 Title = $"UserInfo for {targetUser.Username}#{targetUser.Discriminator}",

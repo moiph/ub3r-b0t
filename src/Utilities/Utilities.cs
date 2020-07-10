@@ -397,6 +397,28 @@ namespace UB3RB0T
             return null;
         }
 
+        public static async Task<IUser> GetOrDownloadUserAsync(this SocketReaction reaction)
+        {
+            IUser reactionUser;
+            if (reaction.User.IsSpecified)
+            {
+                reactionUser = reaction.User.Value;
+            }
+            else
+            {
+                var channel = reaction.Channel as SocketTextChannel;
+                reactionUser = channel.GetUser(reaction.UserId);
+
+                if (reactionUser == null)
+                {
+                    await channel.Guild.DownloadUsersAsync();
+                    reactionUser = channel.GetUser(reaction.UserId);
+                }   
+            }
+
+            return reactionUser;
+        }
+
         /// <summary>
         /// Grabs the attachment URL from the message attachment, if present, else tries to parse an image URL out of the message contents.
         /// </summary>

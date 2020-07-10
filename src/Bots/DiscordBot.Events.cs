@@ -228,7 +228,7 @@ namespace UB3RB0T
                 var owner = guild.Owner;
                 if (defaultChannel != null && guild.CurrentUser.GetPermissions(defaultChannel).SendMessages)
                 {
-                    await defaultChannel.SendMessageAsync($"(HELLO, I AM UB3R-B0T! .halp for info. {owner.Mention} you're the kickass owner-- you can use .admin to configure some stuff. By using me you agree to these terms: https://ub3r-b0t.com/terms)");
+                    await defaultChannel.SendMessageAsync($"(HELLO, I AM UB3R-B0T! .halp for info. {owner?.Mention ?? "idk who but to someone..."} you're the kickass owner-- you can use .admin to configure some stuff. By using me you agree to these terms: https://ub3r-b0t.com/terms)");
                 }
 
                 if (this.BotApi != null)
@@ -673,9 +673,11 @@ namespace UB3RB0T
                     typingState = message.Channel.EnterTypingState();
                 }
 
+                bool bypassEdit = false;
                 if (botContext.MessageData.Command == "quote" && reactionUser != null)
                 {
                     botContext.MessageData.UserName = reactionUser.Username;
+                    bypassEdit = true; // don't edit a reply if it's a reaction added quote
                 }
 
                 try
@@ -691,7 +693,7 @@ namespace UB3RB0T
                     }
                     else if (responseData.Embed != null)
                     {
-                        var sentMessage = await this.RespondAsync(message, string.Empty, responseData.Embed.CreateEmbedBuilder().Build(), bypassEdit: false, rateLimitChecked: botContext.MessageData.RateLimitChecked);
+                        var sentMessage = await this.RespondAsync(message, string.Empty, responseData.Embed.CreateEmbedBuilder().Build(), bypassEdit: bypassEdit, rateLimitChecked: botContext.MessageData.RateLimitChecked);
                         this.botResponsesCache.Add(message.Id, sentMessage);
                     }
                     else
@@ -701,7 +703,7 @@ namespace UB3RB0T
                             if (!string.IsNullOrWhiteSpace(response))
                             {
                                 // if sending a multi part message, skip the edit optimization.
-                                var sentMessage = await this.RespondAsync(message, response, embedResponse: null, bypassEdit: responseData.Responses.Count > 1, rateLimitChecked: botContext.MessageData.RateLimitChecked);
+                                var sentMessage = await this.RespondAsync(message, response, embedResponse: null, bypassEdit: responseData.Responses.Count > 1 || bypassEdit, rateLimitChecked: botContext.MessageData.RateLimitChecked);
                                 this.botResponsesCache.Add(message.Id, sentMessage);
                             }
                         }
@@ -817,7 +819,7 @@ namespace UB3RB0T
 
         private async Task HandleReactionAdded(Cacheable<IUserMessage, ulong> message, ISocketMessageChannel channel, SocketReaction reaction)
         {
-            if (!reaction.User.IsSpecified || reaction.User.Value.IsBot)
+            if (reaction.User.IsSpecified && reaction.User.Value.IsBot)
             {
                 return;
             }
@@ -835,7 +837,13 @@ namespace UB3RB0T
                     return;
                 }
 
-                await this.HandleMessageReceivedAsync(reaction.Message.Value, reactionEmote);
+                IUser reactionUser = await reaction.GetOrDownloadUserAsync();
+                if (reactionUser.IsBot)
+                {
+                    return;
+                }
+
+                await this.HandleMessageReceivedAsync(reaction.Message.Value, reactionEmote, reactionUser);
             }
 
             var guildChannel = channel as SocketTextChannel;
@@ -850,21 +858,23 @@ namespace UB3RB0T
                     return;
                 }
 
-                IUser reactionUser;
-                if (reaction.User.IsSpecified)
+                IUser reactionUser = await reaction.GetOrDownloadUserAsync();
+                if (reactionUser.IsBot)
                 {
-                    reactionUser = reaction.User.Value;
-                }
-                else
-                {
-                    await guildChannel.Guild.DownloadUsersAsync();
-                    reactionUser = guildChannel.GetUser(reaction.UserId);
+                    return;
                 }
 
                 await this.HandleMessageReceivedAsync(reaction.Message.Value, reactionEmote, reactionUser);
             }
             else if (reactionEmote == "➕" || reactionEmote == "➖" || customEmote?.Id == settings.RoleAddEmoteId || customEmote?.Id == settings.RoleRemoveEmoteId)
             {
+
+                IUser reactionUser = await reaction.GetOrDownloadUserAsync();
+                if (reactionUser.IsBot)
+                {
+                    return;
+                }
+
                 // handle possible role adds/removes
                 IUserMessage reactionMessage = null;
                 if (reaction.Message.IsSpecified)
@@ -876,9 +886,9 @@ namespace UB3RB0T
                     reactionMessage = await reaction.Channel.GetMessageAsync(reaction.MessageId) as IUserMessage;
                 }
 
-                if (await RoleCommand.AddRoleViaReaction(reactionMessage, reaction))
+                if (await RoleCommand.AddRoleViaReaction(reactionMessage, reaction, reactionUser))
                 {
-                    await reactionMessage.RemoveReactionAsync(reaction.Emote, reaction.User.Value);
+                    await reactionMessage.RemoveReactionAsync(reaction.Emote, reactionUser);
                 }
             }
         }
