@@ -8,6 +8,7 @@
     using System;
     using System.IO;
     using System.Linq;
+    using System.Reflection;
     using System.Runtime.InteropServices;
     using System.Text;
     using System.Threading.Tasks;
@@ -72,6 +73,10 @@
 
                                 response = JsonConvert.SerializeObject(channelsResponse);
                             }
+                        }
+                        else
+                        {
+                            response = Assembly.GetEntryAssembly().GetName().Version.ToString();
                         }
                     }
                 }
