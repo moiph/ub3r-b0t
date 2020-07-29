@@ -8,6 +8,7 @@
     using Discord;
     using Discord.Net;
     using Discord.WebSocket;
+    using Serilog;
 
     [BotPermissions(GuildPermission.ManageRoles, "RequireManageRoles")]
     public class RoleCommand : IDiscordCommand
@@ -56,7 +57,7 @@
                     }
                 }
 
-                if (!context.Settings.SelfRoles.Contains(requestedRole.Id))
+                if (!context.Settings.SelfRoles.ContainsKey(requestedRole.Id))
                 {
                     return new CommandResponse { Text = $"woah there buttmunch tryin' to cheat the system? you don't have the AUTHORITY to self-assign the {requestedRole.Name.ToUpperInvariant()} role. now make like a tree and get outta here" };
                 }
@@ -120,7 +121,7 @@
                 if (ulong.TryParse(roleIdText, out var roleId))
                 {
                     var settings = SettingsConfig.GetSettings(guildChannel.Guild.Id);
-                    if (settings.SelfRoles.Contains(roleId))
+                    if (settings.SelfRoles.ContainsKey(roleId))
                     {
                         var requestedRole = guildChannel.Guild.Roles.FirstOrDefault(r => r.Id == roleId);
                         if (requestedRole != null)
@@ -140,15 +141,60 @@
                                 {
                                     await guildAuthor.RemoveRoleAsync(requestedRole);
                                 }
+                                else
+                                {
+                                    Log.Warning("Unexpected role via reaction case, was not add nor remove");
+                                }
 
                                 return true;
                             }
                             catch (HttpException ex) when (ex.HttpCode == HttpStatusCode.Forbidden)
                             {
-                                // ignore
+                                Log.Warning("Permissions error adding reaction role");
+                                throw;
                             }
                         }
+                        else
+                        {
+                            Log.Warning($"Role {roleId} not found for reaction add/remove");
+                        }
                     }
+                }
+            }
+
+            return false;
+        }
+
+        public static async Task<bool> AddRoleViaReaction(ulong roleId, IGuildUser user)
+        {
+            var settings = SettingsConfig.GetSettings(user.Guild.Id);
+            if (settings.SelfRoles.ContainsKey(roleId))
+            {
+                var requestedRole = user.Guild.Roles.FirstOrDefault(r => r.Id == roleId);
+                if (requestedRole != null)
+                {
+                    try
+                    {
+                        if (!user.RoleIds.Contains(roleId))
+                        {
+                            await user.AddRoleAsync(requestedRole);
+                        }
+                        else
+                        {
+                            await user.RemoveRoleAsync(requestedRole);
+                        }
+
+                        return true;
+                    }
+                    catch (HttpException ex) when (ex.HttpCode == HttpStatusCode.Forbidden)
+                    {
+                        Log.Warning("Permissions error adding reaction role");
+                        throw;
+                    }
+                }
+                else
+                {
+                    Log.Warning($"Role {roleId} not found for reaction add/remove");
                 }
             }
 
@@ -178,7 +224,7 @@
                 return new CommandResponse { Text = helpText };
             }
 
-            if (!context.Settings.SelfRoles.Contains(genRole.Id))
+            if (!context.Settings.SelfRoles.ContainsKey(genRole.Id))
             {
                 return new CommandResponse { Text = $"That role is not currently self-assignable. Fix the settings first." };
             }

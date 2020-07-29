@@ -222,7 +222,7 @@ namespace UB3RB0T
                     // TODO: discord handles twitter embeds nicely; should adjust the notification data accordingly so we don't need this explicit check here
                     if (notification.Type == NotificationType.Twitter)
                     {
-                        var messageText = $"{notification.Embed.Url} {customText}{extraText}".TrimEnd();
+                        var messageText = $"{notification.Embed.Title} {notification.Embed.Url} {customText}{extraText}".Trim();
                         await channelToUse.SendMessageAsync(messageText, allowedMentions: allowedMentions);
                     }
                     else

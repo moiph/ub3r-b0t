@@ -35,7 +35,7 @@
                         responses.Add($"{answerText} ({score}% match)");
                     }
 
-                    await message.Channel.SendMessageAsync(string.Join(" | ", responses));
+                    await message.Channel.SendMessageAsync(string.Join("\n\n", responses));
                 }
                 else
                 {

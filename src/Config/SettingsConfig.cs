@@ -113,7 +113,9 @@
         public HashSet<string> WordCensors { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         public HashSet<string> RegexCensors { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        public HashSet<ulong> SelfRoles { get; set; } = new HashSet<ulong>();
+        public Dictionary<ulong, ulong> SelfRoles { get; set; } = new Dictionary<ulong, ulong>();
+        public ulong SelfRolesChannelId { get; set; }
+
         public HashSet<string> DisabledCommands { get; set; } = new HashSet<string>();
         public List<CustomCommand> CustomCommands = new List<CustomCommand>();
         public string Prefix { get; set; } = ".";

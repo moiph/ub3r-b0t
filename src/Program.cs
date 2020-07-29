@@ -53,7 +53,7 @@
                         if (context.Request.Query["guilds"] == "1")
                         {
                             response = string.Join($",{Environment.NewLine}",
-                                discordBot.Client.Guilds.OrderByDescending(g => g.Users.Count).Select(g => $"{g.Id} | {g.Name} | {g.MemberCount}"));
+                                discordBot.Client.Guilds.OrderByDescending(g => g.MemberCount).Select(g => $"{g.Id} | {g.Name} | {g.MemberCount}"));
                         }
                         else if (ulong.TryParse(context.Request.Query["guildId"], out ulong guildId))
                         {
@@ -70,6 +70,13 @@
                                     var channelPermissions = botGuildUser.GetPermissions(chan);
                                     channelsResponse.Channels.Add(chan.Id, new GuildChannelPermissions { CanRead = channelPermissions.ViewChannel, CanSend = channelPermissions.SendMessages, CanEmbed = channelPermissions.EmbedLinks });
                                 }
+
+                                foreach (var emoji in guild.Emotes)
+                                {
+                                    channelsResponse.Emoji.Add(emoji.Id, new EmojiData { Name = emoji.Name, Url = emoji.Url });
+                                }
+
+                                channelsResponse.HighestRolePosition = botGuildUser.Roles.OrderByDescending(r => r.Position).FirstOrDefault()?.Position ?? 0;
 
                                 response = JsonConvert.SerializeObject(channelsResponse);
                             }

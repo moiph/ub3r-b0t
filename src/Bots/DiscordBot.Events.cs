@@ -866,27 +866,29 @@ namespace UB3RB0T
 
                 await this.HandleMessageReceivedAsync(reaction.Message.Value, reactionEmote, reactionUser);
             }
-            else if (reactionEmote == "➕" || reactionEmote == "➖" || customEmote?.Id == settings.RoleAddEmoteId || customEmote?.Id == settings.RoleRemoveEmoteId)
+            else if (reactionEmote == "➕" || reactionEmote == "➖" || customEmote?.Id == settings.RoleAddEmoteId || customEmote?.Id == settings.RoleRemoveEmoteId || reaction.Channel.Id == settings.SelfRolesChannelId)
             {
-
-                IUser reactionUser = await reaction.GetOrDownloadUserAsync();
-                if (reactionUser.IsBot)
+                var reactionUser = await reaction.GetOrDownloadUserAsync() as IGuildUser;
+                if (reactionUser == null || reactionUser.IsBot)
                 {
                     return;
                 }
 
                 // handle possible role adds/removes
-                IUserMessage reactionMessage = null;
-                if (reaction.Message.IsSpecified)
+                IUserMessage reactionMessage = await reaction.GetOrDownloadMessage();
+
+                ulong selfRoleId = settings.SelfRoles.FirstOrDefault(kvp => kvp.Value == customEmote?.Id).Key;
+                bool roleChanged = false;
+                if (selfRoleId != 0)
                 {
-                    reactionMessage = reaction.Message.Value;
+                    roleChanged = await RoleCommand.AddRoleViaReaction(selfRoleId, reactionUser);
                 }
                 else
                 {
-                    reactionMessage = await reaction.Channel.GetMessageAsync(reaction.MessageId) as IUserMessage;
+                    roleChanged = await RoleCommand.AddRoleViaReaction(reactionMessage, reaction, reactionUser);
                 }
 
-                if (await RoleCommand.AddRoleViaReaction(reactionMessage, reaction, reactionUser))
+                if (roleChanged)
                 {
                     await reactionMessage.RemoveReactionAsync(reaction.Emote, reactionUser);
                 }
