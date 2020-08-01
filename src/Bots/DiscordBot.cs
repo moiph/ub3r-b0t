@@ -72,6 +72,7 @@ namespace UB3RB0T
                     GatewayIntents.Guilds |
                     GatewayIntents.GuildMembers |
                     GatewayIntents.GuildBans |
+                    GatewayIntents.GuildEmojis |
                     GatewayIntents.GuildVoiceStates |
                     GatewayIntents.GuildMessages |
                     GatewayIntents.GuildMessageReactions |

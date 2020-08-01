@@ -13,7 +13,7 @@
             if (context.Message.Channel is SocketGuildChannel guildChannel)
             {
                 var settings = SettingsConfig.GetSettings(guildChannel.Guild.Id.ToString());
-                var roles = guildChannel.Guild.Roles.Where(r => settings.SelfRoles.ContainsKey(r.Id)).Select(r => $"``{r.Name.Replace("`", @"\`")}``").OrderBy(r => r);
+                var roles = guildChannel.Guild.Roles.OrderByDescending(r => r.Position).Where(r => settings.SelfRoles.ContainsKey(r.Id)).Select(r => $"``{r.Name.Replace("`", @"\`")}``");
 
                 var multiText = new List<string>();
                 var sb = new StringBuilder();

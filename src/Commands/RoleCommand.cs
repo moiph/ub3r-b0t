@@ -47,7 +47,7 @@
                 IRole requestedRole = context.Message.MentionedRoles.FirstOrDefault();
                 if (requestedRole == null)
                 {
-                    var guildRoles = context.GuildChannel.Guild.Roles.OrderBy(r => r.Position);
+                    var guildRoles = context.GuildChannel.Guild.Roles.OrderByDescending(r => r.Position);
                     requestedRole = guildRoles.FirstOrDefault(r => r.Name.IEquals(roleArgs[1])) ?? 
                         guildRoles.FirstOrDefault(r => r.Name.IContains(roleArgs[1]));
 

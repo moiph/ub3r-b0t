@@ -7,7 +7,7 @@
 
     public class ServerInfoCommand : IDiscordCommand
     {
-        public Task<CommandResponse> Process(IDiscordBotContext context)
+        public async Task<CommandResponse> Process(IDiscordBotContext context)
         {
             EmbedBuilder embedBuilder = null;
             string text = string.Empty;
@@ -56,6 +56,11 @@
                 else if (emojiCount > 0)
                 {
                     emojiText = $"really, only {emojiCount} custom emoji? tsk tsk.";
+                }
+
+                if (guild.Owner == null)
+                {
+                    await guild.DownloadUsersAsync();
                 }
 
                 var serverInfo = new
@@ -125,7 +130,7 @@
                 text = "This command only works in servers, you scoundrel";
             }
 
-            return Task.FromResult(new CommandResponse { Text = text, Embed = embedBuilder?.Build() });
+            return new CommandResponse { Text = text, Embed = embedBuilder?.Build() };
         }
     }
 }
