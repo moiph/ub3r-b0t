@@ -80,11 +80,25 @@
 
                                 response = JsonConvert.SerializeObject(channelsResponse);
                             }
+                            else
+                            {
+                                response = JsonConvert.SerializeObject(new { error = "Not found" });
+                            }
                         }
                         else
                         {
                             response = Assembly.GetEntryAssembly().GetName().Version.ToString();
                         }
+
+                        // if empty, response was not handled
+                        if (string.IsNullOrEmpty(response))
+                        {
+                            response = $"Online{Environment.NewLine}";
+                        }
+                    }
+                    else
+                    {
+                        context.Response.StatusCode = 404;
                     }
                 }
                 catch (Exception ex)
@@ -92,22 +106,19 @@
                     Log.Error(ex, "Exception in kesteral handler");
                 }
 
-                // if empty, response was not handled
-                if (string.IsNullOrEmpty(response))
-                {
-                    response = $"Online{Environment.NewLine}";
-                }
-
                 context.Response.ContentLength = Encoding.UTF8.GetByteCount(response);
                 context.Response.ContentType = "text/plain";
 
-                try
+                if (!string.IsNullOrEmpty(response))
                 {
-                    await context.Response.WriteAsync(response);
-                }
-                catch (Exception ex)
-                {
-                    Log.Error(ex, "Error writing response in kestral handler");
+                    try
+                    {
+                        await context.Response.WriteAsync(response);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, "Error writing response in kestral handler");
+                    }
                 }
             });
         }

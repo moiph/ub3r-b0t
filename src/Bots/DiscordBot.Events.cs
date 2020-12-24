@@ -212,23 +212,31 @@ namespace UB3RB0T
             {
                 this.TrackEvent("serverJoin");
 
+                var defaultChannel = guild.DefaultChannel;
+                var canSendToDefaultChannel = defaultChannel != null && guild.CurrentUser.GetPermissions(defaultChannel).SendMessages;
+
                 // if it's a bot farm, bail out.
                 await guild.DownloadUsersAsync();
 
                 var botCount = guild.Users.Count(u => u.IsBot);
                 var botRatio = (double)botCount / guild.Users.Count;
+
                 if (botCount > 30 && botRatio > .5)
                 {
                     Log.Warning($"Auto bailed on a bot farm: {guild.Name} (#{guild.Id})");
+                    
+                    if (canSendToDefaultChannel)
+                    {
+                        await defaultChannel.SendMessageAsync("https://tenor.com/view/im-out-hands-up-exit-gif-14678218");
+                    }
+
                     await guild.LeaveAsync();
                     return;
                 }
 
-                var defaultChannel = guild.DefaultChannel;
-                var owner = guild.Owner;
-                if (defaultChannel != null && guild.CurrentUser.GetPermissions(defaultChannel).SendMessages)
+                if (canSendToDefaultChannel)
                 {
-                    await defaultChannel.SendMessageAsync($"(HELLO, I AM UB3R-B0T! .halp for info. {owner?.Mention ?? "idk who but to someone..."} you're the kickass owner-- you can use .admin to configure some stuff. By using me you agree to these terms: https://ub3r-b0t.com/terms)");
+                    await defaultChannel.SendMessageAsync($"(HELLO, I AM UB3R-B0T! .halp for info. {guild.Owner?.Mention ?? "idk who but to someone..."} you're the kickass owner-- you can use .admin to configure some stuff. By using me you agree to these terms: https://ub3r-b0t.com/terms)");
                 }
 
                 if (this.BotApi != null)

@@ -487,7 +487,7 @@ namespace UB3RB0T
                 if (response != null)
                 {
                     response = response.Replace("%from%", messageData.UserName);
-                    string[] resps = response.Split(new char[] { '|' });
+                    string[] resps = response.Split("||");
                     responseData.Responses.AddRange(resps);
                 }
             }
