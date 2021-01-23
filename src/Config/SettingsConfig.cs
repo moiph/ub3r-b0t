@@ -123,6 +123,7 @@
         public bool Mod_ImgLimit { get; set; }
         public ulong Mod_LogId { get; set; }
         public ModOptions Mod_LogOptions { get; set; }
+        public bool DebugMode { get; set; }
 
         public ulong RoleAddEmoteId { get; set; }
         public ulong RoleRemoveEmoteId { get; set; }

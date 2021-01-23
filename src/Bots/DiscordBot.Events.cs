@@ -358,6 +358,20 @@ namespace UB3RB0T
                 {
                     await farewellChannel.SendMessageAsync(farewell);
                 }
+                else
+                {
+                    if (settings.DebugMode)
+                    {
+                        Log.Verbose($"[DBGM] [guild: {guildUser.Guild.Id}] User left, missing permissions to send farewell");
+                    }
+                }
+            }
+            else
+            {
+                if (settings.DebugMode)
+                {
+                    Log.Verbose($"[DBGM] [guild: {guildUser.Guild.Id}] User left, no farewell configured");
+                }
             }
 
             // mod log
@@ -827,8 +841,26 @@ namespace UB3RB0T
 
         private async Task HandleReactionAdded(Cacheable<IUserMessage, ulong> message, ISocketMessageChannel channel, SocketReaction reaction)
         {
+            var guildChannel = channel as SocketTextChannel;
+            if (guildChannel == null)
+            {
+                return;
+            }
+
+            var settings = SettingsConfig.GetSettings(guildChannel.Guild.Id);
+
+            if (settings.DebugMode)
+            {
+                Log.Verbose($"[DBGM] [chan: {guildChannel.Id} | guild: {guildChannel.Guild.Id}] Reaction added: {reaction.Emote.Name}");
+            }
+
             if (reaction.User.IsSpecified && reaction.User.Value.IsBot)
             {
+                if (settings.DebugMode)
+                {
+                    Log.Verbose($"[DBGM] [chan: {guildChannel.Id} | guild: {guildChannel.Guild.Id}] User unspecified or was bot");
+                }
+
                 return;
             }
 
@@ -854,8 +886,6 @@ namespace UB3RB0T
                 await this.HandleMessageReceivedAsync(reaction.Message.Value, reactionEmote, reactionUser);
             }
 
-            var guildChannel = channel as SocketTextChannel;
-            var settings = SettingsConfig.GetSettings(guildChannel.Guild.Id);
             var customEmote = reaction.Emote as Emote;
 
             if ((reactionEmote == "💬" || reactionEmote == "🗨️" || reactionEmote == "❓" || reactionEmote == "🤖") && reaction.Message.IsSpecified && !string.IsNullOrEmpty(reaction.Message.Value?.Content))
@@ -876,9 +906,19 @@ namespace UB3RB0T
             }
             else if (reactionEmote == "➕" || reactionEmote == "➖" || customEmote?.Id == settings.RoleAddEmoteId || customEmote?.Id == settings.RoleRemoveEmoteId || reaction.Channel.Id == settings.SelfRolesChannelId)
             {
+                if (settings.DebugMode)
+                {
+                    Log.Verbose($"[DBGM] [chan: {guildChannel.Id} | guild: {guildChannel.Guild.Id}] Role change via reaction");
+                }
+
                 var reactionUser = await reaction.GetOrDownloadUserAsync() as IGuildUser;
                 if (reactionUser == null || reactionUser.IsBot)
                 {
+                    if (settings.DebugMode)
+                    {
+                        Log.Verbose($"[DBGM] [chan: {guildChannel.Id} | guild: {guildChannel.Guild.Id}] Role change via reaction failed, user DNE or bot");
+                    }
+
                     return;
                 }
 
@@ -896,7 +936,7 @@ namespace UB3RB0T
                     roleChanged = await RoleCommand.AddRoleViaReaction(reactionMessage, reaction, reactionUser);
                 }
 
-                if (roleChanged)
+                if (roleChanged && guildChannel.GetCurrentUserPermissions().AddReactions)
                 {
                     await reactionMessage.RemoveReactionAsync(reaction.Emote, reactionUser);
                 }
