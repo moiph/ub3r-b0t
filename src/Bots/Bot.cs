@@ -665,7 +665,7 @@ namespace UB3RB0T
             {
                 this.missedHeartbeats++;
 
-                if (missedHeartbeats >= 3)
+                if (missedHeartbeats >= this.Config.MissedHeartbeatLimit)
                 {
                     this.missedHeartbeats = 0;
                     this.exitCode = (int)ExitCode.ConnectionRestart;

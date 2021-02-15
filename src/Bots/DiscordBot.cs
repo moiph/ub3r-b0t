@@ -114,13 +114,13 @@ namespace UB3RB0T
                 { "serverinfo", new ServerInfoCommand() },
                 { "roles", new RolesCommand() },
                 { "admin", new AdminCommand() },
-                { "eval", new EvalCommand() },
                 { "quickpoll", new QuickPollCommand() },
                 { "qp", new QuickPollCommand() },
                 { "role", new RoleCommand(true) },
                 { "derole", new RoleCommand(false) },
                 { "fr", new FeedbackCommand() },
                 { "override", new OverrideCommand() },
+                { "quote", new QuoteCommand() },
             };
 
             await this.Client.LoginAsync(TokenType.Bot, this.Config.Discord.Token);
@@ -273,7 +273,7 @@ namespace UB3RB0T
             {
                 ServerCount = this.Client.Guilds.Count(),
                 VoiceChannelCount = this.Client.Guilds.Select(g => g.CurrentUser?.VoiceChannel).Where(v => v != null).Count(),
-                UserCount = this.Client.Guilds.Sum(x => x.Users.Count),
+                UserCount = this.Client.Guilds.Sum(x => x.MemberCount),
                 ChannelCount = this.Client.Guilds.Sum(x => x.TextChannels.Count),
             };
         }
@@ -411,7 +411,7 @@ namespace UB3RB0T
             }).Forget();
         }
 
-        private bool IsAuthorOwner(SocketUserMessage message)
+        private bool IsAuthorOwner(IUserMessage message)
         {
             return message.Author.Id == this.Config.Discord?.OwnerId;
         }

@@ -19,7 +19,7 @@
             }
             else
             {
-                Attachment img = context.Message.Attachments.FirstOrDefault();
+                Attachment img = context.SocketMessage?.Attachments.FirstOrDefault();
                 if (img != null || context.Bot.ImageUrls.TryGetValue(context.Message.Channel.Id.ToString(), out img))
                 {
                     url = img.Url;

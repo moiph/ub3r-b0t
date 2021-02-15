@@ -26,7 +26,7 @@
                     return new CommandResponse { Text = "Only `bday` is supported for overrides right now" };
                 }
 
-                SocketUser targetUser = context.Message.MentionedUsers?.FirstOrDefault();
+                SocketUser targetUser = context.SocketMessage?.MentionedUsers?.FirstOrDefault();
 
                 if (targetUser == null)
                 {

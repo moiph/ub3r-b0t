@@ -38,6 +38,7 @@
 
         // endpoint to send heartbeat data to
         public Uri HeartbeatEndpoint { get; set; }
+        public int MissedHeartbeatLimit { get; set; } = 10;
         // endpoint to send alerts (e.g. bot restarts) to
         public Uri AlertEndpoint { get; set; }
 
@@ -103,23 +104,10 @@
         public BotStatData[] BotStats { get; set; } = Array.Empty<BotStatData>();
 
         /// <summary>
-        /// Outgoing webhooks, to send messages for particular channels to...wherever
-        /// </summary>
-        public Dictionary<ulong, OutgoingWebhook> OutgoingWebhooks { get; set; } = new Dictionary<ulong, OutgoingWebhook>();
-
-        /// <summary>
         /// Set to true to trigger typing state when command usage is detected
         /// Typing state will be exited after the command is processed and reply sent.
         /// </summary>
         public bool TriggerTypingOnCommands { get; set; }
-    }
-
-    public class OutgoingWebhook
-    {
-        public Uri Endpoint { get; set; }
-        public string UserName { get; set; }
-        public ulong MentionUserId { get; set; }
-        public string MentionText { get; set; }
     }
 
     public class BotStatData

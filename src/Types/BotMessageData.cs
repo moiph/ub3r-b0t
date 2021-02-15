@@ -14,7 +14,7 @@
         public BotType BotType;
 
         [JsonIgnore]
-        public SocketUserMessage DiscordMessageData { get; private set; }
+        public IUserMessage DiscordMessageData { get; private set; }
         [JsonIgnore]
         public MessageData IrcMessageData { get; private set; }
 
@@ -55,9 +55,9 @@
 
         public bool MentionsBot(string botName, ulong? id)
         {
-            if (this.BotType == BotType.Discord)
+            if (this.BotType == BotType.Discord && this.DiscordMessageData is SocketUserMessage socketUserMessage)
             {
-                return this.DiscordMessageData.MentionedUsers.Count == 1 && this.DiscordMessageData.MentionedUsers.First().Id == id ||
+                return socketUserMessage.MentionedUsers.Count == 1 && socketUserMessage.MentionedUsers.First().Id == id ||
                     this.Content.ToLowerInvariant().Contains(botName.ToLowerInvariant());
             }
 
@@ -78,9 +78,9 @@
             };
         }
 
-        public static BotMessageData Create(SocketUserMessage message, Settings serverSettings)
+        public static BotMessageData Create(IUserMessage message, Settings serverSettings)
         {
-            var preferEmbeds = (message.Channel as SocketTextChannel).GetCurrentUserPermissions().EmbedLinks && serverSettings.PreferEmbeds;
+            var preferEmbeds = ((message.Channel as SocketTextChannel)?.GetCurrentUserPermissions().EmbedLinks ?? false) && serverSettings.PreferEmbeds;
 
             var messageData = new BotMessageData(BotType.Discord)
             {

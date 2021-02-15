@@ -22,7 +22,7 @@
                     return new CommandResponse { Text = $"Usage: {context.Settings.Prefix}seen username" };
                 }
 
-                IUser targetUser = context.Message.MentionedUsers?.FirstOrDefault();
+                IUser targetUser = context.SocketMessage?.MentionedUsers?.FirstOrDefault();
 
                 if (targetUser == null)
                 {

@@ -88,7 +88,7 @@ namespace UB3RB0T
                                 await this.HandleUserBanned(args[0] as SocketGuildUser, (SocketGuild)args[1]);
                                 break;
                             case DiscordEventType.MessageReceived:
-                                await this.HandleMessageReceivedAsync((SocketMessage)args[0]);
+                                await this.HandleMessageReceivedAsync(args[0] as IUserMessage);
                                 break;
                             case DiscordEventType.MessageUpdated:
                                 await this.HandleMessageUpdated((Cacheable<IMessage, ulong>)args[0], (SocketMessage)args[1], (ISocketMessageChannel)args[2]);
@@ -521,22 +521,10 @@ namespace UB3RB0T
         /// TODO: This method is way too huge.
         /// TODO: read prior todo, IT'S GETTING WORSe, STAHP
         /// </summary>
-        private async Task HandleMessageReceivedAsync(SocketMessage socketMessage, string reactionType = null, IUser reactionUser = null)
-        {
-            var props = new Dictionary<string, string> {
-                { "server", (socketMessage.Channel as SocketGuildChannel)?.Guild.Id.ToString() ?? "private" },
-                { "channel", socketMessage.Channel.Id.ToString() },
-            };
-
-            this.TrackEvent("messageReceived", props);
-
+        private async Task HandleMessageReceivedAsync(IUserMessage message, String reactionType = null, IUser reactionUser = null)
+        { 
             // Ignore system and our own messages.
-            var message = socketMessage as SocketUserMessage;
             bool isOutbound = false;
-
-            // replicate to webhook, if configured
-            this.CallOutgoingWebhookAsync(message).Forget();
-
             if (message == null || (isOutbound = message.Author.Id == this.Client.CurrentUser.Id))
             {
                 if (isOutbound && this.Config.LogOutgoing)
@@ -548,6 +536,13 @@ namespace UB3RB0T
                 return;
             }
 
+            var props = new Dictionary<string, string> {
+                { "server", (message.Channel as SocketGuildChannel)?.Guild.Id.ToString() ?? "private" },
+                { "channel", message.Channel.Id.ToString() },
+            };
+
+            this.TrackEvent("messageReceived", props);
+
             // Ignore other bots unless it's an allowed webhook
             // Always ignore bot reactions
             var webhookUser = message.Author as IWebhookUser;
@@ -558,7 +553,7 @@ namespace UB3RB0T
 
             // grab the settings for this server
             var botGuildUser = (message.Channel as SocketGuildChannel)?.Guild.CurrentUser;
-            var guildUser = message.Author as SocketGuildUser;
+            var guildUser = message.Author as IGuildUser;
             var guildId = webhookUser?.GuildId ?? guildUser?.Guild.Id;
             var settings = SettingsConfig.GetSettings(guildId?.ToString());
 
@@ -640,6 +635,7 @@ namespace UB3RB0T
                 return;
             }
 
+            var commandHandled = false;
             if (this.discordCommands.TryGetValue(command, out IDiscordCommand discordCommand))
             {
                 var commandProps = new Dictionary<string, string> {
@@ -665,6 +661,7 @@ namespace UB3RB0T
                     {
                         var sentMessage = await message.Channel.SendFileAsync(response.Attachment.Stream, response.Attachment.Name, response.Text);
                         this.botResponsesCache.Add(message.Id, sentMessage);
+                        commandHandled = true;
                     }
                     else if (response?.MultiText != null)
                     {
@@ -673,15 +670,22 @@ namespace UB3RB0T
                             var sentMessage = await this.RespondAsync(message, messageText, response.Embed, bypassEdit: true);
                             this.botResponsesCache.Add(message.Id, sentMessage);
                         }
+                        commandHandled = true;
                     }
                     else if (!string.IsNullOrEmpty(response?.Text) || response?.Embed != null)
                     {
                         var sentMessage = await this.RespondAsync(message, response.Text, response.Embed);
                         this.botResponsesCache.Add(message.Id, sentMessage);
+                        commandHandled = true;
                     }
                 }
+                else
+                {
+                    commandHandled = true;
+                }
             }
-            else
+            
+            if (!commandHandled)
             {
                 // Enter typing state for valid commands; skip if throttled
                 IDisposable typingState = null;
@@ -730,6 +734,10 @@ namespace UB3RB0T
                             }
                         }
                     }
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "Error in command response handling");
                 }
                 finally
                 {
@@ -786,7 +794,7 @@ namespace UB3RB0T
                 if (messageBefore.HasValue && messageAfter.Content != messageBefore.Value.Content && messageAfter.Author.Id != this.Client.CurrentUser.Id &&
                     DateTimeOffset.UtcNow.Subtract(messageAfter.Timestamp) < TimeSpan.FromHours(1))
                 {
-                    await this.HandleMessageReceivedAsync(messageAfter);
+                    await this.HandleMessageReceivedAsync(messageAfter as IUserMessage);
                 }
             }
         }
@@ -796,27 +804,33 @@ namespace UB3RB0T
         /// </summary>
         private async Task HandleMessageDeleted(Cacheable<IMessage, ulong> cachedMessage, ISocketMessageChannel channel)
         {
-            var msg = this.botResponsesCache.Remove(cachedMessage.Id);
-            if (msg != null)
+            var msgId = this.botResponsesCache.Remove(cachedMessage.Id);
+            var textChannel = channel as ITextChannel;
+
+            if (msgId != 0 && textChannel != null)
             {
-                try
+                var settings = SettingsConfig.GetSettings(textChannel.GuildId);
+                if (!settings.DisableMessageCleanup)
                 {
-                    await msg.DeleteAsync();
-                }
-                catch (Exception)
-                {
-                    // ignore, don't care if we can't delete our own message
+                    try
+                    {
+                        var oldMsg = await textChannel.GetMessageAsync(msgId) as IUserMessage;
+                        await oldMsg.DeleteAsync();
+                    }
+                    catch (Exception)
+                    {
+                        // ignore, don't care if we can't delete our own message
+                    }
                 }
             }
 
-            if (cachedMessage.HasValue && channel is IGuildChannel guildChannel)
+            if (cachedMessage.HasValue && textChannel != null)
             {
                 var message = cachedMessage.Value;
-                var textChannel = guildChannel as ITextChannel;
-                var guild = guildChannel.Guild as SocketGuild;
-                var settings = SettingsConfig.GetSettings(guildChannel.GuildId);
+                var guild = textChannel.Guild as SocketGuild;
+                var settings = SettingsConfig.GetSettings(textChannel.GuildId);
 
-                if (settings.HasFlag(ModOptions.Mod_LogDelete) && guildChannel.Id != settings.Mod_LogId && !message.Author.IsBot &&
+                if (settings.HasFlag(ModOptions.Mod_LogDelete) && textChannel.Id != settings.Mod_LogId && !message.Author.IsBot &&
                     this.Client.GetChannel(settings.Mod_LogId) is ITextChannel modLogChannel && modLogChannel.GetCurrentUserPermissions().SendMessages)
                 {
                     string delText = "";
@@ -858,7 +872,7 @@ namespace UB3RB0T
             {
                 if (settings.DebugMode)
                 {
-                    Log.Verbose($"[DBGM] [chan: {guildChannel.Id} | guild: {guildChannel.Guild.Id}] User unspecified or was bot");
+                    Log.Verbose($"[DBGM] [chan: {guildChannel.Id} | guild: {guildChannel.Guild.Id}] User was bot");
                 }
 
                 return;
@@ -883,15 +897,19 @@ namespace UB3RB0T
                     return;
                 }
 
-                await this.HandleMessageReceivedAsync(reaction.Message.Value, reactionEmote, reactionUser);
+                await this.HandleMessageReceivedAsync(reaction.Message.Value as IUserMessage, reactionEmote, reactionUser);
             }
 
             var customEmote = reaction.Emote as Emote;
 
-            if ((reactionEmote == "💬" || reactionEmote == "🗨️" || reactionEmote == "❓" || reactionEmote == "🤖") && reaction.Message.IsSpecified && !string.IsNullOrEmpty(reaction.Message.Value?.Content))
+            var allowDownload = reactionEmote == "💬" || reactionEmote == "🗨️";
+
+            if ((reactionEmote == "💬" || reactionEmote == "🗨️" || reactionEmote == "❓" || reactionEmote == "🤖") && (allowDownload || (reaction.Message.IsSpecified && !string.IsNullOrEmpty(reaction.Message.Value?.Content))))
             {
+                IUserMessage reactionMessage = allowDownload ? await reaction.GetOrDownloadMessage() : reaction.Message.Value;
+
                 // if the reaction already exists, don't re-process.
-                if (reaction.Message.Value.Reactions.Any(r => (r.Key.Name == "💬" || r.Key.Name == "🗨️" || r.Key.Name == "❓" || r.Key.Name == "🤖") && r.Value.ReactionCount > 1))
+                if (reactionMessage.Reactions.Any(r => (r.Key.Name == "💬" || r.Key.Name == "🗨️" || r.Key.Name == "❓" || r.Key.Name == "🤖") && r.Value.ReactionCount > 1))
                 {
                     return;
                 }
@@ -902,7 +920,10 @@ namespace UB3RB0T
                     return;
                 }
 
-                await this.HandleMessageReceivedAsync(reaction.Message.Value, reactionEmote, reactionUser);
+                if (!string.IsNullOrEmpty(reactionMessage.Content))
+                {
+                    await this.HandleMessageReceivedAsync(reactionMessage, reactionEmote, reactionUser);
+                }
             }
             else if (reactionEmote == "➕" || reactionEmote == "➖" || customEmote?.Id == settings.RoleAddEmoteId || customEmote?.Id == settings.RoleRemoveEmoteId || reaction.Channel.Id == settings.SelfRolesChannelId)
             {
@@ -948,9 +969,10 @@ namespace UB3RB0T
             await this.RespondAsync(messageData.DiscordMessageData, response, rateLimitChecked: messageData.RateLimitChecked);
         }
 
-        private async Task<IUserMessage> RespondAsync(SocketUserMessage message, string response, Embed embedResponse = null, bool bypassEdit = false, bool rateLimitChecked = false)
+        private async Task<IUserMessage> RespondAsync(IUserMessage message, string response, Embed embedResponse = null, bool bypassEdit = false, bool rateLimitChecked = false)
         {
-            SocketGuild guild = (message.Channel as SocketGuildChannel)?.Guild;
+            var textChannel = message.Channel as ITextChannel;
+            IGuild guild = textChannel?.Guild;
 
             if (!rateLimitChecked)
             {
@@ -969,12 +991,13 @@ namespace UB3RB0T
 
             this.TrackEvent("messageSent", props);
 
-            response = response.SubstringUpTo(Discord.DiscordConfig.MaxMessageSize);
+            response = response?.SubstringUpTo(Discord.DiscordConfig.MaxMessageSize);
 
-            if (!bypassEdit && this.botResponsesCache.Get(message.Id) is IUserMessage oldMsg)
+            if (!bypassEdit && textChannel != null && this.botResponsesCache.Get(message.Id) is ulong oldMessageId && oldMessageId != 0)
             {
                 try
                 {
+                    var oldMsg = await textChannel.GetMessageAsync(oldMessageId) as IUserMessage;
                     await oldMsg.ModifyAsync((m) =>
                     {
                         m.Content = response;
@@ -991,30 +1014,6 @@ namespace UB3RB0T
             else
             {
                 return await message.Channel.SendMessageAsync(response, false, embedResponse);
-            }
-        }
-
-        private async Task CallOutgoingWebhookAsync(SocketUserMessage message)
-        {
-            if (message != null && this.Config.Discord.OutgoingWebhooks.TryGetValue(message.Channel.Id, out var webhook))
-            {
-                if (!message.Author.IsBot || message.Author.Username != webhook.UserName)
-                {
-                    try
-                    {
-                        var text = $"<{message.Author.Username}> {message.Content}";
-                        if (message.MentionedUsers.Any(u => u.Id == webhook.MentionUserId))
-                        {
-                            text += webhook.MentionText;
-                        }
-
-                        var result = await webhook.Endpoint.PostJsonAsync(new { text, username = message.Author.Username });
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Warning(ex, "Outgoing webhook failed");
-                    }
-                }
             }
         }
     }

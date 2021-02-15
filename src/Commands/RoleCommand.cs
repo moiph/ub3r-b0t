@@ -44,7 +44,7 @@
                     }
                 }
 
-                IRole requestedRole = context.Message.MentionedRoles.FirstOrDefault();
+                IRole requestedRole = context.SocketMessage?.MentionedRoles.FirstOrDefault();
                 if (requestedRole == null)
                 {
                     var guildRoles = context.GuildChannel.Guild.Roles.OrderByDescending(r => r.Position);
@@ -213,7 +213,7 @@
 
             var helpText = $"Usage: {settings.Prefix}role generate @role channelId Text to pair with the message here";
 
-            IRole genRole = context.Message.MentionedRoles.FirstOrDefault();
+            IRole genRole = context.SocketMessage?.MentionedRoles.FirstOrDefault();
             if (genRole == null && ulong.TryParse(roleGenArgs[2], out var roleId))
             {
                 genRole = context.GuildChannel.Guild.GetRole(roleId);
@@ -229,7 +229,7 @@
                 return new CommandResponse { Text = $"That role is not currently self-assignable. Fix the settings first." };
             }
 
-            var channel = context.Message.MentionedChannels.FirstOrDefault() as SocketTextChannel;
+            var channel = context.SocketMessage?.MentionedChannels.FirstOrDefault() as SocketTextChannel;
             if (channel == null && ulong.TryParse(roleGenArgs[3], out var chanId))
             {
                 channel = context.GuildChannel.Guild.GetChannel(chanId) as SocketTextChannel;

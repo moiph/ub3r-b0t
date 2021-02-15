@@ -6,7 +6,7 @@
     <ApplicationIcon>ub3rb0t.ico</ApplicationIcon>
   </PropertyGroup>
   <PropertyGroup>
-    <OutputType>exe</OutputType>
+    <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <PrimaryVersionType>AssemblyVersionAttribute</PrimaryVersionType>
@@ -16,8 +16,8 @@
     <UpdateAssemblyInfoVersion>False</UpdateAssemblyInfoVersion>
     <AssemblyVersionSettings>IncrementOnDemand.IncrementOnDemand.DateStamp.Increment</AssemblyVersionSettings>
     <Version>4.4.0</Version>
-    <AssemblyVersion>4.4.2012.1</AssemblyVersion>
-    <FileVersion>4.4.2012.1</FileVersion>
+    <AssemblyVersion>4.4.2102.5</AssemblyVersion>
+    <FileVersion>4.4.2102.5</FileVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <DebugType>pdbonly</DebugType>
@@ -46,7 +46,7 @@
     <Content Include="ub3rb0t.ico" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Discord.Net.WebSocket" Version="2.3.0-dev-20200710.2" />
+    <PackageReference Include="Discord.Net.WebSocket" Version="2.3.0" />
     <PackageReference Include="DogStatsD-CSharp-Client" Version="3.3.0" />
     <PackageReference Include="Flurl.Http" Version="2.4.2" />
     <PackageReference Include="Microsoft.ApplicationInsights" Version="2.10.0" />

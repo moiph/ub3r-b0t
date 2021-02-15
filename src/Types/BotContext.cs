@@ -19,7 +19,8 @@
     {
         DiscordSocketClient Client { get; }
         AudioManager AudioManager { get; }
-        SocketUserMessage Message { get; }
+        IUserMessage Message { get; }
+        SocketUserMessage SocketMessage { get; }
         SocketGuildChannel GuildChannel { get; }
         Settings Settings { get; }
         string Reaction { get; }
@@ -29,11 +30,11 @@
 
     public class DiscordBotContext : IDiscordBotContext
     {
-        public DiscordBotContext(DiscordSocketClient client, SocketUserMessage message)
+        public DiscordBotContext(DiscordSocketClient client, IUserMessage message)
         {
             this.Client = client;
             this.Message = message;
-            this.MessageData = BotMessageData.Create(Message, this.Settings);
+            this.MessageData = BotMessageData.Create(message, this.Settings);
         }
 
         public DiscordSocketClient Client { get; }
@@ -41,8 +42,9 @@
         public BotApi BotApi { get; set; }
         public DiscordBot Bot { get; set; }
 
-        public SocketUserMessage Message { get; }
-        public SocketGuildChannel GuildChannel => Message.Channel as SocketGuildChannel;
+        public IUserMessage Message { get; }
+        public SocketUserMessage SocketMessage => Message as SocketUserMessage;
+        public SocketGuildChannel GuildChannel => SocketMessage?.Channel as SocketGuildChannel;
         public string Reaction { get; set; }
         public IUser ReactionUser { get; set; }
 

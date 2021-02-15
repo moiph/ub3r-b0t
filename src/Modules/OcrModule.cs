@@ -30,7 +30,7 @@
                 }
                 else if (string.IsNullOrEmpty(message.Content) || BotConfig.Instance.OcrAutoIds.Contains(message.Channel.Id))
                 {
-                    var imageUrl = context.Message.ParseImageUrl();
+                    var imageUrl = context.SocketMessage?.ParseImageUrl();
 
                     if (imageUrl != null)
                     {

@@ -10,7 +10,7 @@
     {
         public async Task<CommandResponse> Process(IDiscordBotContext context)
         {
-            SocketUser targetUser = context.Message.MentionedUsers?.FirstOrDefault();
+            SocketUser targetUser = context.SocketMessage?.MentionedUsers?.FirstOrDefault();
 
             if (targetUser == null)
             {
@@ -31,7 +31,7 @@
                 }
                 else
                 {
-                    targetUser = context.Message.Author;
+                    targetUser = context.SocketMessage?.Author;
                 }
             }
 
