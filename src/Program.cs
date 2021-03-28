@@ -9,7 +9,6 @@
     using System.IO;
     using System.Linq;
     using System.Reflection;
-    using System.Runtime.InteropServices;
     using System.Text;
     using System.Threading.Tasks;
     using Newtonsoft.Json;
@@ -27,19 +26,6 @@
 
     class Program
     {
-        public enum CtrlType
-        {
-            CTRL_C_EVENT = 0,
-            CTRL_BREAK_EVENT = 1,
-            CTRL_CLOSE_EVENT = 2,
-            CTRL_LOGOFF_EVENT = 5,
-            CTRL_SHUTDOWN_EVENT = 6,
-        }
-
-        [DllImport("Kernel32")]
-        private static extern bool SetConsoleCtrlHandler(HandlerRoutine Handler, bool Add);
-        private delegate bool HandlerRoutine(CtrlType CtrlType);
-
         public void Configure(IApplicationBuilder app, ILoggerFactory loggerFactory)
         {
             app.Run(async context =>
@@ -85,6 +71,11 @@
                                 response = JsonConvert.SerializeObject(new { error = "Not found" });
                             }
                         }
+                        else if (context.Request.Query["shutdown"] == "1")
+                        {
+                            Log.Information("shutdown request via kestrel; stopping bot");
+                            HandleShutdown();
+                        }
                         else
                         {
                             response = Assembly.GetEntryAssembly().GetName().Version.ToString();
@@ -103,7 +94,7 @@
                 }
                 catch (Exception ex)
                 {
-                    Log.Error(ex, "Exception in kesteral handler");
+                    Log.Error(ex, "Exception in kestrel handler");
                 }
 
                 context.Response.ContentLength = Encoding.UTF8.GetByteCount(response);
@@ -208,6 +199,8 @@
 
             watcher.EnableRaisingEvents = true;
 
+            Console.CancelKeyPress += Console_CancelKeyPress;
+
             int exitCode = (int)ExitCode.Success;
             // Convert to async main method
             var instanceCount = 0;
@@ -218,16 +211,6 @@
                     using (var bot = Bot.Create(botType, shard, totalShards, instanceCount))
                     {
                         BotInstance = bot;
-                        // Handle clean shutdown when possible
-                        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                        {
-                            SetConsoleCtrlHandler((ctrlType) =>
-                            {
-                                bot.StopAsync().GetAwaiter().GetResult();
-                                return true;
-                            }, true);
-                        }
-
                         Log.Information($"Starting shard {shard}");
 
                         exitCode = bot.StartAsync().GetAwaiter().GetResult();
@@ -246,6 +229,25 @@
             Log.Fatal("Game over man, {{GameOver}}", "game over!");
 
             return exitCode;
+        }
+
+        private static void Console_CancelKeyPress(object sender, ConsoleCancelEventArgs e)
+        {
+            Log.Information("CancelKeyPress event; stopping bot");
+            HandleShutdown();
+        }
+
+        private static void HandleShutdown()
+        {
+            Log.Information("Handling shutdown event");
+            try
+            {
+                BotInstance.StopAsync().GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Unexcepted error calling StopAsync");
+            }
         }
 
         static async Task ReloadConfigs()

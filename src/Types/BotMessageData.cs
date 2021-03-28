@@ -55,10 +55,19 @@
 
         public bool MentionsBot(string botName, ulong? id)
         {
-            if (this.BotType == BotType.Discord && this.DiscordMessageData is SocketUserMessage socketUserMessage)
+            if (this.BotType == BotType.Discord)
             {
-                return socketUserMessage.MentionedUsers.Count == 1 && socketUserMessage.MentionedUsers.First().Id == id ||
-                    this.Content.ToLowerInvariant().Contains(botName.ToLowerInvariant());
+                if (!string.IsNullOrEmpty(this.Content) && this.Content.IContains(botName))
+                {
+                    return true;
+                }
+
+                if (this.DiscordMessageData is SocketUserMessage socketUserMessage)
+                {
+                    return socketUserMessage.MentionedUsers.Count == 1 && socketUserMessage.MentionedUsers.First().Id == id;     
+                }
+
+                return false;
             }
 
             return this.IrcMessageData.Text.Contains(botName);
