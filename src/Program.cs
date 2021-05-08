@@ -175,7 +175,7 @@
 
             if (!string.IsNullOrWhiteSpace(BotConfig.Instance.LogsPath))
             {
-                logConfiguration.WriteTo.File($"{BotConfig.Instance.LogsPath}\\{botType}_shard{shard}_.txt",
+                logConfiguration.WriteTo.File($"{BotConfig.Instance.LogsPath}{Path.DirectorySeparatorChar}{botType}_shard{shard}_.txt",
                     buffered: true,
                     rollingInterval: RollingInterval.Day,
                     flushToDiskInterval: TimeSpan.FromSeconds(5),
