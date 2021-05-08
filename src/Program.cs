@@ -170,7 +170,7 @@
             var logConfiguration = new LoggerConfiguration()
                 .MinimumLevel.ControlledBy(levelSwitch)
                 .Enrich.WithProperty("Shard", shard.ToString().PadLeft(2))
-                .WriteTo.Console(restrictedToMinimumLevel: LogEventLevel.Fatal,
+                .WriteTo.Console(restrictedToMinimumLevel: BotConfig.Instance.IsDevMode ? LogEventLevel.Verbose : LogEventLevel.Fatal,
                     outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3} {Shard}] {Message:lj}{NewLine}{Exception}");
 
             if (!string.IsNullOrWhiteSpace(BotConfig.Instance.LogsPath))

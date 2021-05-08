@@ -65,6 +65,16 @@
         public int LogsRetainedFileCount { get; set; } = 5;
 
         public Dictionary<ThrottleType, Throttle> Throttles { get; set; } = new Dictionary<ThrottleType, Throttle>();
+
+        public AprilFoolsConfig AprilFools { get; set; } = new AprilFoolsConfig();
+    }
+
+    public class AprilFoolsConfig
+    {
+        public int Chance { get; set; } = 0;
+        public int Delay { get; set; } = 60000;
+        public HashSet<ulong> IgnoreIds { get; set; } = new HashSet<ulong>();
+        public string[] Responses { get; set; }
     }
 
     public class DiscordConfig

@@ -30,7 +30,7 @@ namespace UB3RB0T
                              
 
         private static readonly HashSet<ulong> blockedDMUsers = new HashSet<ulong>();
-        private static readonly Random timerRandom = new Random();
+        private static readonly Random random = new Random();
 
         public static void Forget(this Task task) { }
 
@@ -180,8 +180,7 @@ namespace UB3RB0T
 
         public static string Random(this string[] array)
         {
-            var randomNumber = new Random();
-            return array[randomNumber.Next(array.Length)];
+            return array[random.Next(array.Length)];
         }
 
         public static async Task<T> GetApiResponseAsync<T>(Uri uri)
@@ -273,7 +272,7 @@ namespace UB3RB0T
 
             if (matchGroups["rand"].Success)
             {
-                var randValue = timerRandom.Next(20, 360);
+                var randValue = random.Next(20, 360);
                 duration += randValue * 60;
                 durationStr = $"{randValue}m";
             }
@@ -365,6 +364,16 @@ namespace UB3RB0T
             query = $"timer for:\"{WebUtility.UrlEncode(to)}\" {durationStr} {reason}";
 
             return true;
+        }
+
+        public static string UserOrNickname(this IUser user)
+        {
+            if (user is SocketGuildUser guildUser && !string.IsNullOrEmpty(guildUser.Nickname))
+            {
+                return guildUser.Nickname;
+            }
+
+            return user.Username;
         }
 
         public static ChannelPermissions GetCurrentUserPermissions(this ITextChannel channel)

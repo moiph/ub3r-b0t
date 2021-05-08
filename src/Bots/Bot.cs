@@ -52,6 +52,7 @@ namespace UB3RB0T
 
         protected virtual string UserId { get; }
         protected Throttler Throttler = new Throttler();
+        protected Random Random = new Random();
 
         public int TotalShards { get; private set; } = 1;
         public BotConfig Config => BotConfig.Instance;
@@ -471,7 +472,7 @@ namespace UB3RB0T
                     }
                 }
 
-                if (response == null && PhrasesConfig.Instance.ExactPhrases.TryGetValue(messageData.Content, out var phrase) && (settings.FunResponsesEnabled && new Random().Next(1, 100) <= settings.FunResponseChance || IsAuthorOwner(messageData)))
+                if (response == null && PhrasesConfig.Instance.ExactPhrases.TryGetValue(messageData.Content, out var phrase) && (settings.FunResponsesEnabled && this.Random.Next(1, 100) <= settings.FunResponseChance || IsAuthorOwner(messageData)))
                 {
                     if (settings.SasshatEnabled && PhrasesConfig.Instance.Responses.TryGetValue($"{phrase}_nice", out var phraseResponses) || PhrasesConfig.Instance.Responses.TryGetValue(phrase, out phraseResponses))
                     {
@@ -575,7 +576,7 @@ namespace UB3RB0T
             {
                 Log.Debug("Fetching server settings...");
                 var sinceToken = SettingsConfig.Instance.SinceToken;
-                var configEndpoint = this.Config.SettingsEndpoint.AppendQueryParam("since", sinceToken.ToString()).AppendQueryParam("shard", this.Shard.ToString()).AppendQueryParam("shardcount", this.TotalShards.ToString());
+                var configEndpoint = this.Config.SettingsEndpoint.AppendQueryParam("since", $"{sinceToken}").AppendQueryParam("shard", $"{this.Shard}").AppendQueryParam("shardcount", $"{this.TotalShards}");
                 await SettingsConfig.Instance.OverrideAsync(configEndpoint);
                 Log.Debug("Server settings updated.");
             }

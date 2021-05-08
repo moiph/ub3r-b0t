@@ -1,5 +1,6 @@
 ﻿namespace UB3RB0T
 {
+    using Newtonsoft.Json;
     using Serilog;
     using System;
     using System.Collections.Generic;
@@ -129,9 +130,13 @@
         public ulong RoleRemoveEmoteId { get; set; }
 
         public bool SasshatEnabled { get; set; }
+        [JsonProperty("Fun")]
         public bool FunResponsesEnabled { get; set; }
+        [JsonProperty("FunChance")]
         public int FunResponseChance { get; set; } = 100;
         public int RepeatCount { get; set; } = 3;
+        [JsonProperty("Af")]
+        public bool AprilFoolsEnabled { get; set; }
         public bool AutoTitlesEnabled { get; set; }
         public bool SeenEnabled { get; set; }
         public bool DisableMessageCleanup { get; set; }
