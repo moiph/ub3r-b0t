@@ -154,7 +154,7 @@ namespace UB3RB0T
             base.Dispose(disposing);
 
             this.statsTimer?.Dispose();
-            this.cacheTimer.Dispose();
+            this.cacheTimer?.Dispose();
             Log.Debug("disposing of client");
             // TODO: Library bug -- investigate hang in DiscordSocketClient.Dispose
             // this.Client?.Dispose();
