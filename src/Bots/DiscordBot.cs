@@ -5,6 +5,7 @@ namespace UB3RB0T
     using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Linq;
+    using System.Reflection;
     using System.Text.RegularExpressions;
     using System.Threading;
     using System.Threading.Tasks;
@@ -14,6 +15,7 @@ namespace UB3RB0T
     using Newtonsoft.Json;
     using Serilog;
     using UB3RB0T.Commands;
+    using UB3RB0T.Modules;
 
     public partial class DiscordBot : Bot
     {
@@ -24,7 +26,8 @@ namespace UB3RB0T
         private Timer cacheTimer;
         private Dictionary<string, IDiscordCommand> discordCommands;
 
-        private readonly List<IModule> modules;
+        private readonly Dictionary<IModule, TypeInfo> preProcessModules = new Dictionary<IModule, TypeInfo>();
+        private readonly Dictionary<IModule, TypeInfo> postProcessModules = new Dictionary<IModule, TypeInfo>();
 
         private readonly BlockingCollection<DiscordEvent> eventQueue = new BlockingCollection<DiscordEvent>();
         private readonly BlockingCollection<DiscordEvent> voiceEventQueue = new BlockingCollection<DiscordEvent>();
@@ -34,15 +37,19 @@ namespace UB3RB0T
 
         public DiscordBot(int shard, int totalShards) : base(shard, totalShards)
         {
-            // TODO: Add these via reflection processing or config instead of this nonsense
-            // order matters
-            this.modules = new List<IModule>
+            foreach (var module in this.Config.Discord.PreProcessModuleTypes)
             {
-                new WordCensorModule(),
-                new BotlessModule(),
-                new FaqModule(),
-                new OcrModule(),
-            };
+                var moduleType = Type.GetType(module);
+                var instance = Activator.CreateInstance(moduleType) as IModule;
+                this.preProcessModules.Add(instance, moduleType.GetTypeInfo());
+            }
+
+            foreach (var module in this.Config.Discord.PostProcessModuleTypes)
+            {
+                var moduleType = Type.GetType(module);
+                var instance = Activator.CreateInstance(moduleType) as IModule;
+                this.postProcessModules.Add(instance, moduleType.GetTypeInfo());
+            }
         }
 
         protected override string UserId => this.Client.CurrentUser.Id.ToString();
@@ -97,31 +104,13 @@ namespace UB3RB0T
             this.Client.MessageDeleted += (message, channel) => this.HandleEvent(DiscordEventType.MessageDeleted, message, channel);
             this.Client.ReactionAdded += (message, channel, reaction) => this.HandleEvent(DiscordEventType.ReactionAdded, message, channel, reaction);
 
-            // TODO: Add these via reflection processing or config instead of this nonsense
-            this.discordCommands = new Dictionary<string, IDiscordCommand>(StringComparer.OrdinalIgnoreCase)
+            this.discordCommands = new Dictionary<string, IDiscordCommand>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (command, type) in this.Config.Discord.CommandTypes)
             {
-                { "debug", new DebugCommand() },
-                { "seen", new SeenCommand() },
-                { "remove", new RemoveCommand() },
-                { "clear", new ClearCommand() },
-                { "status", new StatusCommand() },
-                { "voice", new VoiceJoinCommand() },
-                { "dvoice", new VoiceLeaveCommand() },
-                { "devoice", new VoiceLeaveCommand() },
-                { "captain_planet", new CaptainCommand() },
-                { "jpeg", new JpegCommand() },
-                { "userinfo", new UserInfoCommand() },
-                { "serverinfo", new ServerInfoCommand() },
-                { "roles", new RolesCommand() },
-                { "admin", new AdminCommand() },
-                { "quickpoll", new QuickPollCommand() },
-                { "qp", new QuickPollCommand() },
-                { "role", new RoleCommand(true) },
-                { "derole", new RoleCommand(false) },
-                { "fr", new FeedbackCommand() },
-                { "override", new OverrideCommand() },
-                { "quote", new QuoteCommand() },
-            };
+                var commandType = Type.GetType(type);
+                var instance = Activator.CreateInstance(commandType) as IDiscordCommand;
+                this.discordCommands.Add(command, instance);
+            }
 
             await this.Client.LoginAsync(TokenType.Bot, this.Config.Discord.Token);
             await this.Client.StartAsync();

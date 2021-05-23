@@ -1,11 +1,11 @@
 ﻿
 namespace UB3RB0T
 {
+    using Azure.Messaging.ServiceBus;
     using Microsoft.ApplicationInsights;
     using Microsoft.ApplicationInsights.DataContracts;
     using Microsoft.ApplicationInsights.Extensibility;
     using Microsoft.AspNetCore.Hosting;
-    using Microsoft.Azure.ServiceBus;
     using Newtonsoft.Json;
     using Serilog;
     using StatsdClient;
@@ -14,7 +14,6 @@ namespace UB3RB0T
     using System.Collections.Generic;
     using System.Linq;
     using System.Security.Cryptography.X509Certificates;
-    using System.Text;
     using System.Text.RegularExpressions;
     using System.Threading;
     using System.Threading.Tasks;
@@ -33,7 +32,6 @@ namespace UB3RB0T
         private static long startTime;
 
         private IWebHost listenerHost;
-        private QueueClient queueClient;
         private readonly string queueName;
 
         private Timer heartbeatTimer;
@@ -135,7 +133,10 @@ namespace UB3RB0T
 
             if (!string.IsNullOrEmpty(this.Config.ServiceBusConnectionString))
             {
-                this.StartServiceBusListener();
+                _ = Task.Run(async () =>
+                {
+                    await this.StartServiceBusListener();
+                });
             }
 
             while (this.exitCode == (int)ExitCode.Success)
@@ -149,65 +150,79 @@ namespace UB3RB0T
         }
 
         /// <summary>
-        /// Creates a QueueClient for azure service bus to listen for notifications.
+        /// Creates a ServiceBusClient for azure service bus to listen for notifications.
         /// </summary>
-        private void StartServiceBusListener()
+        private async Task StartServiceBusListener()
         {
-            this.queueClient = new QueueClient(this.Config.ServiceBusConnectionString, this.queueName, ReceiveMode.PeekLock);
+            await using var client = new ServiceBusClient(this.Config.ServiceBusConnectionString);
+            var options = new ServiceBusProcessorOptions
+            {
+                ReceiveMode = ServiceBusReceiveMode.PeekLock,
+            };
 
-            // Register an OnMessage callback
-            this.queueClient.RegisterMessageHandler(
-                async (message, token) =>
+            await using ServiceBusProcessor processor = client.CreateProcessor(this.queueName, options);
+            processor.ProcessMessageAsync += ServiceBusMessageHandler;
+            processor.ProcessErrorAsync += (ProcessErrorEventArgs args) =>
+            {
+                Log.Error(args.Exception, $"ServiceBus message handler failure. Source: {args.ErrorSource}; Namespace: {args.FullyQualifiedNamespace}; EntityPath: {args.EntityPath}");
+                return Task.CompletedTask;
+            };
+            
+            await processor.StartProcessingAsync();
+            await Task.Delay(-1);
+        }
+
+        /// <summary>
+        /// Handles service bus messages.
+        /// </summary>
+        private async Task ServiceBusMessageHandler(ProcessMessageEventArgs args)
+        {
+            string body = args.Message.Body.ToString();
+            NotificationData notificationData = null;
+
+            try
+            {
+                notificationData = JsonConvert.DeserializeObject<NotificationData>(body);
+            }
+            catch (JsonSerializationException ex)
+            {
+                Log.Warning(ex, "Failed to deserialize notification");
+            }
+
+            if (notificationData != null)
+            {
+                // If it's a system notification, handle it directly, otherwise pass it along
+                if (notificationData.Type == NotificationType.System)
                 {
-                    var body = Encoding.UTF8.GetString(message.Body);
-
-                    NotificationData notificationData = null;
-
+                    switch (notificationData.SubType)
+                    {
+                        case SubType.SettingsUpdate:
+                            await this.UpdateSettingsAsync();
+                            break;
+                        case SubType.Shutdown:
+                            Log.Information("Shutdown notification received");
+                            this.exitCode = (int)ExitCode.ExpectedShutdown;
+                            break;
+                        default:
+                            Log.Error($"Error processing notification, unrecognized subtype: {notificationData.SubType}");
+                            break;
+                    }
+                }
+                else
+                {
                     try
                     {
-                        notificationData = JsonConvert.DeserializeObject<NotificationData>(body);
+                        await this.SendNotification(notificationData);
                     }
-                    catch (JsonSerializationException ex)
+                    catch (Exception ex)
                     {
-                        Log.Warning($"Failed to deserialize notification: {ex}");
+                        Log.Error(ex, "Error processing notification");
                     }
+                }
+            }
 
-                    if (notificationData != null)
-                    {
-
-                        // If it's a system notification, handle it directly, otherwise pass it along
-                        if (notificationData.Type == NotificationType.System)
-                        {
-                            switch (notificationData.SubType)
-                            {
-                                case SubType.SettingsUpdate:
-                                    await this.UpdateSettingsAsync();
-                                    break;
-                                case SubType.Shutdown:
-                                    Log.Information("Shutdown notification received");
-                                    this.exitCode = (int)ExitCode.ExpectedShutdown;
-                                    break;
-                                default:
-                                    Log.Error($"Error processing notification, unrecognized subtype: {notificationData.SubType}");
-                                    break;
-                            }
-                        }
-                        else
-                        {
-                            try
-                            {
-                                await this.SendNotification(notificationData);
-                            }
-                            catch (Exception ex)
-                            {
-                                Log.Error(ex, "Error processing notification");
-                            }
-                        }
-                    }
-
-                    // For now, no retries. Regardless of notification send success, complete it.
-                    await queueClient.CompleteAsync(message.SystemProperties.LockToken);
-                });
+            // For now, no retries. Regardless of notification send success, complete it.
+            await args.CompleteMessageAsync(args.Message);
         }
 
         public async Task StopAsync(bool unexpected = false)
@@ -233,7 +248,6 @@ namespace UB3RB0T
             if (!this.isDisposed && disposing)
             {
                 Log.Debug("dispose start");
-                this.queueClient?.CloseAsync();
                 this.heartbeatTimer?.Dispose();
                 this.seenTimer?.Dispose();
                 this.listenerHost?.Dispose();

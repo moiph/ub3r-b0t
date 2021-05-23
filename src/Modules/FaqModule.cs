@@ -1,4 +1,4 @@
-﻿namespace UB3RB0T
+﻿namespace UB3RB0T.Modules
 {
     using System;
     using System.Collections.Generic;

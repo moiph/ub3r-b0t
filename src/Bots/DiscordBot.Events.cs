@@ -14,6 +14,7 @@ namespace UB3RB0T
     using Discord.WebSocket;
     using Serilog;
     using UB3RB0T.Commands;
+    using UB3RB0T.Modules;
 
     public partial class DiscordBot
     {
@@ -597,9 +598,8 @@ namespace UB3RB0T
                 Bot = this,
             };
 
-            foreach (var module in this.modules)
+            foreach (var (module, typeInfo) in this.preProcessModules)
             {
-                var typeInfo = module.GetType().GetTypeInfo();
                 var permissionChecksPassed = await this.CheckPermissions(botContext, typeInfo);
 
                 if (!permissionChecksPassed)
@@ -716,11 +716,13 @@ namespace UB3RB0T
 
                         var sentMessage = await message.Channel.SendFileAsync(fileStream, Path.GetFileName(attachmentUri.AbsolutePath));
                         this.botResponsesCache.Add(message.Id, sentMessage);
+                        commandHandled = true;
                     }
                     else if (responseData.Embed != null)
                     {
                         var sentMessage = await this.RespondAsync(message, string.Empty, responseData.Embed.CreateEmbedBuilder().Build(), bypassEdit: bypassEdit, rateLimitChecked: botContext.MessageData.RateLimitChecked);
                         this.botResponsesCache.Add(message.Id, sentMessage);
+                        commandHandled = true;
                     }
                     else
                     {
@@ -731,6 +733,7 @@ namespace UB3RB0T
                                 // if sending a multi part message, skip the edit optimization.
                                 var sentMessage = await this.RespondAsync(message, response, embedResponse: null, bypassEdit: responseData.Responses.Count > 1 || bypassEdit, rateLimitChecked: botContext.MessageData.RateLimitChecked);
                                 this.botResponsesCache.Add(message.Id, sentMessage);
+                                commandHandled = true;
                             }
                         }
                     }
@@ -743,6 +746,20 @@ namespace UB3RB0T
                 {
                     typingState?.Dispose();
                 }
+
+                if (commandHandled)
+                {
+                    foreach (var (module, typeInfo) in this.postProcessModules)
+                    {
+                        var permissionChecksPassed = await this.CheckPermissions(botContext, typeInfo);
+                        if (!permissionChecksPassed)
+                        {
+                            continue;
+                        }
+
+                        await module.Process(botContext);
+                    }
+                }    
             }
         }
 
@@ -815,7 +832,10 @@ namespace UB3RB0T
                     try
                     {
                         var oldMsg = await textChannel.GetMessageAsync(msgId) as IUserMessage;
-                        await oldMsg.DeleteAsync();
+                        if (oldMsg != null)
+                        {
+                            await oldMsg.DeleteAsync();
+                        }
                     }
                     catch (Exception)
                     {

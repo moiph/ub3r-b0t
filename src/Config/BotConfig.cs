@@ -18,7 +18,6 @@
         
         // Bot api endpoint, if applicable.
         public Uri ApiEndpoint { get; set; }
-        public string ApiKey { get; set; }
 
         // Server settings endpoint, if applicable.
         public Uri SettingsEndpoint { get; set; }
@@ -118,6 +117,21 @@
         /// Typing state will be exited after the command is processed and reply sent.
         /// </summary>
         public bool TriggerTypingOnCommands { get; set; }
+
+        /// <summary>
+        /// Modules processed before commanding. Order matters.
+        /// </summary>
+        public List<string> PreProcessModuleTypes { get; set; }
+        
+        /// <summary>
+        /// Modules processed after a command is successfully handled.
+        /// </summary>
+        public List<string> PostProcessModuleTypes { get; set; }
+
+        /// <summary>
+        /// Native commands
+        /// </summary>
+        public Dictionary<string, string> CommandTypes { get; set; }
     }
 
     public class BotStatData

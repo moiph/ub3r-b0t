@@ -11,12 +11,23 @@
     using Serilog;
 
     [BotPermissions(GuildPermission.ManageRoles, "RequireManageRoles")]
+    public class DeRoleCommand : RoleCommand
+    {
+        public DeRoleCommand() : base(false) { }
+    }
+
+    [BotPermissions(GuildPermission.ManageRoles, "RequireManageRoles")]
     public class RoleCommand : IDiscordCommand
     {
         private static readonly Regex RoleIdRegex = new Regex("roleid:(?<roleid>[0-9]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex RoleMentionRegex = new Regex("<@&(?<roleid>[0-9]+)>", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         private readonly bool isAdd;
+
+        public RoleCommand()
+        {
+            this.isAdd = true;
+        }
 
         public RoleCommand(bool isAdd)
         {
