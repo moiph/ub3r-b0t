@@ -40,9 +40,14 @@ namespace UB3RB0T
             return new Uri(QueryHelpers.AddQueryString(uri.ToString(), newQueryParams));
         }
 
-        public static Task<HttpResponseMessage> PostJsonAsync(this Uri uri, object data)
+        public static Task<IFlurlResponse> PostJsonAsync(this Uri uri, object data)
         {
             return uri.ToString().WithTimeout(15).PostJsonAsync(data);
+        }
+
+        public static bool IsSuccessStatusCode(this IFlurlResponse response)
+        {
+            return response.StatusCode >= 200 && response.StatusCode < 300;
         }
 
         public static Task<Stream> GetStreamAsync(this Uri uri)

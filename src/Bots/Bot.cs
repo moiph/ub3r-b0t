@@ -554,24 +554,37 @@ namespace UB3RB0T
                 X509Certificate2 cert = null;
                 if (!string.IsNullOrEmpty(this.Config.CertThumbprint))
                 {
-                    var store = new X509Store(StoreName.My, StoreLocation.LocalMachine);
-                    store.Open(OpenFlags.ReadOnly);
-                    var certificates = store.Certificates.Find(X509FindType.FindByThumbprint, this.Config.CertThumbprint, validOnly: false);
-                    if (certificates?.Count > 0)
+                    using (var store = new X509Store(this.Config.CertStoreName, StoreLocation.LocalMachine))
                     {
-                        cert = certificates[0];
+                        store.Open(OpenFlags.ReadOnly);
+                        var certificates = store.Certificates.Find(X509FindType.FindByThumbprint, this.Config.CertThumbprint, validOnly: false);
+                        if (certificates?.Count > 0)
+                        {
+                            cert = certificates[0];
+                        }
                     }
                 }
+
+                var protocol = cert == null ? "http" : "https";
+                var listenerUrl = $"{protocol}://{this.Config.WebListenerHostName}:{port}";
+
+                Log.Information($"Web listener configured on {listenerUrl}");
 
                 this.listenerHost = new WebHostBuilder()
                     .UseKestrel(options =>
                     {
-                        if (cert != null)
+                        options.ListenAnyIP(port, l =>
                         {
-                            options.UseHttps(cert);
-                        }
+                            if (cert != null)
+                            {
+                                l.UseHttps(h =>
+                                {
+                                    h.ServerCertificate = cert;
+                                });
+                            }
+                        });
                     })
-                    .UseUrls($"http://localhost:{port}", $"http://{this.Config.WebListenerHostName}:{port}")
+                    .UseUrls($"http://localhost:{port}", listenerUrl)
                     .UseStartup<Program>()
                     .Build();
                 this.listenerHost.Start();
@@ -714,14 +727,16 @@ namespace UB3RB0T
         /// </summary>
         private void SetupAppInsights()
         {
-            if (!string.IsNullOrEmpty(Config.InstrumentationKey))
+            if (!string.IsNullOrEmpty(this.Config.InstrumentationKey))
             {
-                this.AppInsights = new TelemetryClient(new TelemetryConfiguration
+                var telemetryConfig = new TelemetryConfiguration
                 {
-                    InstrumentationKey = Config.InstrumentationKey,
-                });
+                    InstrumentationKey = this.Config.InstrumentationKey,
+                };
 
-                TelemetryConfiguration.Active.TelemetryChannel.DeveloperMode = this.Config.IsDevMode;
+                telemetryConfig.TelemetryChannel.DeveloperMode = this.Config.IsDevMode;
+
+                this.AppInsights = new TelemetryClient(telemetryConfig);
                 this.AppInsights.Context.GlobalProperties.Add("Shard", this.Shard.ToString());
                 this.AppInsights.Context.GlobalProperties.Add("BotType", this.BotType.ToString());
             }

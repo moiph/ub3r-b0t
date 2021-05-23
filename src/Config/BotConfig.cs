@@ -53,6 +53,7 @@
         // Instrumentation key for application insights
         public string InstrumentationKey { get; set; }
 
+        public string CertStoreName { get; set; }
         public string CertThumbprint { get; set; }
 
         public LogEventLevel LogEventLevel { get; set; } = LogEventLevel.Warning;

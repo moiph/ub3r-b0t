@@ -89,6 +89,7 @@
                     }
                     else
                     {
+                        Log.Information($"Request skipped for {context.Connection.RemoteIpAddress}");
                         context.Response.StatusCode = 404;
                     }
                 }

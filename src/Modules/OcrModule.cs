@@ -56,11 +56,11 @@
                                 .WithHeader("Ocp-Apim-Subscription-Key", BotConfig.Instance.VisionKey)
                                 .PostJsonAsync(new { url = imageUrl });
 
-                            if (result.IsSuccessStatusCode)
+                            if (result.IsSuccessStatusCode())
                             {
                                 Log.Information("OCR success, waiting on operation");
 
-                                var operationUrl = result.GetHeaderValue("Operation-Location");
+                                var operationUrl = result.Headers.FirstOrDefault("Operation-Location");
 
                                 // The actual process runs as a seprate operation that we need to query.
                                 // Unfortunately we just need to poll, so query a few times and give up if it takes too long.
@@ -85,7 +85,7 @@
                                     textData.CommandType = context.Reaction ?? "auto";
      
                                     var response = await new Uri($"{BotConfig.Instance.ApiEndpoint}/ocr").PostJsonAsync(textData);
-                                    var ocrProcessResponse = JsonConvert.DeserializeObject<OcrProcessResponse>(await response.Content.ReadAsStringAsync());
+                                    var ocrProcessResponse = JsonConvert.DeserializeObject<OcrProcessResponse>(await response.GetStringAsync());
 
                                     if (ocrProcessResponse.Response != null)
                                     {
@@ -148,9 +148,9 @@
                 .WithHeader("Ocp-Apim-Subscription-Key", BotConfig.Instance.VisionKey)
                 .PostJsonAsync(new { url = imageUrl });
 
-            if (result.IsSuccessStatusCode)
+            if (result.IsSuccessStatusCode())
             {
-                var response = await result.Content.ReadAsStringAsync();
+                var response = await result.GetStringAsync();
                 data = JsonConvert.DeserializeObject<T>(response);
             }
 
