@@ -452,49 +452,52 @@ namespace UB3RB0T
         private Task HandleGuildMemberUpdated(SocketGuildUser guildUserBefore, SocketGuildUser guildUserAfter)
         {
             // Mod log
-            var settings = SettingsConfig.GetSettings(guildUserBefore.Guild.Id);
-            if (this.Client.GetChannel(settings.Mod_LogId) is ITextChannel modLogChannel && (modLogChannel.GetCurrentUserPermissions().SendMessages))
-            {
-                if (settings.HasFlag(ModOptions.Mod_LogUserRole))
+            if (guildUserBefore != null)
+            { 
+                var settings = SettingsConfig.GetSettings(guildUserBefore.Guild.Id);
+                if (this.Client.GetChannel(settings.Mod_LogId) is ITextChannel modLogChannel && (modLogChannel.GetCurrentUserPermissions().SendMessages))
                 {
-                    var rolesAdded = (from role in guildUserAfter.Roles
-                                      where guildUserBefore.Roles.All(r => r.Id != role.Id)
-                                      select guildUserAfter.Guild.Roles.First(g => g.Id == role.Id).Name.TrimStart('@')).ToList();
-
-                    var rolesRemoved = (from role in guildUserBefore.Roles
-                                      where guildUserAfter.Roles.All(r => r.Id != role.Id)
-                                      select guildUserBefore.Guild.Roles.First(g => g.Id == role.Id).Name.TrimStart('@')).ToList();
-
-                    if (rolesAdded.Count > 0)
+                    if (settings.HasFlag(ModOptions.Mod_LogUserRole))
                     {
-                        string roleText = $"**{guildUserAfter.Mention} ({guildUserAfter})** had these roles added: `{string.Join(",", rolesAdded)}`";
-                        this.BatchSendMessageAsync(modLogChannel, roleText);
+                        var rolesAdded = (from role in guildUserAfter.Roles
+                                          where guildUserBefore.Roles.All(r => r.Id != role.Id)
+                                          select guildUserAfter.Guild.Roles.First(g => g.Id == role.Id).Name.TrimStart('@')).ToList();
+
+                        var rolesRemoved = (from role in guildUserBefore.Roles
+                                            where guildUserAfter.Roles.All(r => r.Id != role.Id)
+                                            select guildUserBefore.Guild.Roles.First(g => g.Id == role.Id).Name.TrimStart('@')).ToList();
+
+                        if (rolesAdded.Count > 0)
+                        {
+                            string roleText = $"**{guildUserAfter.Mention} ({guildUserAfter})** had these roles added: `{string.Join(",", rolesAdded)}`";
+                            this.BatchSendMessageAsync(modLogChannel, roleText);
+                        }
+
+                        if (rolesRemoved.Count > 0)
+                        {
+                            string roleText = $"**{guildUserAfter.Mention} ({guildUserAfter})** had these roles removed: `{string.Join(",", rolesRemoved)}`";
+                            this.BatchSendMessageAsync(modLogChannel, roleText);
+                        }
                     }
 
-                    if (rolesRemoved.Count > 0)
+                    if (settings.HasFlag(ModOptions.Mod_LogUserNick) && guildUserAfter.Nickname != guildUserBefore.Nickname)
                     {
-                        string roleText = $"**{guildUserAfter.Mention} ({guildUserAfter})** had these roles removed: `{string.Join(",", rolesRemoved)}`";
-                        this.BatchSendMessageAsync(modLogChannel, roleText);
-                    }
-                }
+                        string nickText = null;
+                        if (string.IsNullOrEmpty(guildUserAfter.Nickname))
+                        {
+                            nickText = $"{guildUserAfter.Mention} ({guildUserAfter}) removed their nickname (was {guildUserBefore.Nickname})";
+                        }
+                        else if (string.IsNullOrEmpty(guildUserBefore.Nickname))
+                        {
+                            nickText = $"{guildUserAfter.Mention} ({guildUserAfter}) set a new nickname to {guildUserAfter.Nickname}";
+                        }
+                        else
+                        {
+                            nickText = $"{guildUserAfter.Mention} ({guildUserAfter}) changed their nickname from {guildUserBefore.Nickname} to {guildUserAfter.Nickname}";
+                        }
 
-                if (settings.HasFlag(ModOptions.Mod_LogUserNick) && guildUserAfter.Nickname != guildUserBefore.Nickname)
-                {
-                    string nickText = null;
-                    if (string.IsNullOrEmpty(guildUserAfter.Nickname))
-                    {
-                        nickText = $"{guildUserAfter.Mention} ({guildUserAfter}) removed their nickname (was {guildUserBefore.Nickname})";
+                        this.BatchSendMessageAsync(modLogChannel, nickText);
                     }
-                    else if (string.IsNullOrEmpty(guildUserBefore.Nickname))
-                    {
-                        nickText = $"{guildUserAfter.Mention} ({guildUserAfter}) set a new nickname to {guildUserAfter.Nickname}";
-                    }
-                    else
-                    {
-                        nickText = $"{guildUserAfter.Mention} ({guildUserAfter}) changed their nickname from {guildUserBefore.Nickname} to {guildUserAfter.Nickname}";
-                    }
-
-                    this.BatchSendMessageAsync(modLogChannel, nickText);
                 }
             }
 
@@ -720,7 +723,7 @@ namespace UB3RB0T
                     }
                     else if (responseData.Embed != null)
                     {
-                        var sentMessage = await this.RespondAsync(message, string.Empty, responseData.Embed.CreateEmbedBuilder().Build(), bypassEdit: bypassEdit, rateLimitChecked: botContext.MessageData.RateLimitChecked);
+                        var sentMessage = await this.RespondAsync(message, string.Empty, responseData.Embed.CreateEmbedBuilder().Build(), bypassEdit: bypassEdit, rateLimitChecked: botContext.MessageData.RateLimitChecked, allowMentions: responseData.AllowMentions);
                         this.botResponsesCache.Add(message.Id, sentMessage);
                         commandHandled = true;
                     }
@@ -731,7 +734,7 @@ namespace UB3RB0T
                             if (!string.IsNullOrWhiteSpace(response))
                             {
                                 // if sending a multi part message, skip the edit optimization.
-                                var sentMessage = await this.RespondAsync(message, response, embedResponse: null, bypassEdit: responseData.Responses.Count > 1 || bypassEdit, rateLimitChecked: botContext.MessageData.RateLimitChecked);
+                                var sentMessage = await this.RespondAsync(message, response, embedResponse: null, bypassEdit: responseData.Responses.Count > 1 || bypassEdit, rateLimitChecked: botContext.MessageData.RateLimitChecked, allowMentions: responseData.AllowMentions);
                                 this.botResponsesCache.Add(message.Id, sentMessage);
                                 commandHandled = true;
                             }
@@ -989,7 +992,7 @@ namespace UB3RB0T
             await this.RespondAsync(messageData.DiscordMessageData, response, rateLimitChecked: messageData.RateLimitChecked);
         }
 
-        private async Task<IUserMessage> RespondAsync(IUserMessage message, string response, Embed embedResponse = null, bool bypassEdit = false, bool rateLimitChecked = false)
+        private async Task<IUserMessage> RespondAsync(IUserMessage message, string response, Embed embedResponse = null, bool bypassEdit = false, bool rateLimitChecked = false, bool allowMentions = true)
         {
             var textChannel = message.Channel as ITextChannel;
             IGuild guild = textChannel?.Guild;
@@ -1012,6 +1015,7 @@ namespace UB3RB0T
             this.TrackEvent("messageSent", props);
 
             response = response?.SubstringUpTo(Discord.DiscordConfig.MaxMessageSize);
+            var allowedMentions = allowMentions ? null : AllowedMentions.None;
 
             if (!bypassEdit && textChannel != null && this.botResponsesCache.Get(message.Id) is ulong oldMessageId && oldMessageId != 0)
             {
@@ -1033,7 +1037,7 @@ namespace UB3RB0T
             }
             else
             {
-                return await message.Channel.SendMessageAsync(response, false, embedResponse);
+                return await message.Channel.SendMessageAsync(response, false, embedResponse, allowedMentions: allowedMentions);
             }
         }
     }
