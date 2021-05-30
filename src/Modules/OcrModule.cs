@@ -25,7 +25,7 @@
                 if (context.Reaction == "💬" || context.Reaction == "🗨️")
                 {
                     var quote = context.MessageData.Content.ReplaceMulti(new[] { "\"", "”", "“" }, "&quot;");
-                    newMessageContent = $"{context.Settings.Prefix}quote add \"{quote}\" - userid:{message.Author.Id} {message.Author.Username}";
+                    newMessageContent = $"{context.Settings.Prefix}quote add \"{quote}\" - {message.Author.Mention}";
                     await message.AddReactionAsync(new Emoji("💬"));
                 }
                 else if (string.IsNullOrEmpty(message.Content) || BotConfig.Instance.OcrAutoIds.Contains(message.Channel.Id))
