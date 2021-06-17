@@ -335,8 +335,9 @@ namespace UB3RB0T
             }
         }
 
-        private void BatchSendMessageAsync(ITextChannel channel, string text)
+        private void BatchSendMessageAsync(ITextChannel channel, string text, ModOptions modlogType)
         {
+            Log.Information($"Added batch message for type: {modlogType} on channel {channel.Id}");
             messageBatch.AddOrUpdate(channel, new List<string> { text }, (ITextChannel key, List<string> val) =>
             {
                 val.Add(text);

@@ -330,7 +330,7 @@ namespace UB3RB0T
                 string joinText = $"{guildUser.Mention} ({guildUser}) joined.";
                 if (this.Client.GetChannel(settings.Mod_LogId) is ITextChannel modLogChannel && modLogChannel.GetCurrentUserPermissions().SendMessages)
                 {
-                    this.BatchSendMessageAsync(modLogChannel, joinText);
+                    this.BatchSendMessageAsync(modLogChannel, joinText, ModOptions.Mod_LogUserJoin);
                 }
             }
         }
@@ -378,7 +378,7 @@ namespace UB3RB0T
             // mod log
             if (settings.HasFlag(ModOptions.Mod_LogUserLeave) && this.Client.GetChannel(settings.Mod_LogId) is ITextChannel modLogChannel && modLogChannel.GetCurrentUserPermissions().SendMessages)
             {
-                this.BatchSendMessageAsync(modLogChannel, $"{guildUser.Mention} ({guildUser}) left.");
+                this.BatchSendMessageAsync(modLogChannel, $"{guildUser.Mention} ({guildUser}) left.", ModOptions.Mod_LogUserLeave);
             }
             
             var messageData = BotMessageData.Create(guildUser, settings);
@@ -440,7 +440,7 @@ namespace UB3RB0T
 
                     if (!string.IsNullOrEmpty(msg))
                     {
-                        this.BatchSendMessageAsync(modLogChannel, msg);
+                        this.BatchSendMessageAsync(modLogChannel, msg, ModOptions.Mod_LogUserJoinVoice);
                     }
                 }
             }
@@ -470,13 +470,13 @@ namespace UB3RB0T
                         if (rolesAdded.Count > 0)
                         {
                             string roleText = $"**{guildUserAfter.Mention} ({guildUserAfter})** had these roles added: `{string.Join(",", rolesAdded)}`";
-                            this.BatchSendMessageAsync(modLogChannel, roleText);
+                            this.BatchSendMessageAsync(modLogChannel, roleText, ModOptions.Mod_LogUserRole);
                         }
 
                         if (rolesRemoved.Count > 0)
                         {
                             string roleText = $"**{guildUserAfter.Mention} ({guildUserAfter})** had these roles removed: `{string.Join(",", rolesRemoved)}`";
-                            this.BatchSendMessageAsync(modLogChannel, roleText);
+                            this.BatchSendMessageAsync(modLogChannel, roleText, ModOptions.Mod_LogUserRole);
                         }
                     }
 
@@ -496,7 +496,7 @@ namespace UB3RB0T
                             nickText = $"{guildUserAfter.Mention} ({guildUserAfter}) changed their nickname from {guildUserBefore.Nickname} to {guildUserAfter.Nickname}";
                         }
 
-                        this.BatchSendMessageAsync(modLogChannel, nickText);
+                        this.BatchSendMessageAsync(modLogChannel, nickText, ModOptions.Mod_LogUserRole);
                     }
                 }
             }
@@ -514,7 +514,7 @@ namespace UB3RB0T
             if (settings.HasFlag(ModOptions.Mod_LogUserBan) && this.Client.GetChannel(settings.Mod_LogId) is ITextChannel modLogChannel && modLogChannel.GetCurrentUserPermissions().SendMessages)
             {
                 string userIdentifier = user != null ? $"{user}" : "Unknown user";
-                this.BatchSendMessageAsync(modLogChannel, $"{userIdentifier} was banned.");
+                this.BatchSendMessageAsync(modLogChannel, $"{userIdentifier} was banned.", ModOptions.Mod_LogUserBan);
             }
 
             return Task.CompletedTask;
@@ -871,7 +871,7 @@ namespace UB3RB0T
                         delText += " " + string.Join(" ", message.Attachments.Select(a => a.Url));
                     }
 
-                    this.BatchSendMessageAsync(modLogChannel, delText.SubstringUpTo(Discord.DiscordConfig.MaxMessageSize));
+                    this.BatchSendMessageAsync(modLogChannel, delText.SubstringUpTo(Discord.DiscordConfig.MaxMessageSize), ModOptions.Mod_LogDelete);
                 }
             }
         }
