@@ -147,8 +147,8 @@
                 Log.Verbose($"{{Indicator}} [{filename}] reading data", "[audio]");
                 p = Process.Start(new ProcessStartInfo
                 {
-                    FileName = "c:\\audio\\ffmpeg",
-                    Arguments = $"-i {filePath} -f s16le -ar 48000 -ac 2 pipe:1 -loglevel error",
+                    FileName = "ffmpeg",
+                    Arguments = $"-i \"{filePath}\" -f s16le -ar 48000 -ac 2 pipe:1 -loglevel error",
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
                     RedirectStandardInput = true,

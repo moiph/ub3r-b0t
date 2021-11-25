@@ -83,7 +83,7 @@ namespace UB3RB0T
                                 await this.HandleUserLeftAsync((SocketGuildUser)args[0]);
                                 break;
                             case DiscordEventType.GuildMemberUpdated:
-                                await this.HandleGuildMemberUpdated(args[0] as SocketGuildUser, args[1] as SocketGuildUser);
+                                await this.HandleGuildMemberUpdated((Cacheable<SocketGuildUser, ulong>)args[0], args[1] as SocketGuildUser);
                                 break;
                             case DiscordEventType.UserBanned:
                                 await this.HandleUserBanned(args[0] as SocketGuildUser, (SocketGuild)args[1]);
@@ -95,10 +95,10 @@ namespace UB3RB0T
                                 await this.HandleMessageUpdated((Cacheable<IMessage, ulong>)args[0], (SocketMessage)args[1], (ISocketMessageChannel)args[2]);
                                 break;
                             case DiscordEventType.MessageDeleted:
-                                await this.HandleMessageDeleted((Cacheable<IMessage, ulong>)args[0], (ISocketMessageChannel)args[1]);
+                                await this.HandleMessageDeleted((Cacheable<IMessage, ulong>)args[0], (Cacheable<IMessageChannel, ulong>)args[1]);
                                 break;
                             case DiscordEventType.ReactionAdded:
-                                await this.HandleReactionAdded((Cacheable<IUserMessage, ulong>)args[0], (ISocketMessageChannel)args[1], (SocketReaction)args[2]);
+                                await this.HandleReactionAdded((Cacheable<IUserMessage, ulong>)args[0], (Cacheable<IMessageChannel, ulong>)args[1], (SocketReaction)args[2]);
                                 break;
                             default:
                                 throw new ArgumentException("Unrecognized event type");
@@ -449,12 +449,13 @@ namespace UB3RB0T
         /// <summary>
         /// Sends mod log messages for role and nickname changes, if configured.
         /// </summary>
-        private Task HandleGuildMemberUpdated(SocketGuildUser guildUserBefore, SocketGuildUser guildUserAfter)
+        private Task HandleGuildMemberUpdated(Cacheable<SocketGuildUser, ulong> cachedGuildUserBefore, SocketGuildUser guildUserAfter)
         {
             // Mod log
-            if (guildUserBefore != null)
-            { 
-                var settings = SettingsConfig.GetSettings(guildUserBefore.Guild.Id);
+            if (cachedGuildUserBefore.HasValue)
+            {
+                var guildUserBefore = cachedGuildUserBefore.Value;
+                var settings = SettingsConfig.GetSettings(guildUserAfter.Guild.Id);
                 if (this.Client.GetChannel(settings.Mod_LogId) is ITextChannel modLogChannel && (modLogChannel.GetCurrentUserPermissions().SendMessages))
                 {
                     if (settings.HasFlag(ModOptions.Mod_LogUserRole))
@@ -822,10 +823,10 @@ namespace UB3RB0T
         /// <summary>
         /// Sends mod log messages if configured, and deletes any corresponding bot response.
         /// </summary>
-        private async Task HandleMessageDeleted(Cacheable<IMessage, ulong> cachedMessage, ISocketMessageChannel channel)
+        private async Task HandleMessageDeleted(Cacheable<IMessage, ulong> cachedMessage, Cacheable<IMessageChannel, ulong> cachedChannel)
         {
             var msgId = this.botResponsesCache.Remove(cachedMessage.Id);
-            var textChannel = channel as ITextChannel;
+            var textChannel = (await cachedChannel.GetOrDownloadAsync()) as ITextChannel;
 
             if (msgId != 0 && textChannel != null)
             {
@@ -876,9 +877,9 @@ namespace UB3RB0T
             }
         }
 
-        private async Task HandleReactionAdded(Cacheable<IUserMessage, ulong> message, ISocketMessageChannel channel, SocketReaction reaction)
+        private async Task HandleReactionAdded(Cacheable<IUserMessage, ulong> message, Cacheable<IMessageChannel, ulong> channel, SocketReaction reaction)
         {
-            var guildChannel = channel as SocketTextChannel;
+            var guildChannel = (await channel.GetOrDownloadAsync()) as ITextChannel;
             if (guildChannel == null)
             {
                 return;

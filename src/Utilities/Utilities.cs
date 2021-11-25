@@ -395,7 +395,7 @@ namespace UB3RB0T
 
             try
             {
-                return await (await (await guild.GetOwnerAsync()).GetOrCreateDMChannelAsync()).SendMessageAsync(message);
+                return await (await (await guild.GetOwnerAsync()).CreateDMChannelAsync()).SendMessageAsync(message);
             }
             catch (HttpException ex) when (ex.HttpCode == HttpStatusCode.Forbidden)
             {
@@ -515,6 +515,10 @@ namespace UB3RB0T
                 {
                     string name2 = name.Substring(1);
                     query = query.Concat(users.Where(x => string.Equals(x.Username, name2, StringComparison.OrdinalIgnoreCase)));
+                }
+                if (name.TryToId(out var userId))
+                {
+                    query = query.Concat(users.Where(x => x.Id == userId));
                 }
             }
 

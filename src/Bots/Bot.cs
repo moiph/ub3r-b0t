@@ -711,9 +711,12 @@ namespace UB3RB0T
                     }
                 }
             }
-
-            // reset message count
-            messageCount = 0;
+            else
+            {
+                // reset message count
+                this.messageCount = 0;
+                this.missedHeartbeats = 0;
+            }
         }
 
         // Whether or not the message author is the bot owner (will only return true in Discord scenarios).

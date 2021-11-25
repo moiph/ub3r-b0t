@@ -106,6 +106,15 @@ namespace UB3RB0T.Config {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Restricted to server owner. (use .timer remove if you&apos;re just trying to remove your own timers).
+        /// </summary>
+        internal static string RequireUserGuildOwnerForRemove {
+            get {
+                return ResourceManager.GetString("RequireUserGuildOwnerForRemove", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to You must have manage server permissions to use that command. nice try, dungheap.
         /// </summary>
         internal static string RequireUserManageGuild {

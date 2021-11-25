@@ -33,7 +33,7 @@
 
                 if (!this.blockedDMUsers.Contains(context.Message.Author.Id) && messageDeleted)
                 {
-                    var dmChannel = await context.Message.Author.GetOrCreateDMChannelAsync();
+                    var dmChannel = await context.Message.Author.CreateDMChannelAsync();
                 
                     try
                     {

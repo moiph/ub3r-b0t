@@ -23,7 +23,6 @@ namespace UB3RB0T
         private const int FIVE_MINUTES = 1000 * 60 * 5;
         private readonly AudioManager audioManager = new AudioManager();
         private Timer statsTimer;
-        private Timer cacheTimer;
         private Dictionary<string, IDiscordCommand> discordCommands;
 
         private readonly Dictionary<IModule, TypeInfo> preProcessModules = new Dictionary<IModule, TypeInfo>();
@@ -72,9 +71,8 @@ namespace UB3RB0T
             {
                 ShardId = this.Shard,
                 TotalShards = this.TotalShards,
-                LogLevel = LogSeverity.Verbose,
+                LogLevel = LogSeverity.Debug,
                 MessageCacheSize = this.Config.Discord.MessageCacheSize,
-                ExclusiveBulkDelete = false,
                 GatewayIntents =
                     GatewayIntents.Guilds |
                     GatewayIntents.GuildMembers |
@@ -116,7 +114,6 @@ namespace UB3RB0T
             await this.Client.StartAsync();
 
             this.statsTimer = new Timer(StatsTimerAsync, null, TWELVE_HOURS + this.Shard * FIVE_MINUTES, TWELVE_HOURS * 2);
-            this.cacheTimer = new Timer(CacheTimerAsync, null, TWELVE_HOURS, TWELVE_HOURS);
             this.StartBatchMessageProcessing();
 
             this.eventProcessLock = new SemaphoreSlim(this.Config.Discord.EventQueueSize, this.Config.Discord.EventQueueSize);
@@ -143,7 +140,6 @@ namespace UB3RB0T
             base.Dispose(disposing);
 
             this.statsTimer?.Dispose();
-            this.cacheTimer?.Dispose();
             Log.Debug("disposing of client");
             // TODO: Library bug -- investigate hang in DiscordSocketClient.Dispose
             // this.Client?.Dispose();
@@ -319,19 +315,6 @@ namespace UB3RB0T
                         Log.Warning(ex, $"Failed to update {botData.Name} stats");
                     }
                 }
-            }
-        }
-
-        private void CacheTimerAsync(object state)
-        {
-            try
-            {
-                this.Client.PurgeDMChannelCache();
-                Log.Debug("DMChannel cache purged");
-            }
-            catch (Exception ex)
-            {
-                Log.Warning(ex, "Failed to purge DMChannel cache");
             }
         }
 

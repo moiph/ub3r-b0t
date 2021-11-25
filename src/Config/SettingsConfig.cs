@@ -18,7 +18,7 @@
 
         public Uri ManagementEndpoint { get; set; }
         public Uri CreateEndpoint { get; set; }
-        public int SinceToken { get; set; }
+        public long SinceToken { get; set; }
 
         public Dictionary<string, Settings> Settings { get; set; } = new Dictionary<string, Settings>();
 

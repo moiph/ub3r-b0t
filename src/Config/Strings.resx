@@ -132,6 +132,9 @@
   <data name="RequireUserGuildOwner" xml:space="preserve">
     <value>Restricted to server owner.</value>
   </data>
+  <data name="RequireUserGuildOwnerForRemove" xml:space="preserve">
+    <value>Restricted to server owner. (use .timer remove if you're just trying to remove your own timers)</value>
+  </data>
   <data name="RequireUserManageGuild" xml:space="preserve">
     <value>You must have manage server permissions to use that command. nice try, dungheap</value>
   </data>
