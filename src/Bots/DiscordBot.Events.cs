@@ -229,6 +229,11 @@ namespace UB3RB0T
                     if (canSendToDefaultChannel)
                     {
                         await defaultChannel.SendMessageAsync("https://tenor.com/view/im-out-hands-up-exit-gif-14678218");
+                        Log.Information($"Sent snark to bot farm {guild.Id}");
+                    }
+                    else
+                    {
+                        Log.Warning($"Unable to send message to default channel for bot farm {guild.Id}");
                     }
 
                     await guild.LeaveAsync();
@@ -399,11 +404,8 @@ namespace UB3RB0T
             {
                 if (beforeState.VoiceChannel != afterState.VoiceChannel && afterState.VoiceChannel == botGuildUser.VoiceChannel)
                 {
-                    // if they are connecting for the first time, wait a moment to account for possible conncetion delay. otherwise play immediately.
-                    if (beforeState.VoiceChannel == null)
-                    {
-                        await Task.Delay(1000);
-                    }
+                    // wait a moment to account for possible conncetion delay.
+                    await Task.Delay(1000);
 
                     await this.audioManager.SendAudioAsync(guildUser, afterState.VoiceChannel, VoicePhraseType.UserJoin);
                 }
@@ -1029,7 +1031,7 @@ namespace UB3RB0T
                         m.Embed = embedResponse;
                     });
                 }
-                catch (HttpException ex) when (ex.DiscordCode == 10008) 
+                catch (HttpException ex) when (ex.DiscordCode == DiscordErrorCode.UnknownMessage) 
                 {
                     // ignore unknown messages; likely deleted
                 }
