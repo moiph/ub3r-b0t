@@ -114,14 +114,14 @@
             return messageData;
         }
 
-        public static BotMessageData Create(SocketGuildUser guildUser, Settings serverSettings)
+        public static BotMessageData Create(SocketUser user, SocketGuild guild, Settings serverSettings)
         {
             var messageData = new BotMessageData(BotType.Discord)
             {
-                UserName = guildUser.Username,
-                UserId = guildUser.Id.ToString(),
-                UserHost = guildUser.Id.ToString(),
-                Server = guildUser.Guild.Id.ToString(),
+                UserName = user.Username,
+                UserId = user.Id.ToString(),
+                UserHost = user.Id.ToString(),
+                Server = guild.Id.ToString(),
                 Prefix = serverSettings.Prefix,
             };
 

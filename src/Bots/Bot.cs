@@ -652,7 +652,7 @@ namespace UB3RB0T
         }
 
         /// <summary>
-        /// Timer callback to push heartbeat data.
+        /// Timer callback to push heartbeat data and refresh configuration.
         /// </summary>
         /// <param name="state">State object (unused).</param>
         private async void HeartbeatTimerAsync(object state)
@@ -716,6 +716,34 @@ namespace UB3RB0T
                 // reset message count
                 this.messageCount = 0;
                 this.missedHeartbeats = 0;
+            }
+
+            if (this.Config.CommandsEndpoint != null)
+            {
+                try
+                {
+                    Log.Debug("Fetching commands settings...");
+                    await CommandsConfig.Instance.OverrideAsync(this.Config.CommandsEndpoint);
+                    Log.Debug("Commands settings updated.");
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "Failed to update commands settings");
+                }
+            }
+
+            if (this.Config.PhrasesEndpoint != null)
+            {
+                try
+                {
+                    Log.Debug("Fetching phrases settings...");
+                    await PhrasesConfig.Instance.OverrideAsync(this.Config.PhrasesEndpoint);
+                    Log.Debug("Phrases settings updated.");
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "Failed to update phrases settings");
+                }
             }
         }
 

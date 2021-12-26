@@ -22,6 +22,9 @@
         // Server settings endpoint, if applicable.
         public Uri SettingsEndpoint { get; set; }
 
+        public Uri PhrasesEndpoint { get; set; }
+        public Uri CommandsEndpoint { get; set; }
+
         public Uri SeenEndpoint { get; set; }
 
         public Dictionary<ulong, Faq> FaqEndpoints { get; set; }
@@ -63,6 +66,9 @@
 
         public string LogsPath { get; set; }
         public int LogsRetainedFileCount { get; set; } = 5;
+
+        /// Settings for voice support
+        public string VoiceFilePath { get; set; }
 
         public Dictionary<ThrottleType, Throttle> Throttles { get; set; } = new Dictionary<ThrottleType, Throttle>();
 

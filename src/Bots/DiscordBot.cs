@@ -92,7 +92,7 @@ namespace UB3RB0T
             this.Client.LeftGuild += (guild) => this.HandleEvent(DiscordEventType.LeftGuild, guild);
 
             this.Client.UserJoined += (user) => this.HandleEvent(DiscordEventType.UserJoined, user);
-            this.Client.UserLeft += (user) => this.HandleEvent(DiscordEventType.UserLeft, user);
+            this.Client.UserLeft += (guild, user) => this.HandleEvent(DiscordEventType.UserLeft, guild, user);
             this.Client.UserVoiceStateUpdated += (user, beforeState, afterState) => this.HandleEvent(DiscordEventType.UserVoiceStateUpdated, user, beforeState, afterState);
             this.Client.GuildMemberUpdated += (userBefore, userAfter) => this.HandleEvent(DiscordEventType.GuildMemberUpdated, userBefore, userAfter);
             this.Client.UserBanned += (user, guild) => this.HandleEvent(DiscordEventType.UserBanned, user, guild);

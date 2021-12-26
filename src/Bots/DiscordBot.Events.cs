@@ -80,10 +80,10 @@ namespace UB3RB0T
                                 await this.HandleUserJoinedAsync((SocketGuildUser)args[0]);
                                 break;
                             case DiscordEventType.UserLeft:
-                                await this.HandleUserLeftAsync((SocketGuildUser)args[0]);
+                                await this.HandleUserLeftAsync((SocketGuild)args[0], (SocketUser)args[1]);
                                 break;
                             case DiscordEventType.GuildMemberUpdated:
-                                await this.HandleGuildMemberUpdated((Cacheable<SocketGuildUser, ulong>)args[0], args[1] as SocketGuildUser);
+                                await this.HandleGuildMemberUpdated((Cacheable<SocketGuildUser,ulong>)args[0], args[1] as SocketGuildUser);
                                 break;
                             case DiscordEventType.UserBanned:
                                 await this.HandleUserBanned(args[0] as SocketGuildUser, (SocketGuild)args[1]);
@@ -343,53 +343,56 @@ namespace UB3RB0T
         /// <summary>
         /// Sends farewells and mod log messages, if configured.
         /// </summary>
-        private async Task HandleUserLeftAsync(SocketGuildUser guildUser)
+        private async Task HandleUserLeftAsync(SocketGuild guild, SocketUser user)
         {
-            var settings = SettingsConfig.GetSettings(guildUser.Guild.Id);
-
-            if (!string.IsNullOrEmpty(settings.Farewell) && settings.FarewellId != 0)
+            if (guild != null)
             {
-                var farewell = settings.Farewell.Replace("%user%", guildUser.Mention);
-                farewell = farewell.Replace("%username%", $"{guildUser}");
+                var settings = SettingsConfig.GetSettings(guild.Id);
 
-                farewell = Consts.ChannelRegex.Replace(farewell, new MatchEvaluator((Match chanMatch) =>
+                if (!string.IsNullOrEmpty(settings.Farewell) && settings.FarewellId != 0)
                 {
-                    string channelName = chanMatch.Groups[1].Value;
-                    var channel = guildUser.Guild.Channels.Where(c => c is ITextChannel && c.Name.Equals(channelName, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
-                    return (channel as ITextChannel)?.Mention ?? $"#{channelName}";
-                }));
+                    var farewell = settings.Farewell.Replace("%user%", user.Mention);
+                    farewell = farewell.Replace("%username%", $"{user}");
 
-                var farewellChannel = this.Client.GetChannel(settings.FarewellId) as ITextChannel ?? guildUser.Guild.DefaultChannel;
-                if (farewellChannel.GetCurrentUserPermissions().SendMessages)
-                {
-                    await farewellChannel.SendMessageAsync(farewell);
+                    farewell = Consts.ChannelRegex.Replace(farewell, new MatchEvaluator((Match chanMatch) =>
+                    {
+                        string channelName = chanMatch.Groups[1].Value;
+                        var channel = guild.Channels.Where(c => c is ITextChannel && c.Name.Equals(channelName, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+                        return (channel as ITextChannel)?.Mention ?? $"#{channelName}";
+                    }));
+
+                    var farewellChannel = this.Client.GetChannel(settings.FarewellId) as ITextChannel ?? guild.DefaultChannel;
+                    if (farewellChannel.GetCurrentUserPermissions().SendMessages)
+                    {
+                        await farewellChannel.SendMessageAsync(farewell);
+                    }
+                    else
+                    {
+                        if (settings.DebugMode)
+                        {
+                            Log.Verbose($"[DBGM] [guild: {guild.Id}] User left, missing permissions to send farewell");
+                        }
+                    }
                 }
                 else
                 {
                     if (settings.DebugMode)
                     {
-                        Log.Verbose($"[DBGM] [guild: {guildUser.Guild.Id}] User left, missing permissions to send farewell");
+                        Log.Verbose($"[DBGM] [guild: {guild.Id}] User left, no farewell configured");
                     }
                 }
-            }
-            else
-            {
-                if (settings.DebugMode)
-                {
-                    Log.Verbose($"[DBGM] [guild: {guildUser.Guild.Id}] User left, no farewell configured");
-                }
-            }
 
-            // mod log
-            if (settings.HasFlag(ModOptions.Mod_LogUserLeave) && this.Client.GetChannel(settings.Mod_LogId) is ITextChannel modLogChannel && modLogChannel.GetCurrentUserPermissions().SendMessages)
-            {
-                this.BatchSendMessageAsync(modLogChannel, $"{guildUser.Mention} ({guildUser}) left.", ModOptions.Mod_LogUserLeave);
+                // mod log
+                if (settings.HasFlag(ModOptions.Mod_LogUserLeave) && this.Client.GetChannel(settings.Mod_LogId) is ITextChannel modLogChannel && modLogChannel.GetCurrentUserPermissions().SendMessages)
+                {
+                    this.BatchSendMessageAsync(modLogChannel, $"{user.Mention} ({user}) left.", ModOptions.Mod_LogUserLeave);
+                }
+
+                var messageData = BotMessageData.Create(user, guild, settings);
+                messageData.Content = ".timer clear";
+                messageData.Prefix = ".";
+                await this.BotApi.IssueRequestAsync(messageData);
             }
-            
-            var messageData = BotMessageData.Create(guildUser, settings);
-            messageData.Content = ".timer clear";
-            messageData.Prefix = ".";
-            await this.BotApi.IssueRequestAsync(messageData);
         }
 
         /// <summary>
@@ -451,12 +454,12 @@ namespace UB3RB0T
         /// <summary>
         /// Sends mod log messages for role and nickname changes, if configured.
         /// </summary>
-        private Task HandleGuildMemberUpdated(Cacheable<SocketGuildUser, ulong> cachedGuildUserBefore, SocketGuildUser guildUserAfter)
+        private async Task HandleGuildMemberUpdated(Cacheable<SocketGuildUser, ulong> cachedGuildUserBefore, SocketGuildUser guildUserAfter)
         {
             // Mod log
-            if (cachedGuildUserBefore.HasValue)
+            var guildUserBefore = await cachedGuildUserBefore.GetOrDownloadAsync();
+            if (guildUserBefore != null)
             {
-                var guildUserBefore = cachedGuildUserBefore.Value;
                 var settings = SettingsConfig.GetSettings(guildUserAfter.Guild.Id);
                 if (this.Client.GetChannel(settings.Mod_LogId) is ITextChannel modLogChannel && (modLogChannel.GetCurrentUserPermissions().SendMessages))
                 {
@@ -503,8 +506,6 @@ namespace UB3RB0T
                     }
                 }
             }
-
-            return Task.CompletedTask;
         }
 
         /// <summary>
