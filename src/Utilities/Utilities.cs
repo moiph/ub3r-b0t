@@ -25,6 +25,7 @@ namespace UB3RB0T
         const int ONEHOUR = 60 * 60;
         const int ONEDAY = ONEHOUR * 24;
         const int ONEWEEK = ONEDAY * 7;
+        const int ONEMONTH = ONEDAY * 31;
         const int ONEYEAR = ONEDAY * 365;
         const long TOOLONG = 315360000;
                              
@@ -289,6 +290,16 @@ namespace UB3RB0T
                 {
                     duration += yearValue * ONEYEAR;
                     durationStr = $"{yearValue}y";
+                }
+            }
+
+            if (matchGroups["months"].Success)
+            {
+                string monthString = timerMatch.Groups["months"].ToString();
+                if (int.TryParse(monthString.Remove(monthString.Length - 6, 6), out int monthValue))
+                {
+                    duration += monthValue * ONEMONTH; // approximation; final calculation will occur on command processing
+                    durationStr = $"{monthValue}mo";
                 }
             }
 
