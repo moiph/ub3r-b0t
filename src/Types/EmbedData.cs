@@ -13,6 +13,7 @@
         public string FooterIconUrl { get; set; }
 
         public string ThumbnailUrl { get; set; }
+        public string ImageUrl { get; set; }
 
         public string Color { get; set; }
 

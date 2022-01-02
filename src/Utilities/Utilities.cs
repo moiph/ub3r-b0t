@@ -95,6 +95,7 @@ namespace UB3RB0T
                 ThumbnailUrl = embedData.ThumbnailUrl,
                 Description = embedData.Description,
                 Url = Uri.IsWellFormedUriString(embedData.Url, UriKind.Absolute) ? embedData.Url : null,
+                ImageUrl = embedData.ImageUrl,
             };
 
             if (!string.IsNullOrEmpty(embedData.Author))
