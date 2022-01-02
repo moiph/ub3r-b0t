@@ -11,6 +11,6 @@
         }
 
         public override bool CheckPermissions(IDiscordBotContext context) =>
-            context.Message.Author.Id == context.GuildChannel?.Guild.OwnerId;
+            context.Author.Id == context.GuildChannel?.Guild.OwnerId;
     }
 }

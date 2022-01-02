@@ -212,7 +212,7 @@
                 {
                     try
                     {
-                        return r.IsMatch(text);
+                        return r != null && r.IsMatch(text);
                     }
                     catch (RegexMatchTimeoutException)
                     {

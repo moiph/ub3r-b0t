@@ -102,6 +102,13 @@ namespace UB3RB0T
             this.Client.MessageDeleted += (message, channel) => this.HandleEvent(DiscordEventType.MessageDeleted, message, channel);
             this.Client.ReactionAdded += (message, channel, reaction) => this.HandleEvent(DiscordEventType.ReactionAdded, message, channel, reaction);
 
+            // Interactions
+            this.Client.SlashCommandExecuted += (SocketSlashCommand command) => this.HandleEvent(DiscordEventType.SlashCommand, command);
+            this.Client.UserCommandExecuted += (SocketUserCommand command) => this.HandleEvent(DiscordEventType.UserCommand, command);
+            this.Client.MessageCommandExecuted += (SocketMessageCommand command) => this.HandleEvent(DiscordEventType.MessageCommand, command);
+            this.Client.SelectMenuExecuted += (SocketMessageComponent component) => this.HandleEvent(DiscordEventType.MessageComponent, component);
+
+
             this.discordCommands = new Dictionary<string, IDiscordCommand>(StringComparer.OrdinalIgnoreCase);
             foreach (var (command, type) in this.Config.Discord.CommandTypes)
             {
@@ -386,7 +393,12 @@ namespace UB3RB0T
 
         private bool IsAuthorOwner(IUserMessage message)
         {
-            return message.Author.Id == this.Config.Discord?.OwnerId;
+            return IsAuthorOwner(message.Author);
+        }
+
+        private bool IsAuthorOwner(IUser author)
+        {
+            return author.Id == this.Config.Discord?.OwnerId;
         }
 
         private bool IsAuthorPatron(ulong userId)

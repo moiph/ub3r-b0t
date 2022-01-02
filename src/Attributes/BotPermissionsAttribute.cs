@@ -24,7 +24,7 @@
 
         public override bool CheckPermissions(IDiscordBotContext context)
         {
-            var botGuildUser = (context.Message.Channel as SocketGuildChannel)?.Guild.CurrentUser;
+            var botGuildUser = context.CurrentUser;
 
             if (this.GuildPermission.HasValue)
             {
@@ -33,7 +33,7 @@
 
             if (this.ChannelPermission.HasValue)
             {
-                var textChannel = context.Message.Channel as ITextChannel;
+                var textChannel = context.Channel as ITextChannel;
                 return botGuildUser?.GetPermissions(textChannel).Has(this.ChannelPermission.Value) ?? false;
             }
 

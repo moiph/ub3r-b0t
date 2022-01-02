@@ -10,6 +10,7 @@
         public List<string> MultiText { get; set; }
         public Embed Embed { get; set; }
         public FileResponse Attachment { get; set; }
+        public bool IsHandled { get; set; }
     }
 
     public class FileResponse

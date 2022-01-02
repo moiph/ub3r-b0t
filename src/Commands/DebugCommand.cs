@@ -8,13 +8,13 @@
     {
         public Task<CommandResponse> Process(IDiscordBotContext context)
         {
-            var message = context.Message;
-            var serverId = (message.Channel as SocketGuildChannel)?.Guild.Id.ToString() ?? "n/a";
+            var serverId = context.GuildChannel?.Guild.Id.ToString() ?? "n/a";
             var botVersion = Assembly.GetEntryAssembly().GetName().Version.ToString();
             var response = new CommandResponse
             {
-                Text = $"```Server ID: {serverId} | Channel ID: {message.Channel.Id} | Your ID: {message.Author.Id} | Shard ID: {context.Client.ShardId} | Version: {botVersion} | Discord.NET Version: {DiscordSocketConfig.Version}```"
+                Text = $"```Server ID: {serverId} | Channel ID: {context.Channel.Id} | Your ID: {context.Author.Id} | Shard ID: {context.Client.ShardId} | Version: {botVersion} | Discord.NET Version: {DiscordSocketConfig.Version}```"
             };
+
             return Task.FromResult(response);
         }
     }

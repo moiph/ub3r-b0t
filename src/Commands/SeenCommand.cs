@@ -9,7 +9,7 @@
     {
         public async Task<CommandResponse> Process(IDiscordBotContext context)
         {
-            if (context.Message.Channel is SocketGuildChannel guildChannel)
+            if (context.Channel is SocketGuildChannel guildChannel)
             {
                 if (!context.Settings.SeenEnabled)
                 {

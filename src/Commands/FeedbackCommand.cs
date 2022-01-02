@@ -26,7 +26,7 @@
                 return new CommandResponse { Text = "invalid message id" };
             }
 
-            var targetMessage = await message.Channel.GetMessageAsync(targetMessageId);
+            var targetMessage = await context.Channel.GetMessageAsync(targetMessageId);
 
             if (targetMessage == null)
             {

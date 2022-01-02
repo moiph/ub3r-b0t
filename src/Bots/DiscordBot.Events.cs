@@ -100,6 +100,18 @@ namespace UB3RB0T
                             case DiscordEventType.ReactionAdded:
                                 await this.HandleReactionAdded((Cacheable<IUserMessage, ulong>)args[0], (Cacheable<IMessageChannel, ulong>)args[1], (SocketReaction)args[2]);
                                 break;
+                            case DiscordEventType.SlashCommand:
+                                await this.HandleUserCommand((SocketSlashCommand)args[0]);
+                                break;
+                            case DiscordEventType.UserCommand:
+                                await this.HandleUserCommand((SocketUserCommand)args[0]);
+                                break;
+                            case DiscordEventType.MessageCommand:
+                                await this.HandleUserCommand((SocketMessageCommand)args[0]);
+                                break;
+                            case DiscordEventType.MessageComponent:
+                                await this.HandleComponent((SocketMessageComponent)args[0]);
+                                break;
                             default:
                                 throw new ArgumentException("Unrecognized event type");
                         }
@@ -530,7 +542,7 @@ namespace UB3RB0T
         /// TODO: read prior todo, IT'S GETTING WORSe, STAHP
         /// </summary>
         private async Task HandleMessageReceivedAsync(IUserMessage message, String reactionType = null, IUser reactionUser = null)
-        { 
+        {
             // Ignore system and our own messages.
             bool isOutbound = false;
             if (message == null || (isOutbound = message.Author.Id == this.Client.CurrentUser.Id))
@@ -595,7 +607,7 @@ namespace UB3RB0T
                 Log.Debug($"messaging throttle from guild: {message.Author.Id} on chan {message.Channel.Id} server {guildId}");
                 return;
             }
-
+            
             var botContext = new DiscordBotContext(this.Client, message)
             {
                 Reaction = reactionType,
@@ -605,6 +617,11 @@ namespace UB3RB0T
                 Bot = this,
             };
 
+            await ProcessUserEvent(botContext);
+        }
+
+        private async Task ProcessUserEvent(DiscordBotContext botContext)
+        {
             foreach (var (module, typeInfo) in this.preProcessModules)
             {
                 var permissionChecksPassed = await this.CheckPermissions(botContext, typeInfo);
@@ -621,23 +638,23 @@ namespace UB3RB0T
                 }
             }
 
-            var textChannel = message.Channel as ITextChannel;
-            if (botGuildUser != null && !botGuildUser.GetPermissions(textChannel).SendMessages)
+            var textChannel = botContext.Channel as ITextChannel;
+            if (botContext.CurrentUser == null || !botContext.CurrentUser.GetPermissions(textChannel).SendMessages)
             {
                 return;
             }
             
             // If it's a command, match that before anything else.
-            await this.PreProcessMessage(botContext.MessageData, settings);
+            await this.PreProcessMessage(botContext.MessageData, botContext.Settings);
             string command = botContext.MessageData.Command;
 
-            if (message.Attachments.FirstOrDefault() is Attachment attachment)
+            if (botContext.Message?.Attachments.FirstOrDefault() is Attachment attachment)
             {
                 this.ImageUrls[botContext.MessageData.Channel] = attachment;
             }
 
             // if it's a blocked command, bail
-            if (settings.IsCommandDisabled(CommandsConfig.Instance, command) && !IsAuthorOwner(message))
+            if (botContext.Settings.IsCommandDisabled(CommandsConfig.Instance, command) && !IsAuthorOwner(botContext.Author))
             {
                 return;
             }
@@ -666,23 +683,43 @@ namespace UB3RB0T
 
                     if (response?.Attachment != null)
                     {
-                        var sentMessage = await message.Channel.SendFileAsync(response.Attachment.Stream, response.Attachment.Name, response.Text);
-                        this.botResponsesCache.Add(message.Id, sentMessage);
+                        if (botContext.Interaction != null)
+                        {
+                            await botContext.Interaction.RespondWithFileAsync(response.Attachment.Stream, response.Attachment.Name, response.Text, null, false, false, null, null, null, null);
+                        }
+                        else
+                        {
+                            var sentMessage = await botContext.Channel.SendFileAsync(response.Attachment.Stream, response.Attachment.Name, response.Text);
+                            if (botContext.Message != null)
+                            {
+                                this.botResponsesCache.Add(botContext.Message.Id, sentMessage);
+                            }
+                        }
                         commandHandled = true;
                     }
                     else if (response?.MultiText != null)
                     {
                         foreach (var messageText in response.MultiText)
                         {
-                            var sentMessage = await this.RespondAsync(message, messageText, response.Embed, bypassEdit: true);
-                            this.botResponsesCache.Add(message.Id, sentMessage);
+                            var sentMessage = await this.RespondAsync(botContext, messageText, response.Embed, bypassEdit: true);
+                            if (botContext.Message != null && sentMessage != null)
+                            {
+                                this.botResponsesCache.Add(botContext.Message.Id, sentMessage);
+                            }
                         }
                         commandHandled = true;
                     }
                     else if (!string.IsNullOrEmpty(response?.Text) || response?.Embed != null)
                     {
-                        var sentMessage = await this.RespondAsync(message, response.Text, response.Embed);
-                        this.botResponsesCache.Add(message.Id, sentMessage);
+                        var sentMessage = await this.RespondAsync(botContext, response.Text, response.Embed);
+                        if (botContext.Message != null && sentMessage != null)
+                        {
+                            this.botResponsesCache.Add(botContext.Message.Id, sentMessage);
+                        }
+                        commandHandled = true;
+                    }
+                    else if (response != null && response.IsHandled)
+                    {
                         commandHandled = true;
                     }
                 }
@@ -703,32 +740,44 @@ namespace UB3RB0T
                 {
                     // possible bug with typing state
                     Log.Debug($"typing triggered by {command}");
-                    typingState = message.Channel.EnterTypingState();
+                    typingState = botContext.Message.Channel.EnterTypingState();
                 }
 
                 bool bypassEdit = false;
-                if (botContext.MessageData.Command == "quote" && reactionUser != null)
+                if (botContext.MessageData.Command == "quote" && botContext.ReactionUser != null)
                 {
-                    botContext.MessageData.UserName = reactionUser.Username;
+                    botContext.MessageData.UserName = botContext.ReactionUser.Username;
                     bypassEdit = true; // don't edit a reply if it's a reaction added quote
                 }
 
-                try
+                try 
                 {
-                    BotResponseData responseData = await this.ProcessMessageAsync(botContext.MessageData, settings);
+                    BotResponseData responseData = await this.ProcessMessageAsync(botContext.MessageData, botContext.Settings);
 
                     if (Uri.TryCreate(responseData.AttachmentUrl, UriKind.Absolute, out Uri attachmentUri))
                     {
                         Stream fileStream = await attachmentUri.GetStreamAsync();
+                        string fileName = Path.GetFileName(attachmentUri.AbsolutePath);
 
-                        var sentMessage = await message.Channel.SendFileAsync(fileStream, Path.GetFileName(attachmentUri.AbsolutePath));
-                        this.botResponsesCache.Add(message.Id, sentMessage);
+                        if (botContext.Interaction != null)
+                        {
+                            await botContext.Interaction.RespondWithFileAsync(fileStream, fileName, null, null, false, responseData.Ephemeral, null, null, null, null);
+                        }
+                        else
+                        {
+                            var sentMessage = await botContext.Channel.SendFileAsync(fileStream, fileName);
+                            this.botResponsesCache.Add(botContext.Message.Id, sentMessage);
+                        }
+
                         commandHandled = true;
                     }
                     else if (responseData.Embed != null)
                     {
-                        var sentMessage = await this.RespondAsync(message, string.Empty, responseData.Embed.CreateEmbedBuilder().Build(), bypassEdit: bypassEdit, rateLimitChecked: botContext.MessageData.RateLimitChecked, allowMentions: responseData.AllowMentions);
-                        this.botResponsesCache.Add(message.Id, sentMessage);
+                        var sentMessage = await this.RespondAsync(botContext, string.Empty, responseData.Embed.CreateEmbedBuilder().Build(), bypassEdit: bypassEdit, rateLimitChecked: botContext.MessageData.RateLimitChecked, allowMentions: responseData.AllowMentions, ephemeral: responseData.Ephemeral);
+                        if (botContext.Message != null && sentMessage != null)
+                        {
+                            this.botResponsesCache.Add(botContext.Message.Id, sentMessage);
+                        }
                         commandHandled = true;
                     }
                     else
@@ -738,8 +787,11 @@ namespace UB3RB0T
                             if (!string.IsNullOrWhiteSpace(response))
                             {
                                 // if sending a multi part message, skip the edit optimization.
-                                var sentMessage = await this.RespondAsync(message, response, embedResponse: null, bypassEdit: responseData.Responses.Count > 1 || bypassEdit, rateLimitChecked: botContext.MessageData.RateLimitChecked, allowMentions: responseData.AllowMentions);
-                                this.botResponsesCache.Add(message.Id, sentMessage);
+                                var sentMessage = await this.RespondAsync(botContext, response, embedResponse: null, bypassEdit: responseData.Responses.Count > 1 || bypassEdit, rateLimitChecked: botContext.MessageData.RateLimitChecked, allowMentions: responseData.AllowMentions, ephemeral: responseData.Ephemeral);
+                                if (botContext.Message != null && sentMessage != null)
+                                {
+                                    this.botResponsesCache.Add(botContext.Message.Id, sentMessage);
+                                }
                                 commandHandled = true;
                             }
                         }
@@ -908,7 +960,7 @@ namespace UB3RB0T
             string reactionEmote = reaction.Emote.Name;
 
             // if an Eye emoji was added, let's process it
-            if ((reactionEmote == "👁" || reactionEmote == "🖼") &&
+            if ((reactionEmote == "👁️" || reactionEmote == "🖼") &&
                 reaction.Message.IsSpecified &&
                 (IsAuthorPatron(reaction.UserId) || BotConfig.Instance.OcrAutoIds.Contains(channel.Id)) &&
                 reaction.Message.Value.ParseImageUrl() != null)
@@ -971,7 +1023,7 @@ namespace UB3RB0T
                 }
 
                 // handle possible role adds/removes
-                IUserMessage reactionMessage = await reaction.GetOrDownloadMessage();
+                IUserMessage reactionMessage = await message.GetOrDownloadAsync();
 
                 ulong selfRoleId = settings.SelfRoles.FirstOrDefault(kvp => kvp.Value == customEmote?.Id).Key;
                 bool roleChanged = false;
@@ -991,9 +1043,69 @@ namespace UB3RB0T
             }
         }
 
+        private async Task HandleUserCommand(SocketCommandBase command)
+        {
+            IUserMessage message = null;
+            if (command is SocketMessageCommand messageCommand)
+            {
+                // If author is null, it means the message wasn't in the cache, so download it
+                if (messageCommand.Data.Message.Author == null)
+                {
+                    message = await command.Channel.GetMessageAsync(messageCommand.Data.Message.Id) as IUserMessage;
+                }
+                else
+                {
+                    message = messageCommand.Data.Message as IUserMessage;
+                }
+            }
+
+            var botContext = new DiscordBotContext(this.Client, command, message)
+            {
+                BotApi = this.BotApi,
+                Bot = this,
+            };
+
+            var props = new Dictionary<string, string> {
+                { "command",  command.CommandName },
+                { "server",  botContext.GuildChannel?.Guild.Id.ToString() },
+                { "channel", botContext.Channel.Id.ToString() },
+                { "shard",  this.Shard.ToString() },
+            };
+            this.TrackEvent("slashcommandProcessed", props);
+
+            await ProcessUserEvent(botContext);
+        }
+
+        private async Task HandleComponent(SocketMessageComponent component)
+        {
+            var botContext = new DiscordBotContext(this.Client, component, null)
+            {
+                BotApi = this.BotApi,
+                Bot = this,
+            };
+
+            await ProcessUserEvent(botContext);
+        }
+
         protected override async Task RespondAsync(BotMessageData messageData, string response)
         {
             await this.RespondAsync(messageData.DiscordMessageData, response, rateLimitChecked: messageData.RateLimitChecked);
+        }
+
+        private async Task<IUserMessage> RespondAsync(DiscordBotContext context, string response, Embed embedResponse = null, bool bypassEdit = false, bool rateLimitChecked = false, bool allowMentions = true, bool ephemeral = false)
+        {
+            if (context.Interaction != null)
+            {
+                await context.Interaction.RespondAsync(response, embedResponse != null ? new Embed[] { embedResponse } : null, false, ephemeral, allowMentions ? null : AllowedMentions.None);
+                return null;
+            }
+
+            if (context.Message != null)
+            {
+                return await RespondAsync(context.Message, response, embedResponse, bypassEdit, rateLimitChecked, allowMentions);
+            }
+            
+            return null;
         }
 
         private async Task<IUserMessage> RespondAsync(IUserMessage message, string response, Embed embedResponse = null, bool bypassEdit = false, bool rateLimitChecked = false, bool allowMentions = true)

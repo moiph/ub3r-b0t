@@ -12,7 +12,7 @@
         {
             // if the user is blocked based on role, return
             var botlessRoleId = context.GuildChannel?.Guild.Roles?.FirstOrDefault(r => r.Name?.ToLowerInvariant() == BotlessRole)?.Id;
-            if (botlessRoleId != null && ((context.Message.Author as SocketGuildUser)?.Roles.Any(r => r.Id == botlessRoleId.Value) ?? false))
+            if (botlessRoleId != null && ((context.Author as SocketGuildUser)?.Roles.Any(r => r.Id == botlessRoleId.Value) ?? false))
             {
                 return Task.FromResult(ModuleResult.Stop);
             }

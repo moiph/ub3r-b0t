@@ -14,14 +14,14 @@
     {
         public async Task<CommandResponse> Process(IDiscordBotContext context)
         {
-            if (context.Message.Channel is IDMChannel)
+            if (context.Channel is IDMChannel)
             {
                 return null;
             }
 
-            var guildUser = context.Message.Author as SocketGuildUser;
+            var guildUser = context.Author as SocketGuildUser;
 
-            var guildChannel = context.Message.Channel as SocketGuildChannel;
+            var guildChannel = context.Channel as SocketGuildChannel;
 
             string[] parts = context.Message.Content.Split(new[] { ' ' }, 3);
             if (parts.Length != 2 && parts.Length != 3)

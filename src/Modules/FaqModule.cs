@@ -5,6 +5,7 @@
     using System.Net;
     using System.Threading.Tasks;
     using Discord;
+    using Discord.WebSocket;
     using Flurl.Http;
     using Newtonsoft.Json;
 
@@ -15,8 +16,9 @@
         {
             // special case FAQ channel
             var message = context.Message;
-            if (BotConfig.Instance.FaqEndpoints != null && BotConfig.Instance.FaqEndpoints.TryGetValue(message.Channel.Id, out var faq) &&
-                faq.Endpoint != null && (context.Reaction == faq.Reaction || string.IsNullOrEmpty(context.Reaction) && !string.IsNullOrEmpty(faq.EndsWith) && message.Content.EndsWith(faq.EndsWith)))
+            var messageCommand = context.Interaction as SocketMessageCommand;
+            if (message != null && BotConfig.Instance.FaqEndpoints != null && BotConfig.Instance.FaqEndpoints.TryGetValue(message.Channel.Id, out var faq) &&
+                faq.Endpoint != null && (context.Reaction == faq.Reaction ||  messageCommand != null && messageCommand.CommandName.IEquals(faq.Command) || string.IsNullOrEmpty(context.Reaction) && !string.IsNullOrEmpty(faq.EndsWith) && message.Content.EndsWith(faq.EndsWith)))
             {
                 await message.AddReactionAsync(new Emoji(faq.Reaction));
 
@@ -35,11 +37,25 @@
                         responses.Add($"{answerText} ({score}% match)");
                     }
 
-                    await message.Channel.SendMessageAsync(string.Join("\n\n", responses));
+                    if (messageCommand != null)
+                    {
+                        await messageCommand.RespondAsync(string.Join("\n\n", responses));
+                    }
+                    else
+                    { 
+                        await message.Channel.SendMessageAsync(string.Join("\n\n", responses));
+                    }
                 }
                 else
                 {
-                    await message.Channel.SendMessageAsync("An error occurred while fetching data");
+                    if (messageCommand != null)
+                    {
+                        await messageCommand.RespondAsync("An error occurred while fetching data");
+                    }
+                    else
+                    {
+                        await message.Channel.SendMessageAsync("An error occurred while fetching data");
+                    }
                 }
 
                 return ModuleResult.Stop;

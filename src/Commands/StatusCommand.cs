@@ -32,7 +32,7 @@
 
             // add up totals
             dataSb.Append($"-------\n");
-            dataSb.Append($"Total:            {serverTotal.ToString().PadLeft(8)} {userTotal.ToString().PadLeft(10)}\n");
+            dataSb.Append($"Total:            {serverTotal,8} {userTotal,10}\n");
 
             dataSb.Append("```");
 

@@ -4,6 +4,7 @@
     using System.Linq;
     using System.Threading.Tasks;
     using Discord;
+    using Discord.WebSocket;
     using Flurl.Http;
     using Newtonsoft.Json;
     using Serilog;
@@ -17,12 +18,14 @@
         public override async Task<ModuleResult> ProcessDiscordModule(IDiscordBotContext context)
         {
             var message = context.Message;
+            var messageCommand = context.Interaction as SocketMessageCommand;
+            var isQuote = messageCommand != null && messageCommand.CommandName.IEquals("quote");
             // don't auto process if the message was edited
-            if (!string.IsNullOrEmpty(context.Reaction) || (BotConfig.Instance.OcrAutoIds.Contains(message.Channel.Id) && context.Message.EditedTimestamp == null))
+            if (message != null && (!string.IsNullOrEmpty(context.Reaction) || isQuote || (BotConfig.Instance.OcrAutoIds.Contains(message.Channel.Id) && context.Message.EditedTimestamp == null)))
             {
                 string newMessageContent = null;
 
-                if (context.Reaction == "💬" || context.Reaction == "🗨️")
+                if (context.Reaction == "💬" || context.Reaction == "🗨️" || isQuote)
                 {
                     var quote = context.MessageData.Content.ReplaceMulti(new[] { "\"", "”", "“" }, "&quot;");
                     newMessageContent = $"{context.Settings.Prefix}quote add \"{quote}\" - userid:{message.Author.Id} {message.Author.Username}";
@@ -123,7 +126,7 @@
                 }
 
                 // only update the message content if it was a reaction
-                if (newMessageContent != null && !string.IsNullOrEmpty(context.Reaction))
+                if (newMessageContent != null && (!string.IsNullOrEmpty(context.Reaction) || isQuote))
                 {
                     context.MessageData.Content = newMessageContent;
                 }

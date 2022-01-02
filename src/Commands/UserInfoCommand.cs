@@ -10,33 +10,41 @@
     {
         public async Task<CommandResponse> Process(IDiscordBotContext context)
         {
-            SocketUser targetUser = context.SocketMessage?.MentionedUsers?.FirstOrDefault();
-
-            if (targetUser == null)
+            SocketUser targetUser;
+            if (context.Interaction != null)
             {
-                var messageParts = context.Message.Content.Split(new[] { ' ' }, 2);
+                targetUser = (context.Interaction as SocketUserCommand).Data.Member;
+            }
+            else
+            {
+                targetUser = context.SocketMessage?.MentionedUsers?.FirstOrDefault();
 
-                if (messageParts.Length == 2)
+                if (targetUser == null)
                 {
-                    if (context.Message.Channel is SocketGuildChannel guildChannel)
+                    var messageParts = context.Message.Content.Split(new[] { ' ' }, 2);
+
+                    if (messageParts.Length == 2)
                     {
-                        targetUser = guildChannel.Guild.Users.Find(messageParts[1]).FirstOrDefault() as SocketUser;
+                        if (context.Message.Channel is SocketGuildChannel guildChannel)
+                        {
+                            targetUser = guildChannel.Guild.Users.Find(messageParts[1]).FirstOrDefault() as SocketUser;
+
+                            if (targetUser == null)
+                            {
+                                await guildChannel.Guild.DownloadUsersAsync();
+                                targetUser = guildChannel.Guild.Users.Find(messageParts[1]).FirstOrDefault() as SocketUser;
+                            }
+                        }
 
                         if (targetUser == null)
                         {
-                            await guildChannel.Guild.DownloadUsersAsync();
-                            targetUser = guildChannel.Guild.Users.Find(messageParts[1]).FirstOrDefault() as SocketUser;
+                            return new CommandResponse { Text = "User not found. Try a direct mention." };
                         }
                     }
-
-                    if (targetUser == null)
+                    else
                     {
-                        return new CommandResponse { Text = "User not found. Try a direct mention." };
+                        targetUser = context.SocketMessage?.Author;
                     }
-                }
-                else
-                {
-                    targetUser = context.SocketMessage?.Author;
                 }
             }
 
@@ -64,7 +72,7 @@
 
             var settings = SettingsConfig.GetSettings(guildUser.Guild.Id.ToString());
 
-            if ((context.Message.Channel as ITextChannel).GetCurrentUserPermissions().EmbedLinks && settings.PreferEmbeds)
+            if ((context.Channel as ITextChannel).GetCurrentUserPermissions().EmbedLinks && settings.PreferEmbeds)
             {
                 embedBuilder = new EmbedBuilder
                 {

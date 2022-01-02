@@ -12,7 +12,7 @@
             EmbedBuilder embedBuilder = null;
             string text = string.Empty;
 
-            if (context.Message.Channel is SocketGuildChannel guildChannel && context.Message.Channel is ITextChannel textChannel)
+            if (context.Channel is SocketGuildChannel guildChannel && context.Channel is ITextChannel textChannel)
             {
                 var guild = guildChannel.Guild;
                 var emojiCount = guild.Emotes.Count();

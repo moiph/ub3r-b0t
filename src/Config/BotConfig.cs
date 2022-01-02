@@ -165,6 +165,7 @@
         public Uri Endpoint { get; set; }
         public string Reaction { get; set; }
         public string EndsWith { get; set; }
+        public string Command { get; set; }
     }
 
     public class Irc

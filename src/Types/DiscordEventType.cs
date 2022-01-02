@@ -16,5 +16,9 @@
         MessageUpdated,
         MessageDeleted,
         ReactionAdded,
+        SlashCommand,
+        MessageCommand,
+        UserCommand,
+        MessageComponent,
     }
 }

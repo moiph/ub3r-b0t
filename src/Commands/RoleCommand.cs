@@ -9,6 +9,7 @@
     using Discord.Net;
     using Discord.WebSocket;
     using Serilog;
+    using System.Collections.Generic;
 
     [BotPermissions(GuildPermission.ManageRoles, "RequireManageRoles")]
     public class DeRoleCommand : RoleCommand
@@ -38,34 +39,94 @@
         {
             if (context.GuildChannel != null)
             {
+                var guildAuthor = context.Author as IGuildUser;
                 var settings = SettingsConfig.GetSettings(context.GuildChannel.Guild.Id.ToString());
-                var roleArgs = context.Message.Content.Split(new[] { ' ' }, 2);
 
-                if (roleArgs.Length == 1)
-                {
-                    return new CommandResponse { Text = $"Usage: {settings.Prefix}role rolename | {settings.Prefix}derole rolename" };
-                }
+                IRole requestedRole = null;
 
-                if (roleArgs[1].StartsWith("generate "))
+                if (context.Interaction is SocketMessageComponent messageComponent)
                 {
-                    var roleGenArgs = context.Message.Content.Split(new[] { ' ' }, 5);
-                    if (roleGenArgs.Length >= 3)
+                    var rolesToAdd = new List<IRole>();
+                    var rolesToRemove = new List<IRole>();
+
+                    foreach (var role in context.GuildChannel.Guild.Roles)
                     {
-                        return await this.RoleGenerate(context, roleGenArgs);
+                        if (settings.SelfRoles.ContainsKey(role.Id))
+                        {
+                            if (messageComponent.Data.Values.Contains(role.Id.ToString()))
+                            {
+                                if (!guildAuthor.RoleIds.Contains(role.Id))
+                                {
+                                    rolesToAdd.Add(role);
+                                }
+                            }
+                            else if (guildAuthor.RoleIds.Contains(role.Id))
+                            {
+                                rolesToRemove.Add(role);
+                            }
+                        }
                     }
+
+                    try
+                    {
+                        string response = string.Empty;
+
+                        if (rolesToAdd.Count > 0)
+                        {
+                            await guildAuthor.AddRolesAsync(rolesToAdd);
+                            response = $"access granted to roles: `{string.Join(',', rolesToAdd.Select(r => r.Name))}`. ";
+                        }
+
+                        if (rolesToRemove.Count > 0)
+                        {
+                            await guildAuthor.RemoveRolesAsync(rolesToRemove);
+                            response += $"access revoked from roles: `{string.Join(',', rolesToRemove.Select(r => r.Name))}`. ";
+                        }
+
+                        if (string.IsNullOrEmpty(response))
+                        {
+                            response = "no role changes. ";
+                        }
+
+                        await messageComponent.RespondAsync($"{response}congratulation !", ephemeral: true);
+                    }
+                    catch (HttpException ex) when (ex.HttpCode == HttpStatusCode.Forbidden)
+                    {
+                        await messageComponent.RespondAsync("...it seems I cannot actually modify those roles. yell at management (verify the role orders, bot's role needs to be above the ones being managed)", ephemeral: true);
+                    }
+
+                    return new CommandResponse { IsHandled = true };
                 }
-
-                IRole requestedRole = context.SocketMessage?.MentionedRoles.FirstOrDefault();
-                if (requestedRole == null)
+                else
                 {
-                    var guildRoles = context.GuildChannel.Guild.Roles.OrderByDescending(r => r.Position);
-                    requestedRole = guildRoles.FirstOrDefault(r => r.Name.IEquals(roleArgs[1])) ?? 
-                        guildRoles.FirstOrDefault(r => r.Name.IContains(roleArgs[1]));
+                    var roleArgs = context.Message.Content.Split(new[] { ' ' }, 2);
 
+                    if (roleArgs.Length == 1)
+                    {
+                        return new CommandResponse { Text = $"Usage: {settings.Prefix}role rolename | {settings.Prefix}derole rolename" };
+                    }
+
+                    if (roleArgs[1].StartsWith("generate "))
+                    {
+                        var roleGenArgs = context.Message.Content.Split(new[] { ' ' }, 5);
+                        if (roleGenArgs.Length >= 3)
+                        {
+                            return await this.RoleGenerate(context, roleGenArgs);
+                        }
+                    }
+
+                    requestedRole = context.SocketMessage?.MentionedRoles.FirstOrDefault();
                     if (requestedRole == null)
                     {
-                        return new CommandResponse { Text = "I couldn't find that role. either the role is sponsored by waldo or carmen sandiego, or you need to improve your spelling" };
+                        var guildRoles = context.GuildChannel.Guild.Roles.OrderByDescending(r => r.Position);
+                        requestedRole = guildRoles.FirstOrDefault(r => r.Name.IEquals(roleArgs[1])) ??
+                            guildRoles.FirstOrDefault(r => r.Name.IContains(roleArgs[1]));
                     }
+                }
+
+                if (requestedRole == null)
+                {
+                    return new CommandResponse { Text = "I couldn't find that role. either the role is sponsored by waldo or carmen sandiego, or you need to improve your spelling" };
                 }
 
                 if (!context.Settings.SelfRoles.ContainsKey(requestedRole.Id))
@@ -73,7 +134,6 @@
                     return new CommandResponse { Text = $"woah there buttmunch tryin' to cheat the system? you don't have the AUTHORITY to self-assign the {requestedRole.Name.ToUpperInvariant()} role. now make like a tree and get outta here" };
                 }
 
-                var guildAuthor = context.Message.Author as IGuildUser;
                 if (isAdd && guildAuthor.RoleIds.Contains(requestedRole.Id))
                 {
                     return new CommandResponse { Text = $"seriously? you already have the {requestedRole.Name} role. settle DOWN, freakin' role enthustiast" };

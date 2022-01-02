@@ -1,10 +1,11 @@
 ﻿namespace UB3RB0T
 {
+    using System.Collections.Generic;
     using System.Linq;
     using Discord;
     using Discord.WebSocket;
-    using UB3RIRC;
     using Newtonsoft.Json;
+    using UB3RIRC;
 
     /// <summary>
     /// Common message data for generalized use.  Massages data between various client libraries (IRC, Discord, etc)
@@ -16,17 +17,22 @@
         [JsonIgnore]
         public IUserMessage DiscordMessageData { get; private set; }
         [JsonIgnore]
+        public SocketInteraction DiscordInteraction { get; private set; }
+        [JsonIgnore]
         public MessageData IrcMessageData { get; private set; }
 
         public string UserName { get; set; }
         public string UserId { get; set; }
         public string UserHost { get; set; }
+        public string TargetUserName { get; set; }
+        public string TargetUserId { get; set; }
         public string Channel { get; set; }
         public string Server { get; set; }
         public string MessageId { get; set; }
         public string Content { get; set; }
         public string Command => Query.Split(new[] { ' ' }, 2)?[0];
         public string Prefix { get; set; }
+        public Dictionary<string, string> RequestOptions { get; set; }
         public string Query
         {
             get
@@ -107,6 +113,57 @@
 
             // if the user does not have @everyone permissions, block its use
             if (!(message.Author as SocketGuildUser)?.GetPermissions(message.Channel as SocketGuildChannel).MentionEveryone ?? false)
+            {
+                messageData.Content = messageData.Content.Replace("@everyone", "@every\x200Bone").Replace("@here", "@he\x200Bre");
+            }
+
+            return messageData;
+        }
+
+        public static BotMessageData Create(SocketInteraction interaction, IUserMessage message, Settings serverSettings)
+        {
+            var preferEmbeds = ((interaction.Channel as SocketTextChannel)?.GetCurrentUserPermissions().EmbedLinks ?? false) && serverSettings.PreferEmbeds;
+
+            var messageData = new BotMessageData(BotType.Discord)
+            {
+                DiscordInteraction = interaction,
+                UserName = interaction.User.Username,
+                UserId = interaction.User.Id.ToString(),
+                UserHost = interaction.User.Id.ToString(),
+                Channel = interaction.Channel.Id.ToString(),
+                Server = (interaction.Channel as IGuildChannel)?.GuildId.ToString() ?? "private",
+                MessageId = message?.Id.ToString(),
+                Format = preferEmbeds ? "embed" : string.Empty,
+                Content = message?.Content ?? serverSettings.Prefix + ((interaction as SocketCommandBase)?.CommandName ?? (interaction as SocketMessageComponent)?.Data.CustomId),
+                Prefix = serverSettings.Prefix,
+                TargetUserName = (interaction as SocketUserCommand)?.Data.Member.UserOrNickname(),
+                TargetUserId = (interaction as SocketUserCommand)?.Data.Member.Id.ToString(),
+            };
+
+            if (interaction is SocketMessageCommand messageCommand)
+            {
+                messageData.Content = messageCommand.Data.Message.Content;
+            }
+            else if (interaction is SocketSlashCommand slashCommand)
+            {
+                messageData.RequestOptions = new Dictionary<string, string>();
+                foreach (var option in slashCommand.Data.Options)
+                {
+                    if (option.Type == ApplicationCommandOptionType.SubCommand)
+                    {
+                        messageData.Content += $" {option.Name}";
+                        messageData.RequestOptions.Add(option.Name, option.Name);
+                    }
+                    else
+                    {
+                        messageData.Content += $" {option.Value}";
+                        messageData.RequestOptions.Add(option.Name, option.Value.ToString());
+                    }
+                }
+            }
+
+            // if the user does not have @everyone permissions, block its use
+            if (!(interaction.User as SocketGuildUser)?.GetPermissions(interaction.Channel as SocketGuildChannel).MentionEveryone ?? false)
             {
                 messageData.Content = messageData.Content.Replace("@everyone", "@every\x200Bone").Replace("@here", "@he\x200Bre");
             }
