@@ -27,7 +27,7 @@ namespace UB3RB0T
         /// <param name="eventType">The event being handled.</param>
         /// <param name="args">The event arguments.</param>
         /// <returns></returns>
-        private Task HandleEvent(DiscordEventType eventType, params object[] args)
+        private async Task HandleEvent(DiscordEventType eventType, params object[] args)
         {
             var discordEvent = new DiscordEvent
             {
@@ -37,14 +37,12 @@ namespace UB3RB0T
 
             if (eventType == DiscordEventType.UserVoiceStateUpdated)
             {
-                this.voiceEventQueue.Add(discordEvent);
+                await this.voiceEventChannel.Writer.WriteAsync(discordEvent);
             }
             else
             {
-                this.eventQueue.Add(discordEvent);
+                await this.eventChannel.Writer.WriteAsync(discordEvent);
             }
-
-            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -55,9 +53,8 @@ namespace UB3RB0T
             // Kick off voice event processing separately
             Task.Run(() => this.ProcessVoiceEvents()).Forget();
 
-            foreach (var eventToProcess in this.eventQueue.GetConsumingEnumerable())
+            await foreach(var eventToProcess in this.eventChannel.Reader.ReadAllAsync())
             {
-                await this.eventProcessLock.WaitAsync();
 
                 Task.Run(async () =>
                 {
@@ -121,10 +118,12 @@ namespace UB3RB0T
                         Log.Warning(ex, $"Error in {eventType} handler");
                         this.AppInsights?.TrackException(ex);
                     }
-                    finally
-                    {
-                        this.eventProcessLock.Release();
-                    }
+
+                    // not needed? do something here?
+                    //finally
+                    //{
+                      //this.eventProcessLock.Release();
+                    //}
                 }).Forget();
             }
         }
@@ -134,10 +133,8 @@ namespace UB3RB0T
         /// </summary>
         private async Task ProcessVoiceEvents()
         {
-            foreach (var eventToProcess in this.voiceEventQueue.GetConsumingEnumerable())
+            await foreach(var eventToProcess in this.voiceEventChannel.Reader.ReadAllAsync())
             {
-                await this.voiceEventProcessLock.WaitAsync();
-
                 Task.Run(async () =>
                 {
                     var args = eventToProcess.Args;
@@ -150,10 +147,11 @@ namespace UB3RB0T
                         Log.Warning(ex, $"Error in {eventToProcess.EventType} handler");
                         this.AppInsights?.TrackException(ex);
                     }
-                    finally
-                    {
-                        this.voiceEventProcessLock.Release();
-                    }
+                    // not needed? do something else here?
+                    //finally
+                    //{
+                        //this.voiceEventProcessLock.Release();
+                    //}
                 }).Forget();
             }
         }

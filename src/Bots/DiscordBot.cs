@@ -8,6 +8,7 @@ namespace UB3RB0T
     using System.Reflection;
     using System.Text.RegularExpressions;
     using System.Threading;
+    using System.Threading.Channels;
     using System.Threading.Tasks;
     using Discord;
     using Discord.WebSocket;
@@ -28,11 +29,8 @@ namespace UB3RB0T
         private readonly Dictionary<IModule, TypeInfo> preProcessModules = new Dictionary<IModule, TypeInfo>();
         private readonly Dictionary<IModule, TypeInfo> postProcessModules = new Dictionary<IModule, TypeInfo>();
 
-        private readonly BlockingCollection<DiscordEvent> eventQueue = new BlockingCollection<DiscordEvent>();
-        private readonly BlockingCollection<DiscordEvent> voiceEventQueue = new BlockingCollection<DiscordEvent>();
-
-        private SemaphoreSlim eventProcessLock;
-        private SemaphoreSlim voiceEventProcessLock;
+        private Channel<DiscordEvent> eventChannel;
+        private Channel<DiscordEvent> voiceEventChannel;
 
         public DiscordBot(int shard, int totalShards) : base(shard, totalShards)
         {
@@ -123,8 +121,16 @@ namespace UB3RB0T
             this.statsTimer = new Timer(StatsTimerAsync, null, TWELVE_HOURS + this.Shard * FIVE_MINUTES, TWELVE_HOURS * 2);
             this.StartBatchMessageProcessing();
 
-            this.eventProcessLock = new SemaphoreSlim(this.Config.Discord.EventQueueSize, this.Config.Discord.EventQueueSize);
-            this.voiceEventProcessLock = new SemaphoreSlim(this.Config.Discord.VoiceEventQueueSize, this.Config.Discord.VoiceEventQueueSize);
+            this.eventChannel = Channel.CreateBounded<DiscordEvent>(new BoundedChannelOptions(this.Config.Discord.EventQueueSize)
+            {
+                FullMode = BoundedChannelFullMode.Wait
+            });
+
+            this.voiceEventChannel = Channel.CreateBounded<DiscordEvent>(new BoundedChannelOptions(this.Config.Discord.VoiceEventQueueSize)
+            {
+                FullMode = BoundedChannelFullMode.Wait
+            });
+
             Task.Run(() => this.ProcessEvents()).Forget();
         }
 
