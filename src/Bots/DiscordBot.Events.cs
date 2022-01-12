@@ -832,8 +832,11 @@ namespace UB3RB0T
                 {
                     if (!string.IsNullOrEmpty(attr.FailureString))
                     {
-                        var sentMessage = await this.RespondAsync(context.Message, context.Settings.GetString(attr.FailureString));
-                        this.botResponsesCache.Add(context.Message.Id, sentMessage);
+                        var sentMessage = await this.RespondAsync(context, context.Settings.GetString(attr.FailureString), ephemeral: true);
+                        if (context.Message != null && sentMessage != null)
+                        {
+                            this.botResponsesCache.Add(context.Message.Id, sentMessage);
+                        }
                     }
 
                     attributeChecksPassed = false;
@@ -1092,7 +1095,7 @@ namespace UB3RB0T
             await this.RespondAsync(messageData.DiscordMessageData, response, rateLimitChecked: messageData.RateLimitChecked);
         }
 
-        private async Task<IUserMessage> RespondAsync(DiscordBotContext context, string response, Embed embedResponse = null, bool bypassEdit = false, bool rateLimitChecked = false, bool allowMentions = true, bool ephemeral = false)
+        private async Task<IUserMessage> RespondAsync(IDiscordBotContext context, string response, Embed embedResponse = null, bool bypassEdit = false, bool rateLimitChecked = false, bool allowMentions = true, bool ephemeral = false)
         {
             if (context.Interaction != null)
             {
