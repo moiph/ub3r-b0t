@@ -82,6 +82,7 @@
         Mod_LogUserLeave = 64,
         Mod_LogUserJoinVoice = 128,
         Mod_LogUserLeaveVoice = 256,
+        Mod_LogUserTimeout = 512,
     }
 
     public class CustomCommand

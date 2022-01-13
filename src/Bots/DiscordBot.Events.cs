@@ -517,6 +517,20 @@ namespace UB3RB0T
 
                         this.BatchSendMessageAsync(modLogChannel, nickText, ModOptions.Mod_LogUserRole);
                     }
+
+                    if (settings.HasFlag(ModOptions.Mod_LogUserTimeout))
+                    {
+                        if (guildUserAfter.TimedOutUntil.HasValue && !guildUserBefore.TimedOutUntil.HasValue)
+                        {
+                            string timeoutText = $"{guildUserAfter.Mention} ({guildUserAfter}) was put in a timeout until {guildUserAfter.TimedOutUntil.Value}";
+                            this.BatchSendMessageAsync(modLogChannel, timeoutText, ModOptions.Mod_LogUserTimeout);
+                        }
+                        else if (!guildUserAfter.TimedOutUntil.HasValue && guildUserBefore.TimedOutUntil.HasValue)
+                        {
+                            string timeoutText = $"{guildUserAfter.Mention} ({guildUserAfter}) is no longer in a timeout";
+                            this.BatchSendMessageAsync(modLogChannel, timeoutText, ModOptions.Mod_LogUserTimeout);
+                        }
+                    }
                 }
             }
         }
