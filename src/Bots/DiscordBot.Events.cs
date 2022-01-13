@@ -89,6 +89,7 @@ namespace UB3RB0T
                                 await this.HandleUserBanned(args[0] as SocketGuildUser, (SocketGuild)args[1]);
                                 break;
                             case DiscordEventType.MessageReceived:
+                                this.TrackTimer("eventQueueDuration", eventToProcess.Elapsed.TotalMilliseconds);
                                 await this.HandleMessageReceivedAsync(args[0] as IUserMessage);
                                 break;
                             case DiscordEventType.MessageUpdated:
