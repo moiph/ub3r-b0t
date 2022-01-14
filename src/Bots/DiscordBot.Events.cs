@@ -18,6 +18,11 @@ namespace UB3RB0T
 
     public partial class DiscordBot
     {
+        private static readonly HashSet<Type> ExpectedExceptionTypes = new()
+        {
+            typeof(GatewayReconnectException)
+        };
+
         private readonly MessageCache botResponsesCache = new MessageCache();
         private bool isReady;
 
@@ -203,7 +208,7 @@ namespace UB3RB0T
                     break;
             }
 
-            if (logMessage.Exception != null)
+            if (logMessage.Exception != null && !ExpectedExceptionTypes.Contains(logMessage.Exception.GetType()))
             {
                 this.AppInsights?.TrackException(logMessage.Exception);
             }
@@ -522,7 +527,7 @@ namespace UB3RB0T
                     {
                         if (guildUserAfter.TimedOutUntil.HasValue && !guildUserBefore.TimedOutUntil.HasValue)
                         {
-                            string timeoutText = $"{guildUserAfter.Mention} ({guildUserAfter}) was put in a timeout until {guildUserAfter.TimedOutUntil.Value}";
+                            string timeoutText = $"{guildUserAfter.Mention} ({guildUserAfter}) was put in a timeout until <t:{guildUserAfter.TimedOutUntil.Value.ToUnixTimeSeconds()}>";
                             this.BatchSendMessageAsync(modLogChannel, timeoutText, ModOptions.Mod_LogUserTimeout);
                         }
                         else if (!guildUserAfter.TimedOutUntil.HasValue && guildUserBefore.TimedOutUntil.HasValue)

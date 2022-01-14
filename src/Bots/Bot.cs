@@ -512,7 +512,7 @@ namespace UB3RB0T
 
         protected void TrackTimer(string eventName, double value, Dictionary<string, string> properties = null)
         {
-            this.DogStats?.Timer(eventName, value, sampleRate: 0.01, tags: this.GetDogStatsTags(properties));
+            this.DogStats?.Timer(eventName, value, sampleRate: this.Config.Metrics.EventQueueSampleRate, tags: this.GetDogStatsTags(properties));
         }
 
         protected void TrackEvent(string eventName, Dictionary<string, string> properties = null)
