@@ -124,12 +124,6 @@ namespace UB3RB0T
                         Log.Warning(ex, $"Error in {eventType} handler");
                         this.AppInsights?.TrackException(ex);
                     }
-
-                    // not needed? do something here?
-                    //finally
-                    //{
-                      //this.eventProcessLock.Release();
-                    //}
                 }).Forget();
             }
         }
@@ -153,11 +147,6 @@ namespace UB3RB0T
                         Log.Warning(ex, $"Error in {eventToProcess.EventType} handler");
                         this.AppInsights?.TrackException(ex);
                     }
-                    // not needed? do something else here?
-                    //finally
-                    //{
-                        //this.voiceEventProcessLock.Release();
-                    //}
                 }).Forget();
             }
         }
