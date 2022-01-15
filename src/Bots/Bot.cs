@@ -510,7 +510,17 @@ namespace UB3RB0T
             return responseData;
         }
 
+        protected void TrackTimer(string eventName, double value, Dictionary<string, string> properties = null)
+        {
+            this.DogStats?.Timer(eventName, value, sampleRate: this.Config.Metrics.EventQueueSampleRate, tags: this.GetDogStatsTags(properties));
+        }
+
         protected void TrackEvent(string eventName, Dictionary<string, string> properties = null)
+        {
+            this.DogStats?.Increment(eventName, tags: this.GetDogStatsTags(properties));
+        }
+
+        private string[] GetDogStatsTags(Dictionary<string, string> properties)
         {
             // set common properties/tags
             if (properties == null)
@@ -538,7 +548,8 @@ namespace UB3RB0T
                 tags.Add($"{kvp.Key}:{kvp.Value}");
             }
 
-            this.DogStats?.Increment(eventName, tags: tags.ToArray());
+
+            return tags.ToArray();
         }
 
         private void StartWebListener()

@@ -7,6 +7,7 @@
     using Discord;
     using Discord.WebSocket;
 
+    [BotPermissions(GuildPermission.ManageRoles, "RequireManageRoles")]
     public class RolesCommand : IDiscordCommand
     {
         public async Task<CommandResponse> Process(IDiscordBotContext context)
@@ -19,7 +20,11 @@
                 {
                     var roles = context.GuildChannel.Guild.Roles.OrderByDescending(r => r.Position).Where(r => settings.SelfRoles.ContainsKey(r.Id));
                     var roleCount = roles.Count();
-                    if (roleCount > 0)
+                    if (roleCount > SlashCommandBuilder.MaxOptionsCount)
+                    {
+                        await slashCommand.RespondAsync($"Too many roles to display in a menu. Complain to management. Max is {SlashCommandBuilder.MaxOptionsCount}.", ephemeral: true);
+                    }
+                    else  if (roleCount > 0)
                     {
                         var menuBuilder = new SelectMenuBuilder()
                             .WithPlaceholder("Select a role")
@@ -60,7 +65,7 @@
 
                 foreach (var role in roles)
                 {
-                    if (sb.Length + role.Length + 2 < Discord.DiscordConfig.MaxMessageSize)
+                    if (sb.Length + role.Length + 2 < DiscordConfig.MaxMessageSize)
                     {
                         sb.Append($"{role}, ");
                     }

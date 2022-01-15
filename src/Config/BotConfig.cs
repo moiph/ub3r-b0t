@@ -55,6 +55,7 @@
 
         // Instrumentation key for application insights
         public string InstrumentationKey { get; set; }
+        public MetricsConfig Metrics { get; set; } = new MetricsConfig();
 
         public string CertStoreName { get; set; }
         public string CertThumbprint { get; set; }
@@ -73,6 +74,11 @@
         public Dictionary<ThrottleType, Throttle> Throttles { get; set; } = new Dictionary<ThrottleType, Throttle>();
 
         public AprilFoolsConfig AprilFools { get; set; } = new AprilFoolsConfig();
+    }
+
+    public class MetricsConfig
+    {
+        public double EventQueueSampleRate { get; set; } = 0.01;
     }
 
     public class AprilFoolsConfig
