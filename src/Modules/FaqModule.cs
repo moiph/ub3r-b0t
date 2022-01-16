@@ -20,6 +20,11 @@
             if (message != null && BotConfig.Instance.FaqEndpoints != null && BotConfig.Instance.FaqEndpoints.TryGetValue(message.Channel.Id, out var faq) &&
                 faq.Endpoint != null && (context.Reaction == faq.Reaction ||  messageCommand != null && messageCommand.CommandName.IEquals(faq.Command) || string.IsNullOrEmpty(context.Reaction) && !string.IsNullOrEmpty(faq.EndsWith) && message.Content.EndsWith(faq.EndsWith)))
             {
+                if (messageCommand != null)
+                {
+                    await messageCommand.DeferAsync();
+                }
+
                 await message.AddReactionAsync(new Emoji(faq.Reaction));
 
                 string content = message.Content.Replace("<@85614143951892480>", "ub3r-b0t");
@@ -39,7 +44,7 @@
 
                     if (messageCommand != null)
                     {
-                        await messageCommand.RespondAsync(string.Join("\n\n", responses));
+                        await messageCommand.FollowupAsync(string.Join("\n\n", responses));
                     }
                     else
                     { 
@@ -50,7 +55,7 @@
                 {
                     if (messageCommand != null)
                     {
-                        await messageCommand.RespondAsync("An error occurred while fetching data");
+                        await messageCommand.FollowupAsync("An error occurred while fetching data");
                     }
                     else
                     {
