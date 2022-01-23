@@ -1032,6 +1032,16 @@ namespace UB3RB0T
                     return;
                 }
 
+                if (!guildChannel.GetCurrentUserPermissions().ManageRoles)
+                {
+                    if (settings.DebugMode)
+                    {
+                        Log.Verbose($"[DBGM] [chan: {guildChannel.Id} | guild: {guildChannel.Guild.Id}] Role modification skipped due to missing permissions");
+                    }
+
+                    return;
+                }
+
                 // handle possible role adds/removes
                 IUserMessage reactionMessage = await message.GetOrDownloadAsync();
 
@@ -1046,7 +1056,7 @@ namespace UB3RB0T
                     roleChanged = await RoleCommand.AddRoleViaReaction(reactionMessage, reaction, reactionUser);
                 }
 
-                if (roleChanged && guildChannel.GetCurrentUserPermissions().AddReactions)
+                if (roleChanged && guildChannel.GetCurrentUserPermissions().ManageMessages)
                 {
                     await reactionMessage.RemoveReactionAsync(reaction.Emote, reactionUser);
                 }

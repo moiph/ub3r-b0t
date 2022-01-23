@@ -13,6 +13,7 @@ namespace UB3RB0T
     using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Linq;
+    using System.Reflection;
     using System.Security.Cryptography.X509Certificates;
     using System.Text.RegularExpressions;
     using System.Threading;
@@ -781,6 +782,7 @@ namespace UB3RB0T
                 this.AppInsights = new TelemetryClient(telemetryConfig);
                 this.AppInsights.Context.GlobalProperties.Add("Shard", this.Shard.ToString());
                 this.AppInsights.Context.GlobalProperties.Add("BotType", this.BotType.ToString());
+                this.AppInsights.Context.GlobalProperties.Add("Version", Assembly.GetEntryAssembly().GetName().Version.ToString());
             }
 
             var dogstatsdConfig = new StatsdConfig

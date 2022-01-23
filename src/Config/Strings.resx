@@ -118,7 +118,7 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <data name="RequireManageMessages" xml:space="preserve">
-    <value>yeah I don't have the permissions to delete messages, buttwad.</value>
+    <value>yeah I don't have the permissions to delete messages, buttwad. (I need the `Manage Messages` permission)</value>
   </data>
   <data name="RequireManageRoles" xml:space="preserve">
     <value>gee thanks asswad I can't manage roles in this server. not much I can do for ya here buddy. unless you wanna, y'know, up my permissions</value>
