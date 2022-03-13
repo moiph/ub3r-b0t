@@ -324,6 +324,7 @@ namespace UB3RB0T
 
                         if (!this.Throttler.IsThrottled(commandKey, ThrottleType.Repeat))
                         {
+                            Log.Debug($"Sending repeat response to message {messageData.MessageId} by {messageData.UserId} to {messageData.Channel} on guild {messageData.Server}");
                             await this.RespondAsync(messageData, messageData.Content);
                         }
                         else

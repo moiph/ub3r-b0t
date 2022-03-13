@@ -38,12 +38,12 @@
                 {
                     if (targetUser.Id == context.Client.CurrentUser.Id)
                     {
-                        return new CommandResponse { Text = $"I was last seen...wait...seriously? Ain't no one got time for your shit, {context.Message.Author.Username}." };
+                        return new CommandResponse { Text = string.Format(context.Settings.GetString("SeenCommandSelf"), context.Message.Author.Username) };
                     }
 
                     if (targetUser.Id == context.Message.Author.Id)
                     {
-                        return new CommandResponse { Text = $"You were last seen now, saying: ... god DAMN it {context.Message.Author.Username}, quit wasting my time" };
+                        return new CommandResponse { Text = string.Format(context.Settings.GetString("SeenCommandAuthor"), context.Message.Author.Username) };
                     }
 
                     // check local store

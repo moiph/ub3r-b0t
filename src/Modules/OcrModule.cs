@@ -37,20 +37,7 @@
 
                     if (imageUrl != null)
                     {
-                        if (context.Reaction == "🖼")
-                        {
-                            var analyzeData = await this.GetVisionData<AnalyzeImageData>(imageUrl);
-
-                            if (analyzeData != null)
-                            {
-                                var command = CommandsConfig.Instance.CommandPatterns.FirstOrDefault(c => analyzeData.Description.Tags.Contains(c.AnalysisTag));
-                                if (command != null)
-                                {
-                                    newMessageContent = $"{context.Settings.Prefix}{command.Replacement}";
-                                }
-                            }
-                        }
-                        else if (context.Reaction == "👁" || BotConfig.Instance.OcrAutoIds.Contains(message.Channel.Id))
+                        if (context.Reaction == "👁" || BotConfig.Instance.OcrAutoIds.Contains(message.Channel.Id))
                         {
                             Log.Information("Running OCR");
                             string ocrText = null;

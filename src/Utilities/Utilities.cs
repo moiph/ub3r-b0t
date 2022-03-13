@@ -209,7 +209,7 @@ namespace UB3RB0T
             query = string.Empty;
 
             string toMatch = timerMatch.Groups["target"].ToString().Trim();
-            string to = toMatch == "me" ? messageData.UserName : toMatch;
+            string to = toMatch.IEquals("me") ? messageData.UserName : toMatch;
             string req = to == messageData.UserName ? string.Empty : messageData.UserName;
             string durationStr = string.Empty;
             long duration = 0;
@@ -269,7 +269,7 @@ namespace UB3RB0T
             query = string.Empty;
 
             string toMatch = timerMatch.Groups["target"].ToString().Trim();
-            string to = toMatch == "me" ? messageData.UserName : toMatch;
+            string to = toMatch.IEquals("me") ? messageData.UserName : toMatch;
             string req = to == messageData.UserName ? string.Empty : messageData.UserName;
             string durationStr = string.Empty;
             long duration = 0;
@@ -396,6 +396,11 @@ namespace UB3RB0T
         public static ChannelPermissions GetCurrentUserPermissions(this ITextChannel channel)
         {
             return (channel as SocketGuildChannel)?.Guild?.CurrentUser?.GetPermissions(channel) ?? new ChannelPermissions();
+        }
+
+        public static GuildPermissions GetCurrentUserGuildPermissions(this ITextChannel channel)
+        {
+            return (channel as SocketGuildChannel)?.Guild?.CurrentUser?.GuildPermissions ?? new GuildPermissions();
         }
 
         public static async Task<IUserMessage> SendOwnerDMAsync(this IGuild guild, string message)

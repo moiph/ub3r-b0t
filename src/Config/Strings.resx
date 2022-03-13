@@ -141,4 +141,16 @@
   <data name="RequireUserManageMessages" xml:space="preserve">
     <value>you don't have permissions to clear messages, fartface</value>
   </data>
+  <data name="SeenCommandAuthor" xml:space="preserve">
+    <value>You were last seen now, saying: ... god DAMN it {0}, quit wasting my time</value>
+  </data>
+  <data name="SeenCommandAuthorNice" xml:space="preserve">
+    <value>You were last seen now, saying: ... gosh DARN it {0}, quit wasting my time</value>
+  </data>
+  <data name="SeenCommandSelf" xml:space="preserve">
+    <value>I was last seen...wait...seriously? Ain't no one got time for your shit, {0}.</value>
+  </data>
+  <data name="SeenCommandSelfNice" xml:space="preserve">
+    <value>I was last seen...wait...seriously? Ain't no one got time for your nonsense, {0}.</value>
+  </data>
 </root>

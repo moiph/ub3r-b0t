@@ -578,11 +578,8 @@ namespace UB3RB0T
                 return;
             }
 
-            // grab the settings for this server
-            var botGuildUser = (message.Channel as SocketGuildChannel)?.Guild.CurrentUser;
             var guildUser = message.Author as IGuildUser;
             var guildId = webhookUser?.GuildId ?? guildUser?.Guild.Id;
-            var settings = SettingsConfig.GetSettings(guildId?.ToString());
 
             // if it's a globally blocked server, ignore it unless it's the owner
             if (message.Author.Id != this.Config.Discord.OwnerId && guildId != null && this.Config.Discord.BlockedServers.Contains(guildId.Value) && !this.Config.OcrAutoIds.Contains(message.Channel.Id))
@@ -708,21 +705,13 @@ namespace UB3RB0T
                     {
                         foreach (var messageText in response.MultiText)
                         {
-                            var sentMessage = await this.RespondAsync(botContext, messageText, response.Embed, bypassEdit: true);
-                            if (botContext.Message != null && sentMessage != null)
-                            {
-                                this.botResponsesCache.Add(botContext.Message.Id, sentMessage);
-                            }
+                            await this.RespondAsync(botContext, messageText, response.Embed, bypassEdit: true);
                         }
                         commandHandled = true;
                     }
                     else if (!string.IsNullOrEmpty(response?.Text) || response?.Embed != null)
                     {
-                        var sentMessage = await this.RespondAsync(botContext, response.Text, response.Embed);
-                        if (botContext.Message != null && sentMessage != null)
-                        {
-                            this.botResponsesCache.Add(botContext.Message.Id, sentMessage);
-                        }
+                        await this.RespondAsync(botContext, response.Text, response.Embed);
                         commandHandled = true;
                     }
                     else if (response != null && response.IsHandled)
@@ -780,11 +769,7 @@ namespace UB3RB0T
                     }
                     else if (responseData.Embed != null)
                     {
-                        var sentMessage = await this.RespondAsync(botContext, string.Empty, responseData.Embed.CreateEmbedBuilder().Build(), bypassEdit: bypassEdit, rateLimitChecked: botContext.MessageData.RateLimitChecked, allowMentions: responseData.AllowMentions, ephemeral: responseData.Ephemeral);
-                        if (botContext.Message != null && sentMessage != null)
-                        {
-                            this.botResponsesCache.Add(botContext.Message.Id, sentMessage);
-                        }
+                        await this.RespondAsync(botContext, string.Empty, responseData.Embed.CreateEmbedBuilder().Build(), bypassEdit: bypassEdit, rateLimitChecked: botContext.MessageData.RateLimitChecked, allowMentions: responseData.AllowMentions, ephemeral: responseData.Ephemeral);
                         commandHandled = true;
                     }
                     else
@@ -794,11 +779,7 @@ namespace UB3RB0T
                             if (!string.IsNullOrWhiteSpace(response))
                             {
                                 // if sending a multi part message, skip the edit optimization.
-                                var sentMessage = await this.RespondAsync(botContext, response, embedResponse: null, bypassEdit: responseData.Responses.Count > 1 || bypassEdit, rateLimitChecked: botContext.MessageData.RateLimitChecked, allowMentions: responseData.AllowMentions, ephemeral: responseData.Ephemeral);
-                                if (botContext.Message != null && sentMessage != null)
-                                {
-                                    this.botResponsesCache.Add(botContext.Message.Id, sentMessage);
-                                }
+                                await this.RespondAsync(botContext, response, embedResponse: null, bypassEdit: responseData.Responses.Count > 1 || bypassEdit, rateLimitChecked: botContext.MessageData.RateLimitChecked, allowMentions: responseData.AllowMentions, ephemeral: responseData.Ephemeral);
                                 commandHandled = true;
                             }
                         }
@@ -839,11 +820,7 @@ namespace UB3RB0T
                 {
                     if (!string.IsNullOrEmpty(attr.FailureString))
                     {
-                        var sentMessage = await this.RespondAsync(context, context.Settings.GetString(attr.FailureString), ephemeral: true);
-                        if (context.Message != null && sentMessage != null)
-                        {
-                            this.botResponsesCache.Add(context.Message.Id, sentMessage);
-                        }
+                        await this.RespondAsync(context, context.Settings.GetString(attr.FailureString), ephemeral: true);
                     }
 
                     attributeChecksPassed = false;
@@ -929,7 +906,7 @@ namespace UB3RB0T
                         delText = "```Word Censor Triggered```";
                     }
 
-                    delText += $"**{message.Author.Mention} ({message.Author})** deleted in {textChannel.Mention}: {message.Content}";
+                    delText += $"**{message.Author.Mention} ({message.Author})** deleted message #{message.Id} in {textChannel.Mention}: {message.Content}";
 
                     // Include attachment URLs, if applicable
                     if (message.Attachments?.Count > 0)
@@ -970,12 +947,12 @@ namespace UB3RB0T
             string reactionEmote = reaction.Emote.Name;
 
             // if an Eye emoji was added, let's process it
-            if ((reactionEmote == "👁️" || reactionEmote == "🖼") &&
-                reaction.Message.IsSpecified &&
+            if (reactionEmote == "👁️" &&
+                reaction.Message.IsSpecified && 
                 (IsAuthorPatron(reaction.UserId) || BotConfig.Instance.OcrAutoIds.Contains(channel.Id)) &&
                 reaction.Message.Value.ParseImageUrl() != null)
             {
-                if (reaction.Message.Value.Reactions.Any(r => (r.Key.Name == "👁" || r.Key.Name == "🖼") && r.Value.ReactionCount > 1))
+                if (reaction.Message.Value.Reactions.Any(r => r.Key.Name == "👁" && r.Value.ReactionCount > 1))
                 {
                     return;
                 }
@@ -986,7 +963,7 @@ namespace UB3RB0T
                     return;
                 }
 
-                await this.HandleMessageReceivedAsync(reaction.Message.Value as IUserMessage, reactionEmote, reactionUser);
+                await this.HandleMessageReceivedAsync(reaction.Message.Value, reactionEmote, reactionUser);
             }
 
             var customEmote = reaction.Emote as Emote;
@@ -1032,7 +1009,7 @@ namespace UB3RB0T
                     return;
                 }
 
-                if (!guildChannel.GetCurrentUserPermissions().ManageRoles)
+                if (!guildChannel.GetCurrentUserGuildPermissions().ManageRoles)
                 {
                     if (settings.DebugMode)
                     {
@@ -1109,26 +1086,33 @@ namespace UB3RB0T
 
         protected override async Task RespondAsync(BotMessageData messageData, string response)
         {
+            if (!string.IsNullOrEmpty(messageData.Server))
+            {
+                Log.Debug($"Sending {messageData.Command} response to message {messageData.MessageId} by {messageData.UserId} in channel {messageData.Channel} on guild {messageData.Server}");
+            }
+
             await this.RespondAsync(messageData.DiscordMessageData, response, rateLimitChecked: messageData.RateLimitChecked);
         }
 
-        private async Task<IUserMessage> RespondAsync(IDiscordBotContext context, string response, Embed embedResponse = null, bool bypassEdit = false, bool rateLimitChecked = false, bool allowMentions = true, bool ephemeral = false)
+        private async Task RespondAsync(IDiscordBotContext context, string response, Embed embedResponse = null, bool bypassEdit = false, bool rateLimitChecked = false, bool allowMentions = true, bool ephemeral = false)
         {
+            if (!string.IsNullOrEmpty(context.MessageData.Server))
+            {
+                Log.Debug($"Sending {context.MessageData.Command} response to message {context.MessageData.MessageId} by {context.MessageData.UserId} in channel {context.MessageData.Channel} on guild {context.MessageData.Server}");
+            }
+
             if (context.Interaction != null)
             {
                 await context.Interaction.RespondAsync(response, embedResponse != null ? new Embed[] { embedResponse } : null, false, ephemeral, allowMentions ? null : AllowedMentions.None);
-                return null;
             }
 
             if (context.Message != null)
             {
-                return await RespondAsync(context.Message, response, embedResponse, bypassEdit, rateLimitChecked, allowMentions);
+                await RespondAsync(context.Message, response, embedResponse, bypassEdit, rateLimitChecked, allowMentions);
             }
-            
-            return null;
         }
 
-        private async Task<IUserMessage> RespondAsync(IUserMessage message, string response, Embed embedResponse = null, bool bypassEdit = false, bool rateLimitChecked = false, bool allowMentions = true)
+        private async Task RespondAsync(IUserMessage message, string response, Embed embedResponse = null, bool bypassEdit = false, bool rateLimitChecked = false, bool allowMentions = true)
         {
             var textChannel = message.Channel as ITextChannel;
             IGuild guild = textChannel?.Guild;
@@ -1168,12 +1152,14 @@ namespace UB3RB0T
                 {
                     // ignore unknown messages; likely deleted
                 }
-
-                return null;
             }
             else
             {
-                return await message.Channel.SendMessageAsync(response, false, embedResponse, allowedMentions: allowedMentions);
+                var sentMessage = await message.Channel.SendMessageAsync(response, false, embedResponse, allowedMentions: allowedMentions);
+                if (sentMessage != null)
+                {
+                    this.botResponsesCache.Add(message.Id, sentMessage);
+                }
             }
         }
     }

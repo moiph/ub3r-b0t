@@ -169,6 +169,8 @@ namespace UB3RB0T
                 return false;
             }
 
+            Log.Information($"Sending {notification.Type} notification to {notification.Channel} on guild {notification.Server}");
+
             string extraText = string.Empty;
             var channelToUse = this.Client.GetChannel(Convert.ToUInt64(notification.Channel)) as ITextChannel;
 

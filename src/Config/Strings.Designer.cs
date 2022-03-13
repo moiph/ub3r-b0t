@@ -61,7 +61,7 @@ namespace UB3RB0T.Config {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to yeah I don&apos;t have the permissions to delete messages, buttwad..
+        ///   Looks up a localized string similar to yeah I don&apos;t have the permissions to delete messages, buttwad. (I need the `Manage Messages` permission).
         /// </summary>
         internal static string RequireManageMessages {
             get {
@@ -129,6 +129,42 @@ namespace UB3RB0T.Config {
         internal static string RequireUserManageMessages {
             get {
                 return ResourceManager.GetString("RequireUserManageMessages", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to You were last seen now, saying: ... god DAMN it {0}, quit wasting my time.
+        /// </summary>
+        internal static string SeenCommandAuthor {
+            get {
+                return ResourceManager.GetString("SeenCommandAuthor", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to You were last seen now, saying: ... gosh DARN it {0}, quit wasting my time.
+        /// </summary>
+        internal static string SeenCommandAuthorNice {
+            get {
+                return ResourceManager.GetString("SeenCommandAuthorNice", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to I was last seen...wait...seriously? Ain&apos;t no one got time for your shit, {0}..
+        /// </summary>
+        internal static string SeenCommandSelf {
+            get {
+                return ResourceManager.GetString("SeenCommandSelf", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to I was last seen...wait...seriously? Ain&apos;t no one got time for your nonsense, {0}..
+        /// </summary>
+        internal static string SeenCommandSelfNice {
+            get {
+                return ResourceManager.GetString("SeenCommandSelfNice", resourceCulture);
             }
         }
     }
