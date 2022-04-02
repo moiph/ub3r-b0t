@@ -4,7 +4,9 @@
     using Microsoft.AspNetCore.Builder;
     using Microsoft.AspNetCore.Http;
     using Microsoft.AspNetCore.Hosting;
+    using Microsoft.Extensions.FileProviders;
     using Microsoft.Extensions.Logging;
+    using Microsoft.Extensions.Primitives;
     using System;
     using System.IO;
     using System.Linq;
@@ -117,6 +119,8 @@
 
         static Bot BotInstance;
         static LoggingLevelSwitch levelSwitch;
+        static PhysicalFileProvider fileProvider;
+        static IChangeToken changeToken;
 
         static int Main(string[] args)
         {
@@ -186,19 +190,8 @@
             Log.Logger = logConfiguration.CreateLogger();
 
             // setup a watcher for configs
-            var watcher = new FileSystemWatcher
-            {
-                Path = JsonConfig.ConfigRootPath,
-                NotifyFilter = NotifyFilters.LastWrite,
-                Filter = "*.json",
-            };
-
-            watcher.Changed += (source, e) =>
-            {
-                _ = ReloadConfigs();
-            };
-
-            watcher.EnableRaisingEvents = true;
+            fileProvider = new PhysicalFileProvider(JsonConfig.ConfigRootPath);
+            RegisterChangeCallback();
 
             Console.CancelKeyPress += Console_CancelKeyPress;
 
@@ -268,11 +261,24 @@
                 levelSwitch.MinimumLevel = BotConfig.Instance.LogEventLevel;
 
                 Log.Information("Configs reloaded.");
+
+                RegisterChangeCallback();
             }
             catch (IOException ex) // of course, never assume...
             {
                 Log.Error(ex, "Config reload failed");
             }
+        }
+
+        static void RegisterChangeCallback()
+        {
+            changeToken = fileProvider.Watch("*.json");
+            changeToken.RegisterChangeCallback(OnConfigChange, null);
+        }
+
+        static void OnConfigChange(object state)
+        {
+            _ = ReloadConfigs();
         }
     }
 }

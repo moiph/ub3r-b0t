@@ -793,20 +793,20 @@ namespace UB3RB0T
                 {
                     typingState?.Dispose();
                 }
+            }
 
-                if (commandHandled)
+            if (commandHandled)
+            {
+                foreach (var (module, typeInfo) in this.postProcessModules)
                 {
-                    foreach (var (module, typeInfo) in this.postProcessModules)
+                    var permissionChecksPassed = await this.CheckPermissions(botContext, typeInfo);
+                    if (!permissionChecksPassed)
                     {
-                        var permissionChecksPassed = await this.CheckPermissions(botContext, typeInfo);
-                        if (!permissionChecksPassed)
-                        {
-                            continue;
-                        }
-
-                        await module.Process(botContext);
+                        continue;
                     }
-                }    
+
+                    await module.Process(botContext);
+                }
             }
         }
 

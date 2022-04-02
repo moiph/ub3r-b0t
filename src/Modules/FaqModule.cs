@@ -8,6 +8,7 @@
     using Discord.WebSocket;
     using Flurl.Http;
     using Newtonsoft.Json;
+    using Serilog;
 
     [BotPermissions(ChannelPermission.SendMessages)]
     public class FaqModule : BaseDiscordModule
@@ -28,8 +29,17 @@
                 await message.AddReactionAsync(new Emoji(faq.Reaction));
 
                 string content = message.Content.Replace("<@85614143951892480>", "ub3r-b0t");
-                var result = await faq.Endpoint.ToString().WithHeader("Authorization", BotConfig.Instance.FaqKey).PostJsonAsync(new { question = content, top = 2 });
-                if (result.IsSuccessStatusCode())
+                IFlurlResponse result = null;
+                try
+                {
+                    result = await faq.Endpoint.ToString().WithHeader("Authorization", BotConfig.Instance.FaqKey).PostJsonAsync(new { question = content, top = 2 });
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "Failure in FAQ module");
+                }
+
+                if (result != null && result.IsSuccessStatusCode())
                 {
                     var response = await result.GetStringAsync();
                     var qnaData = JsonConvert.DeserializeObject<QnAMakerData>(response);
