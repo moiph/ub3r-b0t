@@ -34,6 +34,7 @@
         public Uri OcrEndpoint { get; set; }
         public Uri AnalyzeEndpoint { get; set; }
         public ulong[] OcrAutoIds { get; set; } = Array.Empty<ulong>();
+        public ulong[] OcrAutoRespondIds { get; set; } = Array.Empty<ulong>();
 
         public DiscordConfig Discord { get; set; }
         public Irc Irc { get; set; }

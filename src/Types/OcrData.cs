@@ -16,8 +16,11 @@ namespace UB3RB0T
         public string Status { get; set; }
 
         public string AuthorName { get; set; }
+        public ulong AuthorId { get; set; }
+        public ulong ChannelId { get; set; }
 
         public string CommandType { get; set; }
+        public string MessageText { get; set; }
 
         public string GetText()
         {
@@ -55,5 +58,6 @@ namespace UB3RB0T
     public class OcrProcessResponse
     {
         public string Response { get; set; }
+        public string AttachmentUrl { get; set; }
     }
 }

@@ -1,6 +1,7 @@
 ﻿namespace UB3RB0T.Modules
 {
     using System;
+    using System.IO;
     using System.Linq;
     using System.Threading.Tasks;
     using Discord;
@@ -39,6 +40,12 @@
                     {
                         if (context.Reaction == "👁" || BotConfig.Instance.OcrAutoIds.Contains(message.Channel.Id))
                         {
+                            IUserMessage sentMessage = null;
+                            if (BotConfig.Instance.OcrAutoRespondIds.Contains(message.Channel.Id))
+                            {
+                                sentMessage = await message.Channel.SendMessageAsync("Processing...");
+                            }
+
                             Log.Information("Running OCR");
                             string ocrText = null;
 
@@ -72,12 +79,15 @@
                                 {
                                     // Run some external processing and prioritize that over replacing existing content
                                     textData.AuthorName = message.Author.Username;
+                                    textData.AuthorId = message.Author.Id;
+                                    textData.ChannelId = message.Channel.Id;
                                     textData.CommandType = context.Reaction ?? "auto";
+                                    textData.MessageText = message.Content;
      
                                     var response = await new Uri($"{BotConfig.Instance.ApiEndpoint}/ocr").PostJsonAsync(textData);
                                     var ocrProcessResponse = JsonConvert.DeserializeObject<OcrProcessResponse>(await response.GetStringAsync());
 
-                                    if (ocrProcessResponse.Response != null)
+                                    if (!string.IsNullOrEmpty(ocrProcessResponse.Response))
                                     {
                                         if (context.Reaction == "👁")
                                         {
@@ -85,7 +95,26 @@
                                         }
 
                                         // clear out the processed OCR text and use the API response
-                                        await message.Channel.SendMessageAsync(ocrProcessResponse.Response);
+                                        if (Uri.TryCreate(ocrProcessResponse.AttachmentUrl, UriKind.Absolute, out var attachmentUri))
+                                        {
+                                            Stream fileStream = await attachmentUri.GetStreamAsync();
+                                            if (sentMessage != null)
+                                            {
+                                                _ = sentMessage.DeleteAsync();
+                                            }
+                                            await message.Channel.SendFileAsync(fileStream, "stash.txt", ocrProcessResponse.Response);
+                                        }
+                                        else
+                                        {
+                                            if (sentMessage != null)
+                                            {
+                                                await sentMessage.ModifyAsync(m => m.Content = ocrProcessResponse.Response);
+                                            }
+                                            else
+                                            {
+                                                await message.Channel.SendMessageAsync(ocrProcessResponse.Response);
+                                            }
+                                        }
                                         ocrText = null;
                                     }
                                 }

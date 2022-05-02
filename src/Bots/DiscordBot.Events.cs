@@ -757,11 +757,11 @@ namespace UB3RB0T
 
                         if (botContext.Interaction != null)
                         {
-                            await botContext.Interaction.RespondWithFileAsync(fileStream, fileName, null, null, false, responseData.Ephemeral, null, null, null, null);
+                            await botContext.Interaction.RespondWithFileAsync(fileStream, fileName, responseData.Responses?.FirstOrDefault(), null, false, responseData.Ephemeral, null, null, null, null);
                         }
                         else
                         {
-                            var sentMessage = await botContext.Channel.SendFileAsync(fileStream, fileName);
+                            var sentMessage = await botContext.Channel.SendFileAsync(fileStream, fileName, responseData.Responses?.FirstOrDefault());
                             this.botResponsesCache.Add(botContext.Message.Id, sentMessage);
                         }
 
@@ -1105,8 +1105,7 @@ namespace UB3RB0T
             {
                 await context.Interaction.RespondAsync(response, embedResponse != null ? new Embed[] { embedResponse } : null, false, ephemeral, allowMentions ? null : AllowedMentions.None);
             }
-
-            if (context.Message != null)
+            else if (context.Message != null)
             {
                 await RespondAsync(context.Message, response, embedResponse, bypassEdit, rateLimitChecked, allowMentions);
             }
