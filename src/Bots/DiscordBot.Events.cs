@@ -23,7 +23,7 @@ namespace UB3RB0T
             typeof(GatewayReconnectException)
         };
 
-        private readonly MessageCache botResponsesCache = new MessageCache();
+        private readonly MessageCache<ulong> botResponsesCache = new MessageCache<ulong>();
         private bool isReady;
 
         /// <summary>
@@ -696,7 +696,7 @@ namespace UB3RB0T
                             var sentMessage = await botContext.Channel.SendFileAsync(response.Attachment.Stream, response.Attachment.Name, response.Text);
                             if (botContext.Message != null)
                             {
-                                this.botResponsesCache.Add(botContext.Message.Id, sentMessage);
+                                this.botResponsesCache.Add(botContext.Message.Id, sentMessage.Id);
                             }
                         }
                         commandHandled = true;
@@ -762,7 +762,7 @@ namespace UB3RB0T
                         else
                         {
                             var sentMessage = await botContext.Channel.SendFileAsync(fileStream, fileName, responseData.Responses?.FirstOrDefault());
-                            this.botResponsesCache.Add(botContext.Message.Id, sentMessage);
+                            this.botResponsesCache.Add(botContext.Message.Id, sentMessage.Id);
                         }
 
                         commandHandled = true;
@@ -1157,7 +1157,7 @@ namespace UB3RB0T
                 var sentMessage = await message.Channel.SendMessageAsync(response, false, embedResponse, allowedMentions: allowedMentions);
                 if (sentMessage != null)
                 {
-                    this.botResponsesCache.Add(message.Id, sentMessage);
+                    this.botResponsesCache.Add(message.Id, sentMessage.Id);
                 }
             }
         }

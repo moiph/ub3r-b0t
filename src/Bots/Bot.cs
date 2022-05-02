@@ -63,7 +63,20 @@ namespace UB3RB0T
             this.TotalShards = totalShards;
             if (!string.IsNullOrEmpty(this.Config.QueueNamePrefix))
             {
-                var suffix = this.BotType == BotType.Irc ? "irc" : $"{shard}";
+                var suffix = "";
+                switch (this.BotType)
+                {
+                    case BotType.Irc:
+                        suffix = "irc";
+                        break;
+                    case BotType.Discord:
+                        suffix = $"{shard}";
+                        break;
+                    case BotType.Guilded:
+                        suffix = "guilded";
+                        break;
+                }
+
                 this.queueName = $"{this.Config.QueueNamePrefix}{suffix}";
             }
 
@@ -99,6 +112,10 @@ namespace UB3RB0T
 
                 case BotType.Discord:
                     bot = new DiscordBot(shard, totalShards);
+                    break;
+
+                case BotType.Guilded:
+                    bot = new GuildedBot(shard, totalShards);
                     break;
 
                 default:

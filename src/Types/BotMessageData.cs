@@ -4,6 +4,7 @@
     using System.Linq;
     using Discord;
     using Discord.WebSocket;
+    using Guilded.Base.Content;
     using Newtonsoft.Json;
     using UB3RIRC;
 
@@ -20,6 +21,8 @@
         public SocketInteraction DiscordInteraction { get; private set; }
         [JsonIgnore]
         public MessageData IrcMessageData { get; private set; }
+        [JsonIgnore]
+        public Message GuildedMessageData { get; private set; }
 
         public string UserName { get; set; }
         public string UserId { get; set; }
@@ -76,6 +79,16 @@
                 return false;
             }
 
+            if (this.BotType == BotType.Guilded)
+            {
+                if (string.IsNullOrEmpty(this.Content) && this.Content.IContains(botName))
+                {
+                    return true;
+                }
+
+                return false;
+            }
+
             return this.IrcMessageData.Text.Contains(botName);
         }
 
@@ -89,6 +102,23 @@
                 Channel = ircMessageData.Target,
                 Server = ircClient.Host,
                 Content = ircMessageData.Text,
+                Prefix = serverSettings.Prefix,
+            };
+        }
+
+        public static BotMessageData Create(Message message, Settings serverSettings)
+        {
+            return new BotMessageData(BotType.Guilded)
+            {
+                GuildedMessageData = message,
+                UserName = message.CreatedBy.ToString(),
+                UserHost = message.CreatedBy.ToString(),
+                UserId = message.CreatedBy.ToString(),
+                Channel = message.ChannelId.ToString(),
+                Server = message.ServerId.ToString(),
+                MessageId = message.Id.ToString(),
+                Content = message.Content,
+                Format = serverSettings.PreferEmbeds ? "embed" : string.Empty,
                 Prefix = serverSettings.Prefix,
             };
         }

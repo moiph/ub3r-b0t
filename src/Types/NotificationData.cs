@@ -29,6 +29,8 @@
         public string Id { get; set; }
         public string Channel { get; set; }
         public string Server { get; set; }
+        public string MessageId { get; set; }
+        public string UserId { get; set; }
         public NotificationType Type { get; set; } = NotificationType.Generic;
         public SubType SubType { get; set; }
         public string Text { get; set; }

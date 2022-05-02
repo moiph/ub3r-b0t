@@ -5,40 +5,32 @@
     using System.Collections.Concurrent;
 
     // Based on https://github.com/RogueException/Discord.Net/blob/dev/src/Discord.Net.WebSocket/Entities/Messages/MessageCache.cs
-    internal class MessageCache
+    internal class MessageCache<T>
     {
         private const int PROCESSOR_COUNT_REFRESH_INTERVAL_MS = 30000;
         private static volatile int s_processorCount;
         private static volatile int s_lastProcessorCountRefreshTicks;
 
-        private readonly ConcurrentDictionary<ulong, ulong> _messages;
-        private readonly ConcurrentQueue<ulong> _orderedMessages;
+        private readonly ConcurrentDictionary<T, T> _messages;
+        private readonly ConcurrentQueue<T> _orderedMessages;
         private readonly int _size;
 
         public MessageCache()
         {
             _size = 1000;
-            _messages = new ConcurrentDictionary<ulong, ulong>(DefaultConcurrencyLevel, (int)(_size * 1.05));
-            _orderedMessages = new ConcurrentQueue<ulong>();
+            _messages = new ConcurrentDictionary<T, T>(DefaultConcurrencyLevel, (int)(_size * 1.05));
+            _orderedMessages = new ConcurrentQueue<T>();
         }
 
-        public void Add(ulong id, IMessage message)
+        public void Add(T id, T message)
         {
             if (message != null)
-            {
-                this.Add(id, message.Id);
-            }
-        }
-
-        public void Add(ulong id, ulong message)
-        {
-            if (message != 0)
             {
                 if (_messages.TryAdd(id, message))
                 {
                     _orderedMessages.Enqueue(id);
 
-                    while (_orderedMessages.Count > _size && _orderedMessages.TryDequeue(out ulong msgId))
+                    while (_orderedMessages.Count > _size && _orderedMessages.TryDequeue(out T msgId))
                     {
                         _messages.TryRemove(msgId, out _);
                     }
@@ -46,12 +38,12 @@
             }
         }
 
-        public ulong Get(ulong id)
+        public T Get(T id)
         {
-            return _messages.ContainsKey(id) ? _messages[id] : 0;
+            return _messages.ContainsKey(id) ? _messages[id] : default(T);
         }
 
-        public ulong Remove(ulong id)
+        public T Remove(T id)
         {
             _messages.TryRemove(id, out var msg);
             return msg;
