@@ -51,7 +51,7 @@ namespace UB3RB0T
                 {
                     FunResponsesEnabled = true,
                     AutoTitlesEnabled = true,
-                    PreferEmbeds = false,
+                    PreferEmbeds = true,
                 };
 
                 var messageData = BotMessageData.Create(messageEvent.Message, settings);
@@ -192,7 +192,7 @@ namespace UB3RB0T
                 Message sentMessage;
                 if (embed != null)
                 {
-                    sentMessage = await message.ReplyAsync(text, isPrivate: false, isSilent: false, embed);
+                    sentMessage = await message.ReplyAsync(isPrivate: false, isSilent: false, embed);
                 }
                 else
                 {

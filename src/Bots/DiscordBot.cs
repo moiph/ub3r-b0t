@@ -217,6 +217,11 @@ namespace UB3RB0T
             {
                 var customText = settings.NotificationText.FirstOrDefault(n => n.Type == notification.Type)?.Text;
                 var allowedMentions = notification.AllowMentions ? null : AllowedMentions.None;
+                MessageReference messageReference = null;
+                if (!string.IsNullOrEmpty(notification.MessageId) && ulong.TryParse(notification.MessageId, out var messageId))
+                {
+                    messageReference = new MessageReference(messageId);
+                }
 
                 if (notification.Embed != null && settings.HasFlag(notification.Type))
                 {
@@ -224,19 +229,19 @@ namespace UB3RB0T
                     if (notification.Type == NotificationType.Twitter)
                     {
                         var messageText = $"{notification.Embed.Title} {notification.Embed.Url} {customText}{extraText}".Trim();
-                        await channelToUse.SendMessageAsync(messageText, allowedMentions: allowedMentions);
+                        await channelToUse.SendMessageAsync(messageText, allowedMentions: allowedMentions, messageReference: messageReference);
                     }
                     else
                     {
                         var messageText = string.IsNullOrEmpty(notification.Embed.Url) ? string.Empty : $"<{notification.Embed.Url}>";
                         messageText += $" {customText}{extraText}".TrimEnd();
-                        await channelToUse.SendMessageAsync(messageText, false, notification.Embed.CreateEmbedBuilder().Build(), allowedMentions: allowedMentions);
+                        await channelToUse.SendMessageAsync(messageText, false, notification.Embed.CreateEmbedBuilder().Build(), allowedMentions: allowedMentions, messageReference: messageReference);
                     }
                 }
                 else
                 {
                     var messageText = $"{notification.Text} {customText}{extraText}".TrimEnd();
-                    var sentMesage = await channelToUse.SendMessageAsync(messageText.SubstringUpTo(Discord.DiscordConfig.MaxMessageSize), allowedMentions: allowedMentions);
+                    var sentMesage = await channelToUse.SendMessageAsync(messageText.SubstringUpTo(Discord.DiscordConfig.MaxMessageSize), allowedMentions: allowedMentions, messageReference: messageReference);
 
                     // update feedback messages to include the message ID
                     if (notification.Type == NotificationType.Feedback && notification.SubType != SubType.Reply)
