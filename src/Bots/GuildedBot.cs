@@ -150,7 +150,14 @@ namespace UB3RB0T
             Message originalMessage = null;
             if (!string.IsNullOrEmpty(notification.MessageId))
             {
-                originalMessage = await this.client.GetMessageAsync(Guid.Parse(notification.Channel), Guid.Parse(notification.MessageId));
+                try
+                {
+                    originalMessage = await this.client.GetMessageAsync(Guid.Parse(notification.Channel), Guid.Parse(notification.MessageId));
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "Failed to fetch notification base message");
+                }
             }
 
             if (originalMessage != null)

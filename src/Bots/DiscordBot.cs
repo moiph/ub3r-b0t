@@ -216,11 +216,14 @@ namespace UB3RB0T
             try
             {
                 var customText = settings.NotificationText.FirstOrDefault(n => n.Type == notification.Type)?.Text;
-                var allowedMentions = notification.AllowMentions ? null : AllowedMentions.None;
+                var allowedMentions = notification.AllowMentions ?
+                    new AllowedMentions { MentionRepliedUser = false, AllowedTypes = AllowedMentionTypes.Roles | AllowedMentionTypes.Users | AllowedMentionTypes.Everyone } :
+                    AllowedMentions.None;
+
                 MessageReference messageReference = null;
                 if (!string.IsNullOrEmpty(notification.MessageId) && ulong.TryParse(notification.MessageId, out var messageId))
                 {
-                    messageReference = new MessageReference(messageId);
+                    messageReference = new MessageReference(messageId, failIfNotExists: false);
                 }
 
                 if (notification.Embed != null && settings.HasFlag(notification.Type))
