@@ -15,9 +15,9 @@
     <UpdateAssemblyFileVersion>False</UpdateAssemblyFileVersion>
     <UpdateAssemblyInfoVersion>False</UpdateAssemblyInfoVersion>
     <AssemblyVersionSettings>IncrementOnDemand.IncrementOnDemand.DateStamp.Increment</AssemblyVersionSettings>
-    <Version>4.6.0</Version>
-    <AssemblyVersion>4.7.2205.7</AssemblyVersion>
-    <FileVersion>4.7.2205.7</FileVersion>
+    <Version>4.7.0</Version>
+    <AssemblyVersion>4.7.2206.0</AssemblyVersion>
+    <FileVersion>4.7.2206.0</FileVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <DebugType>pdbonly</DebugType>
@@ -47,10 +47,10 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Azure.Messaging.ServiceBus" Version="7.7.0" />
-    <PackageReference Include="Discord.Net.WebSocket" Version="3.7.1" />
+    <PackageReference Include="Discord.Net.WebSocket" Version="3.7.2" />
     <PackageReference Include="DogStatsD-CSharp-Client" Version="7.0.0" />
     <PackageReference Include="Flurl.Http" Version="3.2.2" />
-    <PackageReference Include="Guilded" Version="0.8.0" />
+    <PackageReference Include="Guilded" Version="0.8.1" />
     <PackageReference Include="Microsoft.ApplicationInsights" Version="2.20.0" />
     <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel" Version="2.2.0" />
     <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel.Https" Version="2.2.0" />
