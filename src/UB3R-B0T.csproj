@@ -50,7 +50,7 @@
     <PackageReference Include="Discord.Net.WebSocket" Version="3.7.2" />
     <PackageReference Include="DogStatsD-CSharp-Client" Version="7.0.0" />
     <PackageReference Include="Flurl.Http" Version="3.2.2" />
-    <PackageReference Include="Guilded" Version="0.8.1" />
+    <PackageReference Include="Guilded" Version="0.8.6" />
     <PackageReference Include="Microsoft.ApplicationInsights" Version="2.20.0" />
     <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel" Version="2.2.0" />
     <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel.Https" Version="2.2.0" />

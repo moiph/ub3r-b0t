@@ -221,7 +221,7 @@ namespace UB3RB0T
                     AllowedMentions.None;
 
                 MessageReference messageReference = null;
-                if (!string.IsNullOrEmpty(notification.MessageId) && ulong.TryParse(notification.MessageId, out var messageId))
+                if (channelToUse.GetCurrentUserPermissions().ReadMessageHistory && !string.IsNullOrEmpty(notification.MessageId) && ulong.TryParse(notification.MessageId, out var messageId))
                 {
                     messageReference = new MessageReference(messageId, failIfNotExists: false);
                 }
