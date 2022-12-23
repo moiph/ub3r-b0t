@@ -21,9 +21,16 @@
             if (message != null && BotConfig.Instance.FaqEndpoints != null && BotConfig.Instance.FaqEndpoints.TryGetValue(message.Channel.Id, out var faq) &&
                 faq.Endpoint != null && (context.Reaction == faq.Reaction ||  messageCommand != null && messageCommand.CommandName.IEquals(faq.Command) || string.IsNullOrEmpty(context.Reaction) && !string.IsNullOrEmpty(faq.EndsWith) && message.Content.EndsWith(faq.EndsWith)))
             {
+                SocketThreadChannel thread = null;
                 if (messageCommand != null)
                 {
                     await messageCommand.DeferAsync();
+                }
+                else if (BotConfig.Instance.FaqThreadNames?.Length > 0 && faq.Type == "bot")
+                {
+                    var threadname = BotConfig.Instance.FaqThreadNames.Random();
+                    thread = await (message.Channel as SocketTextChannel).CreateThreadAsync($"{threadname} question from {message.Author} ", message: message);
+                    await thread.SendMessageAsync("Someone will be with you shortly. Or longly. There's no real SLA here. Sorry. I'll try to figure out an automated answer for you but my brains are only as big as my ego. Which is huge. Also if someone helps you in here, please react to their helpful message with a 🏅 emoji. It'll give them warm fuzzies.");
                 }
 
                 await message.AddReactionAsync(new Emoji(faq.Reaction));
@@ -52,13 +59,21 @@
                         responses.Add($"{answerText} ({score}% match)");
                     }
 
+                    var messageResponse = string.Join("\n\n", responses);
                     if (messageCommand != null)
                     {
-                        await messageCommand.FollowupAsync(string.Join("\n\n", responses));
+                        await messageCommand.FollowupAsync(messageResponse);
                     }
                     else
-                    { 
-                        await message.Channel.SendMessageAsync(string.Join("\n\n", responses));
+                    {
+                        if (thread != null)
+                        {
+                            await thread.SendMessageAsync(messageResponse);
+                        }
+                        else
+                        {
+                            await message.Channel.SendMessageAsync(messageResponse);
+                        }
                     }
                 }
                 else

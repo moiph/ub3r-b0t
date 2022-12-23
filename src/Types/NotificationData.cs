@@ -22,6 +22,7 @@
         SettingsUpdate,
         Shutdown,
         Reply,
+        Restart,
     }
 
     public class NotificationData

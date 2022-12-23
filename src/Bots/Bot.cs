@@ -217,6 +217,10 @@ namespace UB3RB0T
                         case SubType.SettingsUpdate:
                             await this.UpdateSettingsAsync();
                             break;
+                        case SubType.Restart:
+                            Log.Information("Restart notification received");
+                            this.exitCode = (int)ExitCode.ConnectionRestart;
+                            break;
                         case SubType.Shutdown:
                             Log.Information("Shutdown notification received");
                             this.exitCode = (int)ExitCode.ExpectedShutdown;

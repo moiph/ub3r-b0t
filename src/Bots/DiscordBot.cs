@@ -106,13 +106,19 @@ namespace UB3RB0T
             this.Client.MessageCommandExecuted += (SocketMessageCommand command) => this.HandleEvent(DiscordEventType.MessageCommand, command);
             this.Client.SelectMenuExecuted += (SocketMessageComponent component) => this.HandleEvent(DiscordEventType.MessageComponent, component);
 
-
             this.discordCommands = new Dictionary<string, IDiscordCommand>(StringComparer.OrdinalIgnoreCase);
             foreach (var (command, type) in this.Config.Discord.CommandTypes)
             {
-                var commandType = Type.GetType(type);
-                var instance = Activator.CreateInstance(commandType) as IDiscordCommand;
-                this.discordCommands.Add(command, instance);
+                try
+                {
+                    var commandType = Type.GetType(type);
+                    var instance = Activator.CreateInstance(commandType) as IDiscordCommand;
+                    this.discordCommands.Add(command, instance);
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, $"Failed to add command module {command}: {type}");
+                }
             }
 
             await this.Client.LoginAsync(TokenType.Bot, this.Config.Discord.Token);

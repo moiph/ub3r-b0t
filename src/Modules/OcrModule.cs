@@ -32,6 +32,12 @@
                     newMessageContent = $"{context.Settings.Prefix}quote add \"{quote}\" - userid:{message.Author.Id} {message.Author.Username}";
                     await message.AddReactionAsync(new Emoji("💬"));
                 }
+                else if (context.Reaction == "🏅")
+                {
+                    newMessageContent = $"{context.Settings.Prefix}rep add {message.Author.Id}";
+                    context.MessageData.UserId = context.ReactionUser.Id.ToString();
+                    context.MessageData.TargetUserId = message.Author.Id.ToString();
+                }
                 else if (string.IsNullOrEmpty(message.Content) || BotConfig.Instance.OcrAutoIds.Contains(message.Channel.Id))
                 {
                     var imageUrl = context.SocketMessage?.ParseImageUrl();

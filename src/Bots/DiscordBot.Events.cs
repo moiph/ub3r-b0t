@@ -1038,6 +1038,22 @@ namespace UB3RB0T
                     await reactionMessage.RemoveReactionAsync(reaction.Emote, reactionUser);
                 }
             }
+            else if (reactionEmote == "🏅" && !settings.IsCommandDisabled(CommandsConfig.Instance, "rep"))
+            {
+                IUserMessage reactionMessage = await message.GetOrDownloadAsync();
+                if (reactionMessage.Author.IsBot || reactionMessage.Author.IsWebhook)
+                {
+                    return;
+                }
+
+                var reactionUser = await reaction.GetOrDownloadUserAsync() as IGuildUser;
+                if (reactionUser == null || reactionUser.IsBot)
+                {
+                    return;
+                }
+
+                await this.HandleMessageReceivedAsync(reactionMessage, reactionEmote, reactionUser);
+            }
         }
 
         private async Task HandleUserCommand(SocketCommandBase command)

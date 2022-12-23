@@ -29,6 +29,7 @@
 
         public Dictionary<ulong, Faq> FaqEndpoints { get; set; }
         public string FaqKey { get; set; }
+        public string[] FaqThreadNames { get; set; }
 
         public string VisionKey { get; set; }
         public Uri OcrEndpoint { get; set; }
@@ -185,6 +186,7 @@
         public string Reaction { get; set; }
         public string EndsWith { get; set; }
         public string Command { get; set; }
+        public string Type { get; set; }
     }
 
     public class Irc
