@@ -90,6 +90,8 @@
         public string Command { get; set; }
         public string Response { get; set; }
         public bool IsExactMatch { get; set; }
+        public bool IsRegex { get; set; }
+        public Regex RegexCommand { get; set; }
     }
 
     public class NotificationText
@@ -120,6 +122,9 @@
 
         public HashSet<string> DisabledCommands { get; set; } = new HashSet<string>();
         public List<CustomCommand> CustomCommands = new List<CustomCommand>();
+        public List<CustomCommand> RegexCustomCommands = new List<CustomCommand>();
+        private bool regexCustomCommandsInitialized = false;
+
         public string Prefix { get; set; } = ".";
 
         public bool Mod_ImgLimit { get; set; }
@@ -172,6 +177,68 @@
         public string GetString(string stringName)
         {
             return (this.SasshatEnabled ? StringHelper.GetString($"{stringName}Nice") : null) ?? StringHelper.GetString(stringName);
+        }
+
+        public string TryCustomCommand(string text)
+        {
+            string response = null;
+            if (!this.regexCustomCommandsInitialized)
+            {
+                this.regexCustomCommandsInitialized = true;
+                this.RegexCustomCommands = this.CustomCommands.Where(c => c.IsRegex).Select(c =>
+                {
+                    try
+                    {
+                        
+                        c.RegexCommand = new Regex(c.Command, RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(100));
+                        return c;
+                    }
+                    catch (ArgumentException)
+                    {
+                        // TODO: Handle logging to alert the server owner
+                        Log.Warning("Custom command failure on guild {{Guild}} for {{Regex}}", this.Id, c);
+                    }
+
+                    return null;
+                }).ToList();
+            }
+
+            if (this.RegexCustomCommands.Count > 0)
+            {
+                var matchingCommand = this.RegexCustomCommands.FirstOrDefault(r =>
+                {
+                    try
+                    {
+                        return r != null && r.RegexCommand.IsMatch(text);
+                    }
+                    catch (RegexMatchTimeoutException)
+                    {
+                        // TODO: Handle logging to alert server owner
+                        Log.Warning("Censor regex timeout on guild {{Guild}} for {{Regex}}", this.Id, r);
+                    }
+
+                    return false;
+                });
+
+                if (matchingCommand != null)
+                {
+                    if (matchingCommand.Response.Contains("$1"))
+                    {
+                        response = matchingCommand.RegexCommand.Replace(text, matchingCommand.Response);
+                    }
+                    else
+                    {
+                        response = matchingCommand.Response;
+                    }
+                }
+            }
+
+            if (response == null && this.CustomCommands.Count > 0)
+            {
+                response = this.CustomCommands.FirstOrDefault(c => c.IsExactMatch && c.Command == text || !c.IsExactMatch && text.IContains(c.Command))?.Response;
+            }
+
+            return response;
         }
 
         public bool TriggersCensor(string text, out string offendingWord)

@@ -79,7 +79,8 @@ namespace UB3RB0T
                     GatewayIntents.GuildVoiceStates |
                     GatewayIntents.GuildMessages |
                     GatewayIntents.GuildMessageReactions |
-                    GatewayIntents.DirectMessages
+                    GatewayIntents.DirectMessages |
+                    GatewayIntents.MessageContent
             });
 
             this.Client.Ready += Client_Ready;

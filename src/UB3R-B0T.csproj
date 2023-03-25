@@ -16,8 +16,8 @@
     <UpdateAssemblyInfoVersion>False</UpdateAssemblyInfoVersion>
     <AssemblyVersionSettings>IncrementOnDemand.IncrementOnDemand.DateStamp.Increment</AssemblyVersionSettings>
     <Version>4.7.0</Version>
-    <AssemblyVersion>4.7.2208.2</AssemblyVersion>
-    <FileVersion>4.7.2208.2</FileVersion>
+    <AssemblyVersion>4.7.2303.0</AssemblyVersion>
+    <FileVersion>4.7.2303.0</FileVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <DebugType>pdbonly</DebugType>
@@ -47,7 +47,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Azure.Messaging.ServiceBus" Version="7.7.0" />
-    <PackageReference Include="Discord.Net.WebSocket" Version="3.7.2" />
+    <PackageReference Include="Discord.Net.WebSocket" Version="3.9.0-build-20230302.10" />
     <PackageReference Include="DogStatsD-CSharp-Client" Version="7.0.0" />
     <PackageReference Include="Flurl.Http" Version="3.2.2" />
     <PackageReference Include="Guilded" Version="0.8.6" />

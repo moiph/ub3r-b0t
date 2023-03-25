@@ -517,9 +517,9 @@ namespace UB3RB0T
                     }
                 }
 
-                if (response == null)
+                if (response == null && settings.CustomCommands.Count > 0)
                 {
-                    response = settings.CustomCommands.FirstOrDefault(c => c.IsExactMatch && c.Command == messageData.Content || !c.IsExactMatch && messageData.Content.IContains(c.Command))?.Response;
+                    response = settings.TryCustomCommand(messageData.Content);
                 }
 
                 if (response != null)
