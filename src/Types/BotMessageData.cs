@@ -56,6 +56,7 @@
         }
         public string Format { get; set; }
         public bool Sasshat { get; set; }
+        public bool AfEnabled { get; set; }
         public bool RateLimitChecked { get; set; }
 
         public BotMessageData(BotType botType)
@@ -120,6 +121,7 @@
                 MessageId = message.Id.ToString(),
                 Content = message.Content,
                 Format = serverSettings.PreferEmbeds ? "embed" : string.Empty,
+                AfEnabled = serverSettings.AprilFoolsEnabled,
                 Sasshat = serverSettings.SasshatEnabled,
                 Prefix = serverSettings.Prefix,
             };
@@ -140,6 +142,7 @@
                 MessageId = message.Id.ToString(),
                 Content = message.Content,
                 Format = preferEmbeds ? "embed" : string.Empty,
+                AfEnabled = serverSettings.AprilFoolsEnabled,
                 Sasshat = serverSettings.SasshatEnabled,
                 Prefix = serverSettings.Prefix,
             };
@@ -167,6 +170,7 @@
                 Server = (interaction.Channel as IGuildChannel)?.GuildId.ToString() ?? "private",
                 MessageId = message?.Id.ToString(),
                 Format = preferEmbeds ? "embed" : string.Empty,
+                AfEnabled = serverSettings.AprilFoolsEnabled,
                 Sasshat = serverSettings.SasshatEnabled,
                 Content = message?.Content ?? serverSettings.Prefix + ((interaction as SocketCommandBase)?.CommandName ?? (interaction as SocketMessageComponent)?.Data.CustomId),
                 Prefix = serverSettings.Prefix,
