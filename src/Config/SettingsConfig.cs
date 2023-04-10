@@ -140,6 +140,8 @@
         public bool FunResponsesEnabled { get; set; }
         [JsonProperty("FunChance")]
         public int FunResponseChance { get; set; } = 100;
+        [JsonProperty("UwuChance")]
+        public int UwuResponseChance { get; set; } = 0;
         public int RepeatCount { get; set; } = 3;
         [JsonProperty("Af")]
         public bool AprilFoolsEnabled { get; set; }
