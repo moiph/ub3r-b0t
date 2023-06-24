@@ -1,11 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Reactive.Linq;
 using System.Threading.Tasks;
 using Guilded;
 using Guilded.Base;
-using Guilded.Base.Content;
 using Guilded.Base.Embeds;
-using Guilded.Base.Events;
+using Guilded.Content;
+using Guilded.Events;
 using Serilog;
 
 namespace UB3RB0T
@@ -199,7 +200,8 @@ namespace UB3RB0T
                 Message sentMessage;
                 if (embed != null)
                 {
-                    sentMessage = await message.ReplyAsync(isPrivate: false, isSilent: false, embed);
+                    var embeds = new List<Embed>{ embed };
+                    sentMessage = await message.ReplyAsync(embeds: embeds, isSilent: false);
                 }
                 else
                 {

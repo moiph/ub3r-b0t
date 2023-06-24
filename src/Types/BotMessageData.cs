@@ -4,7 +4,7 @@
     using System.Linq;
     using Discord;
     using Discord.WebSocket;
-    using Guilded.Base.Content;
+    using Guilded.Content;
     using Newtonsoft.Json;
     using UB3RIRC;
 
