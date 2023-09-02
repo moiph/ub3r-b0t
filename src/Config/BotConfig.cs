@@ -199,6 +199,8 @@
 
     public class IrcServer
     {
+        public string Id { get; set; }
+
         /// <summary>
         /// The host for this server (e.g. irc.freenode.net)
         /// </summary>

@@ -55,9 +55,10 @@
 
             await guildUser.Guild.DownloadUsersAsync();
 
+            var discriminator = targetUser.Discriminator != "0000" ? $"#{targetUser.Discriminator}" : string.Empty;
             var userInfo = new
             {
-                Title = $"UserInfo for {targetUser.Username}#{targetUser.Discriminator}",
+                Title = $"UserInfo for {targetUser.Username}{discriminator}",
                 AvatarUrl = targetUser.GetAvatarUrl(),
                 NicknameInfo = !string.IsNullOrEmpty(guildUser.Nickname) ? $" aka {guildUser.Nickname}" : "",
                 Footnote = CommandsConfig.Instance.UserInfoSnippets.Random(),

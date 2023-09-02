@@ -111,7 +111,8 @@
                 var settings = SettingsConfig.GetSettings(guildUser.Guild.Id.ToString());
                 if (settings.HasFlag(ModOptions.Mod_LogDelete) && context.Client.GetChannel(settings.Mod_LogId) is ITextChannel modLogChannel && modLogChannel.GetCurrentUserPermissions().SendMessages)
                 {
-                    modLogChannel.SendMessageAsync($"{guildUser.Username}#{guildUser.Discriminator} cleared {msgsToDeleteCount} messages from {textChannel.Mention}").Forget();
+                    var discriminator = guildUser.Discriminator != "0000" ? $"#{guildUser.Discriminator}" : string.Empty;
+                    modLogChannel.SendMessageAsync($"{guildUser.Username}{discriminator} cleared {msgsToDeleteCount} messages from {textChannel.Mention}").Forget();
                 }
 
                 try

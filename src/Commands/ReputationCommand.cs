@@ -7,7 +7,7 @@
 
     public class ReputationCommand : IDiscordCommand
     {
-        public Task<CommandResponse> Process(IDiscordBotContext context)
+        public async Task<CommandResponse> Process(IDiscordBotContext context)
         {
             CommandResponse response = null;
             string[] parts = context.MessageData.Content.Split(new[] { ' ' }, 3);
@@ -29,6 +29,7 @@
                     {
                         if (ulong.TryParse(parts[2], out var userId))
                         {
+                            await context.GuildChannel.Guild.DownloadUsersAsync();
                             targetUser = context.GuildChannel.GetUser(userId);
                         }
                     }
@@ -40,7 +41,7 @@
                 }
             }
 
-            return Task.FromResult(response);
+            return response;
         }
     }
 }
