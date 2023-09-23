@@ -695,14 +695,7 @@ namespace UB3RB0T
 
             if (this is DiscordBot discordBot)
             {
-                var metric = new MetricTelemetry
-                {
-                    Name = "Guilds",
-                    Count = discordBot.Client.Guilds.Count(),
-                };
-
-                this.AppInsights?.TrackMetric(metric);
-
+                this.AppInsights?.GetMetric("Guilds").TrackValue(discordBot.Client.Guilds.Count);
                 this.DogStats?.Gauge("guildsCount", discordBot.Client.Guilds.Count(), tags: new[] { $"shard:{this.Shard}", $"{this.BotType}" });
             }
 
@@ -796,7 +789,7 @@ namespace UB3RB0T
             {
                 var telemetryConfig = new TelemetryConfiguration
                 {
-                    InstrumentationKey = this.Config.InstrumentationKey,
+                    ConnectionString = $"InstrumentationKey={this.Config.InstrumentationKey}"
                 };
 
                 telemetryConfig.TelemetryChannel.DeveloperMode = this.Config.IsDevMode;
