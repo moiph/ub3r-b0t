@@ -7,7 +7,7 @@
   </PropertyGroup>
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net7.0</TargetFramework>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <PrimaryVersionType>AssemblyVersionAttribute</PrimaryVersionType>
     <AssemblyInfoFilePath>AssemblyInfo.cs</AssemblyInfoFilePath>
@@ -16,8 +16,8 @@
     <UpdateAssemblyInfoVersion>False</UpdateAssemblyInfoVersion>
     <AssemblyVersionSettings>IncrementOnDemand.IncrementOnDemand.DateStamp.Increment</AssemblyVersionSettings>
     <Version>4.7.0</Version>
-    <AssemblyVersion>4.7.2309.1</AssemblyVersion>
-    <FileVersion>4.7.2309.1</FileVersion>
+    <AssemblyVersion>4.7.2310.0</AssemblyVersion>
+    <FileVersion>4.7.2310.0</FileVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <DebugType>pdbonly</DebugType>
@@ -48,7 +48,7 @@
   <ItemGroup>
     <PackageReference Include="Azure.Messaging.ServiceBus" Version="7.7.0" />
     <PackageReference Include="Discord.Net.WebSocket" Version="3.12.0" />
-    <PackageReference Include="DogStatsD-CSharp-Client" Version="7.0.0" />
+    <PackageReference Include="DogStatsD-CSharp-Client" Version="8.0.0" />
     <PackageReference Include="Flurl.Http" Version="3.2.4" />
     <PackageReference Include="Guilded" Version="1.6.0" />
     <PackageReference Include="Microsoft.ApplicationInsights" Version="2.21.0" />
