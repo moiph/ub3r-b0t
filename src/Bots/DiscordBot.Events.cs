@@ -394,7 +394,7 @@ namespace UB3RB0T
                 }
 
                 var messageData = BotMessageData.Create(user, guild, settings);
-                messageData.Content = ".timer clear";
+                messageData.Content = ".terminate guild";
                 messageData.Prefix = ".";
                 await this.BotApi.IssueRequestAsync(messageData);
             }
