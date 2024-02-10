@@ -293,7 +293,7 @@ namespace UB3RB0T
 
             if (DateTime.TryParse(dateTimeString, DateTimeFormatInfo.InvariantInfo, DateTimeStyles.AdjustToUniversal, out DateTime dt))
             {
-                duration = (long)dt.Subtract(DateTime.UtcNow).TotalSeconds;
+                duration = (long)Math.Ceiling(dt.Subtract(DateTime.UtcNow).TotalSeconds);
 
                 // if duration was negative then set the date for tomorrow.
                 if (duration < 0)
