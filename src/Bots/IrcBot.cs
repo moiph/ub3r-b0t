@@ -72,7 +72,14 @@ namespace UB3RB0T
 
             if (data.Verb == ReplyCode.RPL_ENDOFMOTD || data.Verb == ReplyCode.RPL_NOMOTD) //  motd end or motd missing
             {
-                foreach (string channel in this.Config.Irc.Servers.Where(s => s.Host == client.Id).First().Channels)
+                var server = this.Config.Irc.Servers.FirstOrDefault(s => s.Id == client.Id || s.Host == client.Id);
+                if (server == null)
+                {
+                    Log.Error($"Received message on {client.Id} but no matching configuration found");
+                    return;
+                }
+
+                foreach (string channel in server.Channels)
                 {
                     serverData[client.Host].Channels[channel.ToLowerInvariant()] = new ChannelData();
                     client.Command("JOIN", channel, string.Empty);
