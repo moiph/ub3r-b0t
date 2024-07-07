@@ -2,10 +2,10 @@
 {
     using System.Collections.Generic;
     using System.Linq;
+    using System.Text.Json.Serialization;
     using Discord;
     using Discord.WebSocket;
     using Guilded.Content;
-    using Newtonsoft.Json;
     using UB3RIRC;
 
     /// <summary>
