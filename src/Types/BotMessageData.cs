@@ -13,7 +13,6 @@
     /// </summary>
     public class BotMessageData
     {
-        public BotType BotType;
 
         [JsonIgnore]
         public IUserMessage DiscordMessageData { get; private set; }
@@ -24,6 +23,7 @@
         [JsonIgnore]
         public Message GuildedMessageData { get; private set; }
 
+        public BotType BotType { get; set; }
         public string UserName { get; set; }
         public string UserId { get; set; }
         public string UserHost { get; set; }
