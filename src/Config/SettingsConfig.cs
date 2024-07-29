@@ -107,8 +107,10 @@
         public ulong Id { get; set; }
 
         public string Greeting { get; set; }
+        public List<string> Greetings { get; set; } = new List<string>();
         public ulong GreetingId { get; set; }
         public string Farewell { get; set; }
+        public List<string> Farewells { get; set; } = new List<string>();
         public ulong FarewellId { get; set; }
         public ulong JoinRoleId { get; set; }
 

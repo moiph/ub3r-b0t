@@ -295,9 +295,9 @@ namespace UB3RB0T
         {
             var settings = SettingsConfig.GetSettings(guildUser.Guild.Id);
 
-            if (!string.IsNullOrEmpty(settings.Greeting) && settings.GreetingId != 0)
+            if (settings.Greetings.Count > 0 && settings.GreetingId != 0)
             {
-                var greeting = settings.Greeting.Replace("%user%", guildUser.Mention);
+                var greeting = settings.Greetings.Random().Replace("%user%", guildUser.Mention);
                 greeting = greeting.Replace("%username%", $"{guildUser}");
 
                 greeting = Consts.ChannelRegex.Replace(greeting, new MatchEvaluator((Match chanMatch) =>
@@ -354,9 +354,9 @@ namespace UB3RB0T
             {
                 var settings = SettingsConfig.GetSettings(guild.Id);
 
-                if (!string.IsNullOrEmpty(settings.Farewell) && settings.FarewellId != 0)
+                if (settings.Farewells.Count > 0 && settings.FarewellId != 0)
                 {
-                    var farewell = settings.Farewell.Replace("%user%", user.Mention);
+                    var farewell = settings.Farewells.Random().Replace("%user%", user.Mention);
                     farewell = farewell.Replace("%username%", $"{user}");
 
                     farewell = Consts.ChannelRegex.Replace(farewell, new MatchEvaluator((Match chanMatch) =>
