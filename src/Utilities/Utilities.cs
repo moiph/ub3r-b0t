@@ -6,7 +6,6 @@ namespace UB3RB0T
     using Discord.WebSocket;
     using Flurl.Http;
     using Microsoft.AspNetCore.WebUtilities;
-    using Microsoft.CodeAnalysis;
     using Newtonsoft.Json;
     using Serilog;
     using System;
@@ -26,6 +25,7 @@ namespace UB3RB0T
         const int ONEHOUR = 60 * 60;
         const int ONEDAY = ONEHOUR * 24;
         const int ONEWEEK = ONEDAY * 7;
+        const int ONEFORTNIGHT = ONEWEEK * 2;
         const int ONEMONTH = ONEDAY * 31;
         const int ONEYEAR = ONEDAY * 365;
         const long TOOLONG = 315360000;
@@ -344,6 +344,11 @@ namespace UB3RB0T
             if (matchGroups["years"].Success)
             {
                 string yearString = timerMatch.Groups["years"].ToString();
+                if (yearString.IEquals("a year"))
+                {
+                    yearString = "1 year";
+                }
+
                 if (int.TryParse(yearString.Remove(yearString.Length - 5, 5), out int yearValue))
                 {
                     duration += yearValue * ONEYEAR;
@@ -354,10 +359,30 @@ namespace UB3RB0T
             if (matchGroups["months"].Success)
             {
                 string monthString = timerMatch.Groups["months"].ToString();
+                if (monthString.IEquals("a month"))
+                {
+                    monthString = "1 month";
+                }
+
                 if (int.TryParse(monthString.Remove(monthString.Length - 6, 6), out int monthValue))
                 {
                     duration += monthValue * ONEMONTH; // approximation; final calculation will occur on command processing
                     durationStr = $"{monthValue}mo";
+                }
+            }
+
+            if (matchGroups["fortnights"].Success)
+            {
+                string fortnightString = timerMatch.Groups["fortnights"].ToString();
+                if (fortnightString.IEquals("a fortnight"))
+                {
+                    fortnightString = "1 fortnight";
+                }
+
+                if (int.TryParse(fortnightString.Remove(fortnightString.Length - 10, 10), out int fortnightValue))
+                {
+                    duration += fortnightValue * ONEFORTNIGHT;
+                    durationStr = $"{fortnightValue}fn";
                 }
             }
 
@@ -368,6 +393,7 @@ namespace UB3RB0T
                 {
                     weekString = "1 week";
                 }
+
                 if (int.TryParse(weekString.Remove(weekString.Length - 5, 5), out int weekValue))
                 {
                     duration += weekValue * ONEWEEK;
@@ -382,6 +408,7 @@ namespace UB3RB0T
                 {
                     dayString = "1 day";
                 }
+
                 if (int.TryParse(dayString.Remove(dayString.Length - 4, 4), out int dayValue))
                 {
                     duration += dayValue * ONEDAY;
