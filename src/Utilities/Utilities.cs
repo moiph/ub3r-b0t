@@ -242,6 +242,11 @@ namespace UB3RB0T
             return createdDate.AddSeconds(timeStamp);
         }
 
+        public static string Random(this List<string> list)
+        {
+            return list[random.Next(0, list.Count)];
+        }
+
         public static string Random(this string[] array)
         {
             return array[random.Next(array.Length)];
