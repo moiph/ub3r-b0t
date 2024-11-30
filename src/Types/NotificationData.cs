@@ -15,6 +15,7 @@
         Reminder = 1 << 6,
         System = 1 << 7, // used for internal system notifications
         Feedback = 1 << 8,
+        Bluesky = 1 << 9,
     }
 
     public enum SubType
