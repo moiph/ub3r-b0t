@@ -53,6 +53,21 @@ namespace UB3RB0T
 
         [JsonProperty(PropertyName = "text")]
         public string Text { get; set; }
+
+        [JsonProperty(PropertyName = "words")]
+        public RecognitionWord[] Words { get; set; }
+    }
+
+    public class RecognitionWord
+    {
+        [JsonProperty(PropertyName = "boundingBox")]
+        public int[] BoundingBox { get; set; }
+
+        [JsonProperty(PropertyName = "text")]
+        public string Text { get; set; }
+
+        [JsonProperty(PropertyName = "confidence")]
+        public string Confidence { get; set; }
     }
 
     public class OcrProcessResponse

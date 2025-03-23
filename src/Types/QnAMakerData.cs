@@ -17,9 +17,9 @@ namespace UB3RB0T
             public string Answer { get; set; }
 
             /// <summary>
-            /// The score in range [0, 100] corresponding to the top answer found in the QnA Service.
+            /// The score in range [0, 1] corresponding to the top answer found in the QnA Service.
             /// </summary>
-            [JsonProperty(PropertyName = "score")]
+            [JsonProperty(PropertyName = "confidenceScore")]
             public double Score { get; set; }
     }
 }

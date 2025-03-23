@@ -39,7 +39,7 @@
                 IFlurlResponse result = null;
                 try
                 {
-                    result = await faq.Endpoint.ToString().WithHeader("Authorization", BotConfig.Instance.FaqKey).PostJsonAsync(new { question = content, top = 2 });
+                    result = await faq.Endpoint.ToString().WithHeader("Ocp-Apim-Subscription-Key", BotConfig.Instance.FaqKey).PostJsonAsync(new { question = content, top = 2 });
                 }
                 catch (Exception ex)
                 {
@@ -54,7 +54,7 @@
                     var responses = new List<string>();
                     foreach (var answer in qnaData.Answers)
                     {
-                        var score = Math.Floor(answer.Score);
+                        var score = Math.Floor(answer.Score * 100);
                         var answerText = WebUtility.HtmlDecode(answer.Answer);
                         responses.Add($"{answerText} ({score}% match)");
                     }

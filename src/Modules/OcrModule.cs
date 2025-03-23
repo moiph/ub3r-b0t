@@ -71,7 +71,10 @@
                                 for (var i = 0; i < 5; i++)
                                 {
                                     await Task.Delay(3000);
-                                    textData = await operationUrl.WithHeader("Ocp-Apim-Subscription-Key", BotConfig.Instance.VisionKey).GetJsonAsync<RecognitionResultData>();
+                                    // Flurl is failing to parse the response JSON; falling back to Newtonsoft deserialization, need to debug this
+                                    // textData = await operationUrl.WithHeader("Ocp-Apim-Subscription-Key", BotConfig.Instance.VisionKey).GetJsonAsync<RecognitionResultData>();
+                                    var rawData = await operationUrl.WithHeader("Ocp-Apim-Subscription-Key", BotConfig.Instance.VisionKey).GetStringAsync();
+                                    textData = JsonConvert.DeserializeObject<RecognitionResultData>(rawData);
 
                                     if (textData.Status == "Succeeded")
                                     {
@@ -89,8 +92,10 @@
                                     textData.ChannelId = message.Channel.Id;
                                     textData.CommandType = context.Reaction ?? "auto";
                                     textData.MessageText = message.Content;
-     
-                                    var response = await new Uri($"{BotConfig.Instance.ApiEndpoint}/ocr").PostJsonAsync(textData);
+
+                                    // Same as above, see line 74
+                                    var postData = JsonConvert.SerializeObject(textData);
+                                    var response = await new Uri($"{BotConfig.Instance.ApiEndpoint}/ocr").WithHeader("content-type", "application/json").PostStringAsync(postData);
                                     var ocrProcessResponse = JsonConvert.DeserializeObject<OcrProcessResponse>(await response.GetStringAsync());
 
                                     if (!string.IsNullOrEmpty(ocrProcessResponse.Response))
