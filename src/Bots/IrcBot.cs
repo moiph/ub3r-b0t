@@ -5,6 +5,7 @@ namespace UB3RB0T
     using System;
     using System.Collections.Generic;
     using System.Linq;
+    using System.Text;
     using System.Text.RegularExpressions;
     using System.Threading.Tasks;
     using UB3RIRC;
@@ -42,6 +43,7 @@ namespace UB3RB0T
                 ircClient.OnIrcEvent += this.OnIrcEventAsync;
                 ircClient.OnLogEvent += this.OnLogEventAsync;
 
+                Log.Information($"Connecting to {server.Host}");
                 await ircClient.ConnectAsync();
             }
         }
@@ -79,11 +81,17 @@ namespace UB3RB0T
                     return;
                 }
 
+                Log.Information($"Joining {server.Channels.Length} channels on {client.Id}");
+                var sb = new StringBuilder();
+
                 foreach (string channel in server.Channels)
                 {
                     serverData[client.Host].Channels[channel.ToLowerInvariant()] = new ChannelData();
-                    client.Command("JOIN", channel, string.Empty);
+                    Log.Information($"Joining {channel} on {client.Id}");
+                    sb.Append($"{channel},");
                 }
+
+                client.Command("JOIN", sb.ToString(), string.Empty);
             }
 
             if (data.Verb == "PRIVMSG")
