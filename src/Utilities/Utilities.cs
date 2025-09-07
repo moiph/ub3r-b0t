@@ -314,7 +314,10 @@ namespace UB3RB0T
                 return false;
             }
 
-            query = $"timer for:\"{to}\" {durationStr} {reason}";
+            // if no timezone was specified, default to user's timezone (lookup handled in command processing)
+            var tz = matchGroups["tz"].Success ? matchGroups["tz"].ToString() : "User";
+
+            query = $"timer for:\"{to}\" tz:\"{tz}\" dt:\"{dateTimeString}\" {reason}";
 
             // if we see a pattern of "on yy/mm/dd" it indicates the user was trying to do an absolute time
             // reminder but parsing broke, so bail out. TODO: error messaging to the user
