@@ -196,6 +196,13 @@
                         messageData.Content += $" {option.Name}";
                         messageData.RequestOptions.Add(option.Name, option.Name);
                     }
+                    else if (option.Type == ApplicationCommandOptionType.User)
+                    {
+                        // map the user to a userid for command processing
+                        var optionValue = $"<@{(option.Value as IGuildUser).Id}>";
+                        messageData.Content += $" {optionValue}";
+                        messageData.RequestOptions.Add(option.Name, optionValue);
+                    }
                     else
                     {
                         messageData.Content += $" {option.Value}";
