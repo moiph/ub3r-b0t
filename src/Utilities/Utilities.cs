@@ -99,6 +99,11 @@ namespace UB3RB0T
                 ImageUrl = embedData.ImageUrl,
             };
 
+            if (embedData.Timestamp.HasValue)
+            {
+                embedBuilder.Timestamp = embedData.Timestamp.Value;
+            }
+
             if (!string.IsNullOrEmpty(embedData.Author))
             {
                 embedBuilder.Author = new EmbedAuthorBuilder

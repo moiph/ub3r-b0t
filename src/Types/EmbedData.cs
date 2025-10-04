@@ -1,4 +1,6 @@
-﻿namespace UB3RB0T
+﻿using System;
+
+namespace UB3RB0T
 {
     public class EmbedData
     {
@@ -16,6 +18,8 @@
         public string ImageUrl { get; set; }
 
         public string Color { get; set; }
+
+        public DateTimeOffset? Timestamp { get; set; }
 
         public EmbedFieldData[] EmbedFields { get; set; }
     }

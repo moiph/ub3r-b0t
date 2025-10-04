@@ -328,7 +328,7 @@ namespace UB3RB0T
                 this.urls[messageData.Channel] = httpMatch.Value;
             }
 
-            if (settings.FunResponsesEnabled && !string.IsNullOrEmpty(messageData.Content))
+            if (settings.RepeatEnabled && !string.IsNullOrEmpty(messageData.Content))
             {
                 var repeat = repeatData.GetOrAdd(messageData.Channel + messageData.Server, new RepeatData());
                 if (string.Equals(repeat.Text, messageData.Content, StringComparison.OrdinalIgnoreCase))

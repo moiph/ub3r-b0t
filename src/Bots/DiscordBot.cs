@@ -85,7 +85,8 @@ namespace UB3RB0T
 
             this.Client.Ready += Client_Ready;
             this.Client.Log += Discord_Log;
-            this.Client.Disconnected += (ex) => this.HandleEvent(DiscordEventType.Disconnected, ex);
+            this.Client.Disconnected += Client_Disconnected;
+            this.Client.Connected += Client_Connected;
 
             this.Client.JoinedGuild += (guild) => this.HandleEvent(DiscordEventType.JoinedGuild, guild);
             this.Client.LeftGuild += (guild) => this.HandleEvent(DiscordEventType.LeftGuild, guild);

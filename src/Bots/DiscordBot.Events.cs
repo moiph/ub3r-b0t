@@ -69,9 +69,6 @@ namespace UB3RB0T
                     {
                         switch (eventType)
                         {
-                            case DiscordEventType.Disconnected:
-                                await this.HandleDisconnected(args[0] as Exception);
-                                break;
                             case DiscordEventType.JoinedGuild:
                                 await this.HandleJoinedGuildAsync((SocketGuild)args[0]);
                                 break;
@@ -159,6 +156,19 @@ namespace UB3RB0T
         {
             this.isReady = true;
             this.Client.SetGameAsync(this.Config.Discord.Status);
+            Log.Information($"Client ready.");
+            return Task.CompletedTask;
+        }
+
+        private Task Client_Connected()
+        {
+            Log.Information($"Client connected.");
+            return Task.CompletedTask;
+        }
+
+        private Task Client_Disconnected(Exception ex)
+        {
+            Log.Warning(ex, "Client disconnected.");
             return Task.CompletedTask;
         }
 
@@ -200,12 +210,6 @@ namespace UB3RB0T
                 this.AppInsights?.TrackException(logMessage.Exception);
             }
 
-            return Task.CompletedTask;
-        }
-
-        private Task HandleDisconnected(Exception ex)
-        {
-            Log.Warning(ex, "Disconnected");
             return Task.CompletedTask;
         }
 
