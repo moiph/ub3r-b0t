@@ -99,7 +99,7 @@ namespace UB3RB0T
                 ImageUrl = embedData.ImageUrl,
             };
 
-            if (embedData.Timestamp.HasValue)
+            if (embedData.Timestamp.HasValue && embedData.Timestamp != DateTimeOffset.MinValue)
             {
                 embedBuilder.Timestamp = embedData.Timestamp.Value;
             }
