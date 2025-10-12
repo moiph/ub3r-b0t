@@ -129,6 +129,9 @@
   <data name="RequireReactionAdd" xml:space="preserve">
     <value>I need to have add reactions permissions.</value>
   </data>
+  <data name="RequireUserGuildAdminForRemove" xml:space="preserve">
+    <value>Restricted to server admins. (use .timer remove if you're just trying to remove your own timers)</value>
+  </data>
   <data name="RequireUserGuildOwner" xml:space="preserve">
     <value>Restricted to server owner.</value>
   </data>

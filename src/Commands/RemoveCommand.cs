@@ -2,8 +2,9 @@
 {
     using System.Linq;
     using System.Threading.Tasks;
+    using Discord;
 
-    [GuildOwnerOnly("RequireUserGuildOwnerForRemove")]
+    [UserPermissions(GuildPermission.Administrator, "RequireUserGuildAdminForRemove")]
     public class RemoveCommand : IDiscordCommand
     {
         public async Task<CommandResponse> Process(IDiscordBotContext context)

@@ -19,7 +19,7 @@ namespace UB3RB0T.Config {
     // class via a tool like ResGen or Visual Studio.
     // To add or remove a member, edit your .ResX file then rerun ResGen
     // with the /str option, or rebuild your VS project.
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "16.0.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "17.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
     internal class Strings {
@@ -93,6 +93,15 @@ namespace UB3RB0T.Config {
         internal static string RequireReactionAdd {
             get {
                 return ResourceManager.GetString("RequireReactionAdd", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Restricted to server admins. (use .timer remove if you&apos;re just trying to remove your own timers).
+        /// </summary>
+        internal static string RequireUserGuildAdminForRemove {
+            get {
+                return ResourceManager.GetString("RequireUserGuildAdminForRemove", resourceCulture);
             }
         }
         
