@@ -8,6 +8,7 @@
     public class FeedbackCommand : IDiscordCommand
     {
         private static Regex FeedbackMessageRx = new Regex("^.*\\[server:([0-9]+) chan:([0-9]+) user:([0-9]+)\\] \\(mid: [0-9]+\\)$", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Multiline);
+        private static Regex FeedbackEmbedRx = new Regex("^S: ([0-9]+) \\| C: ([0-9]+) \\| U: ([0-9]+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Multiline);
 
         public async Task<CommandResponse> Process(IDiscordBotContext context)
         {
@@ -33,7 +34,21 @@
                 return new CommandResponse { Text = "message not found" };
             }
 
-            var match = FeedbackMessageRx.Match(targetMessage.Content);
+            Match match;
+            var targetEmbed = targetMessage.Embeds?.FirstOrDefault()?.Footer?.Text;
+            if (!string.IsNullOrEmpty(targetEmbed))
+            {
+                match = FeedbackEmbedRx.Match(targetEmbed);
+            }
+            else
+            {
+                match = FeedbackMessageRx.Match(targetMessage.Content);
+            }
+
+            if (!match.Success)
+            {
+                return new CommandResponse { Text = "failed to find match" };
+            }
 
             context.MessageData.Content = $"{context.Settings.Prefix}feedback reply {match.Groups[1]} {match.Groups[2]} {match.Groups[3]} {parts[2]}";
             var response = (await context.BotApi.IssueRequestAsync(context.MessageData)).Responses.FirstOrDefault();
