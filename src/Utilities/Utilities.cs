@@ -18,7 +18,6 @@ namespace UB3RB0T
     using System.Text;
     using System.Text.RegularExpressions;
     using System.Threading.Tasks;
-    using GuildedEmbed = Guilded.Base.Embeds.Embed;
 
     public static class Utilities
     {
@@ -149,62 +148,6 @@ namespace UB3RB0T
             }
 
             return embedBuilder;
-        }
-
-        public static GuildedEmbed CreateGuildedEmbed(this EmbedData embedData)
-        {
-            var embed = new GuildedEmbed
-            {
-                Title = embedData.Title,
-                Description = embedData.Description,
-            };
-
-            if (!string.IsNullOrEmpty(embedData.Author))
-            {
-                embed.SetAuthor(embedData.Author, new Uri(embedData.AuthorUrl), new Uri(embedData.AuthorIconUrl));
-            }
-
-            if (!string.IsNullOrEmpty(embedData.ThumbnailUrl))
-            {
-                embed.SetThumbnail(embedData.ThumbnailUrl);
-            }
-
-            if (!string.IsNullOrEmpty(embedData.ImageUrl))
-            {
-                embed.SetImage(embedData.ImageUrl);
-            }
-
-            if (!string.IsNullOrEmpty(embedData.Url))
-            {
-                embed.SetUrl(embedData.Url);
-            }
-
-            if (!string.IsNullOrEmpty(embedData.Color))
-            {
-                var red = Convert.ToInt32(embedData.Color.Substring(0, 2), 16);
-                var green = Convert.ToInt32(embedData.Color.Substring(2, 2), 16);
-                var blue = Convert.ToInt32(embedData.Color.Substring(4, 2), 16);
-
-                embed.SetColor(red, green, blue);
-            }
-
-            if (!string.IsNullOrEmpty(embedData.Footer))
-            {
-                embed.SetFooter(embedData.Footer, embedData.FooterIconUrl);
-            }
-
-            if (embedData.EmbedFields != null)
-            {
-                foreach (var embedField in embedData.EmbedFields)
-                {
-                    if (!string.IsNullOrEmpty(embedField.Name) && !string.IsNullOrEmpty(embedField.Value))
-                    {
-                        embed.AddField(embedField.Name, embedField.Value, embedField.IsInline);
-                    }
-                }
-            }
-
-            return embed;
         }
 
         public static bool HasMentionPrefix(this string text, ulong botUserId, ref int argPos)

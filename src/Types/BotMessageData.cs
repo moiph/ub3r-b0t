@@ -5,7 +5,6 @@
     using System.Text.Json.Serialization;
     using Discord;
     using Discord.WebSocket;
-    using Guilded.Content;
     using UB3RIRC;
 
     /// <summary>
@@ -20,8 +19,6 @@
         public SocketInteraction DiscordInteraction { get; private set; }
         [JsonIgnore]
         public MessageData IrcMessageData { get; private set; }
-        [JsonIgnore]
-        public Message GuildedMessageData { get; private set; }
 
         public BotType BotType { get; set; }
         public string UserName { get; set; }
@@ -82,16 +79,6 @@
                 return false;
             }
 
-            if (this.BotType == BotType.Guilded)
-            {
-                if (string.IsNullOrEmpty(this.Content) && this.Content.IContains(botName))
-                {
-                    return true;
-                }
-
-                return false;
-            }
-
             return this.IrcMessageData.Text.Contains(botName);
         }
 
@@ -105,26 +92,6 @@
                 Channel = ircMessageData.Target,
                 Server = ircClient.Host,
                 Content = ircMessageData.Text,
-                Prefix = serverSettings.Prefix,
-            };
-        }
-
-        public static BotMessageData Create(Message message, Settings serverSettings)
-        {
-            return new BotMessageData(BotType.Guilded)
-            {
-                GuildedMessageData = message,
-                UserName = message.CreatedBy.ToString(),
-                UserHost = message.CreatedBy.ToString(),
-                UserId = message.CreatedBy.ToString(),
-                Channel = message.ChannelId.ToString(),
-                Server = message.ServerId.ToString(),
-                MessageId = message.Id.ToString(),
-                Content = message.Content,
-                Format = serverSettings.PreferEmbeds ? "embed" : string.Empty,
-                AfEnabled = serverSettings.AprilFoolsEnabled,
-                UwuChance = serverSettings.UwuResponseChance,
-                Sasshat = serverSettings.SasshatEnabled,
                 Prefix = serverSettings.Prefix,
             };
         }

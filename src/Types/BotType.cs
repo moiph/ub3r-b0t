@@ -4,6 +4,5 @@
     {
         Irc,
         Discord,
-        Guilded,
     }
 }

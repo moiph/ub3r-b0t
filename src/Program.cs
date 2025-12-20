@@ -138,7 +138,7 @@
                     {
                         case "/?":
                             Console.WriteLine("dotnet UB3RB0T.dll [/t:type] [/s:shard]");
-                            Console.WriteLine("/t:type \t The type of bot to create. [Irc, Discord, Guilded]");
+                            Console.WriteLine("/t:type \t The type of bot to create. [Irc, Discord]");
                             Console.WriteLine("/s:shard \t The shard for this instance (Discord only)");
                             Console.WriteLine("/c:path \t The path to botconfig.json");
                             return 0;

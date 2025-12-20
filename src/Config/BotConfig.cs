@@ -38,7 +38,6 @@
         public ulong[] OcrAutoRespondIds { get; set; } = Array.Empty<ulong>();
 
         public DiscordConfig Discord { get; set; }
-        public GuildedConfig Guilded { get; set; }
         public Irc Irc { get; set; }
 
         // endpoint to send heartbeat data to
@@ -150,17 +149,6 @@
         public Dictionary<string, string> CommandTypes { get; set; }
     }
 
-    public class GuildedConfig
-    {
-        [JsonRequired]
-        public string Token { get; set; }
-
-        [JsonRequired]
-        public string OwnerId { get; set; }
-
-        [JsonRequired]
-        public string BotId { get; set; }
-    }
     public class BotStatData
     {
         public string Name { get; set; }

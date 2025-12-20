@@ -16,8 +16,8 @@
     <UpdateAssemblyInfoVersion>False</UpdateAssemblyInfoVersion>
     <AssemblyVersionSettings>IncrementOnDemand.IncrementOnDemand.DateStamp.Increment</AssemblyVersionSettings>
     <Version>4.7.0</Version>
-    <AssemblyVersion>4.7.2511.1</AssemblyVersion>
-    <FileVersion>4.7.2511.1</FileVersion>
+    <AssemblyVersion>4.7.2512.0</AssemblyVersion>
+    <FileVersion>4.7.2512.0</FileVersion>
     <StartupObject></StartupObject>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -54,7 +54,6 @@
     <PackageReference Include="Discord.Net.WebSocket" Version="3.18.0-nightly.20250903.618" />
     <PackageReference Include="DogStatsD-CSharp-Client" Version="8.0.0" />
     <PackageReference Include="Flurl.Http" Version="4.0.2" />
-    <PackageReference Include="Guilded" Version="1.7.1" />
     <PackageReference Include="Microsoft.ApplicationInsights" Version="2.23.0" />
     <PackageReference Include="Microsoft.AspNetCore.WebUtilities" Version="8.0.6" />
     <PackageReference Include="Serilog" Version="4.3.0" />

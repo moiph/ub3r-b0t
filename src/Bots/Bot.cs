@@ -72,9 +72,6 @@ namespace UB3RB0T
                     case BotType.Discord:
                         suffix = $"{shard}";
                         break;
-                    case BotType.Guilded:
-                        suffix = "guilded";
-                        break;
                 }
 
                 this.queueName = $"{this.Config.QueueNamePrefix}{suffix}";
@@ -112,10 +109,6 @@ namespace UB3RB0T
 
                 case BotType.Discord:
                     bot = new DiscordBot(shard, totalShards);
-                    break;
-
-                case BotType.Guilded:
-                    bot = new GuildedBot(shard, totalShards);
                     break;
 
                 default:
