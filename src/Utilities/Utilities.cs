@@ -29,7 +29,7 @@ namespace UB3RB0T
         const int ONEMONTH = ONEDAY * 31;
         const int ONEYEAR = ONEDAY * 365;
         const long TOOLONG = 315360000;
-                             
+        const int ONESHREKINMINUTES = 90; // Shrek's runtime is 1 hour 30 minutes
 
         private static readonly HashSet<ulong> blockedDMUsers = new HashSet<ulong>();
         private static readonly Random random = new Random();
@@ -443,13 +443,31 @@ namespace UB3RB0T
                 }
             }
 
-            if (matchGroups["minutes"].Success)
+            if (matchGroups["minutes"].Success || matchGroups["shreks"].Success)
             {
+                int totalMinutes = 0;
+
                 string minuteString = matchGroups["minutes"].ToString();
-                if (int.TryParse(minuteString.Remove(minuteString.Length - 7, 7), out int minuteValue))
+                if (!string.IsNullOrEmpty(minuteString) && int.TryParse(minuteString.Remove(minuteString.Length - 7, 7), out int minuteValue))
                 {
-                    duration += minuteValue * 60;
-                    durationStr += $"{minuteValue}m";
+                    totalMinutes += minuteValue;
+                }
+
+                string shrekString = matchGroups["shreks"].ToString();
+                if (shrekString.IEquals("a shrek"))
+                {
+                    shrekString = "1 shrek";
+                }
+
+                if (!string.IsNullOrEmpty(shrekString) && int.TryParse(shrekString.Remove(shrekString.Length - 5, 5), out int shrekValue))
+                {
+                    totalMinutes += shrekValue * ONESHREKINMINUTES;
+                }
+
+                if (totalMinutes > 0)
+                { 
+                    duration += totalMinutes * 60;
+                    durationStr += $"{totalMinutes}m";
                 }
             }
 

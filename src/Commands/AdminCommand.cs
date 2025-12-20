@@ -24,6 +24,11 @@
                     {
                         return new CommandResponse { Text = $"Manage from {SettingsConfig.Instance.ManagementEndpoint}" };
                     }
+                    else
+                    {
+                        var respContent = await resp.Content.ReadAsStringAsync();
+                        Log.Error("Unexpected response in admin command: " + respContent);
+                    }
                 }
                 catch (Exception ex)
                 {
