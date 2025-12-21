@@ -3,9 +3,9 @@ namespace UB3RB0T
 {
     using Azure.Messaging.ServiceBus;
     using Microsoft.ApplicationInsights;
-    using Microsoft.ApplicationInsights.DataContracts;
     using Microsoft.ApplicationInsights.Extensibility;
     using Microsoft.AspNetCore.Hosting;
+    using Microsoft.Extensions.Hosting;
     using Newtonsoft.Json;
     using Serilog;
     using StatsdClient;
@@ -32,7 +32,7 @@ namespace UB3RB0T
         private bool isShuttingDown;
         private static long startTime;
 
-        private IWebHost listenerHost;
+        private IHost listenerHost;
         private readonly string queueName;
 
         private Timer heartbeatTimer;
@@ -597,22 +597,26 @@ namespace UB3RB0T
 
                 Log.Information($"Web listener configured on {listenerUrl}");
 
-                this.listenerHost = new WebHostBuilder()
-                    .UseKestrel(options =>
+                this.listenerHost = new HostBuilder()
+                    .ConfigureWebHost(webHostBuilder =>
                     {
-                        options.ListenAnyIP(port, l =>
-                        {
-                            if (cert != null)
+                        webHostBuilder
+                            .UseKestrel(options =>
                             {
-                                l.UseHttps(h =>
+                                options.ListenAnyIP(port, l =>
                                 {
-                                    h.ServerCertificate = cert;
+                                    if (cert != null)
+                                    {
+                                        l.UseHttps(h =>
+                                        {
+                                            h.ServerCertificate = cert;
+                                        });
+                                    }
                                 });
-                            }
-                        });
+                            })
+                            .UseUrls($"http://localhost:{port}", listenerUrl)
+                            .UseStartup<Program>();
                     })
-                    .UseUrls($"http://localhost:{port}", listenerUrl)
-                    .UseStartup<Program>()
                     .Build();
                 this.listenerHost.Start();
             });
