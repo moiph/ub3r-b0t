@@ -112,6 +112,7 @@
         public string Farewell { get; set; }
         public List<string> Farewells { get; set; } = new List<string>();
         public ulong FarewellId { get; set; }
+        public ulong VoiceId { get; set; }
         public ulong JoinRoleId { get; set; }
 
         public List<NotificationText> NotificationText = new List<NotificationText>();

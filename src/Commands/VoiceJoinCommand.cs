@@ -19,9 +19,10 @@
             {
                 try
                 {
-                    if (await context.AudioManager.JoinAudioAsync(channel))
+                    Log.Information($"{{Indicator}} Joining audio on guild {channel.Guild.Id}", "[audio]");
+                    if (await context.AudioManager.JoinAudioAsync(channel, allowReconnect: false))
                     {
-                        await context.Message.Channel.SendMessageAsync($"[Joined {channel.Name}]");
+                        await context.Message.Channel.SendMessageAsync($"[Joined <#{channel.Id}>]");
                     }
                 }
                 catch (Exception ex)

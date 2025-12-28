@@ -1,5 +1,6 @@
 ﻿namespace UB3RB0T
 {
+    using Discord;
     using Discord.Audio;
     using System;
     using System.Collections.Generic;
@@ -14,8 +15,12 @@
 
         public Dictionary<ulong, AudioUserState> Users { get; } = new Dictionary<ulong, AudioUserState>();
         public ulong GuildId { get; set; }
+        public IVoiceChannel VoiceChannel { get; set; }
         public IAudioClient AudioClient { get; set; }
         public Stream Stream { get; set; }
+        public bool SentJoinGreeting { get; set; }
+        public bool AllowReconnect { get; set; }
+        public bool NeedsReconnect { get; set; }
 
         public void Dispose()
         {
@@ -33,7 +38,10 @@
 
                 this.Stream.Dispose();
                 this.Stream = null;
-                this.AudioClient.Dispose();
+                // Seems to be an issue in Discord.Net.WebSockets.DefaultWebSocketClient.DisconnectAsync on disposing SemaphoreSlim;
+                // need to investigate further.
+                // this.AudioClient?.Dispose();
+                this.AudioClient?.StopAsync();
                 this.streamLock.Release();
                 this.streamLock.Dispose();
             }

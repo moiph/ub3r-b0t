@@ -14,6 +14,7 @@ namespace UB3RB0T
         public bool CanSend { get; set; }
         public bool CanRead { get; set; }
         public bool CanEmbed { get; set; }
+        public bool CanSpeak { get; set; }
     }
 
     public class EmojiData

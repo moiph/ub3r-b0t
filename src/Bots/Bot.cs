@@ -155,6 +155,8 @@ namespace UB3RB0T
                 await Task.Delay(10000);
             }
 
+            Log.Warning($"Exit code {this.exitCode} received, shutting down...");
+
             await this.StopAsync(this.exitCode == (int)ExitCode.UnexpectedError);
             Log.Information("Exited.");
             return this.exitCode;
@@ -716,6 +718,7 @@ namespace UB3RB0T
             if (this.messageCount == 0 && this is DiscordBot)
             {
                 this.missedHeartbeats++;
+                Log.Warning("Missed heartbeat");
 
                 if (missedHeartbeats >= this.Config.MissedHeartbeatLimit)
                 {

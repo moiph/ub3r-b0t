@@ -157,6 +157,7 @@ namespace UB3RB0T
             this.isReady = true;
             this.Client.SetGameAsync(this.Config.Discord.Status);
             Log.Information($"Client ready.");
+            this.JoinAudio();
             return Task.CompletedTask;
         }
 
@@ -176,7 +177,8 @@ namespace UB3RB0T
         {
             // TODO: Temporary filter for audio warnings; remove with future Discord.NET update
             if (logMessage.Message != null && logMessage.Message.Contains("Unknown OpCode") || 
-                (logMessage.Source != null && logMessage.Source.Contains("Audio") && logMessage.Message != null && logMessage.Message.Contains("Latency = ")))
+                logMessage.Source != null && logMessage.Source.Contains("Audio") && logMessage.Message != null && 
+                (logMessage.Message.Contains("Latency = ") || logMessage.Message.Contains("Malformed Frame")))
             {
                 return Task.CompletedTask;
             }

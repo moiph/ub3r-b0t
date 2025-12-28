@@ -1,61 +1,81 @@
 ﻿namespace UB3RB0T
 {
     using Discord;
+    using Discord.Audio;
     using Serilog;
     using System;
     using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Diagnostics;
     using System.IO;
+    using System.Linq;
     using System.Runtime.InteropServices;
+    using System.Threading;
     using System.Threading.Tasks;
 
     public class AudioManager : IDisposable
     {
         private readonly ConcurrentDictionary<ulong, AudioInstance> audioInstances = new ConcurrentDictionary<ulong, AudioInstance>();
         private readonly ConcurrentDictionary<string, byte[]> audioBytes = new ConcurrentDictionary<string, byte[]>();
+        private bool isMonitoring;
 
-        public async Task<bool> JoinAudioAsync(IVoiceChannel voiceChannel)
+        public async Task<bool> JoinAudioAsync(IVoiceChannel voiceChannel, bool allowReconnect)
         {
-            bool joinedAudio = false;
-
             var currentUser = await voiceChannel.Guild.GetCurrentUserAsync();
             if (!audioInstances.TryGetValue(voiceChannel.GuildId, out AudioInstance audioInstance) || currentUser.VoiceChannel == null)
             {
-                audioInstance = new AudioInstance
-                {
-                    GuildId = voiceChannel.GuildId,
-                    AudioClient = await voiceChannel.ConnectAsync(selfDeaf: true).ConfigureAwait(false)
-                };
-
-                audioInstances[voiceChannel.GuildId] = audioInstance;
-                audioInstance.Stream = audioInstance.AudioClient.CreatePCMStream(Discord.Audio.AudioApplication.Voice, null, 400);
-
-                joinedAudio = true;
+                await this.CreateAudioInstance(voiceChannel, allowReconnect);
+                Log.Information($"{{Indicator}} Joined voice channel for {voiceChannel.GuildId}", "[audio]");
+                return true;
             }
-            else
+
+            Log.Information($"{{Indicator}} Already in a voice channel for {voiceChannel.GuildId}", "[audio]");
+            return false;
+        }
+
+        private async Task<AudioInstance> CreateAudioInstance(IVoiceChannel voiceChannel, bool allowReconnect)
+        {
+            var audioInstance = new AudioInstance
             {
-                Log.Information($"{{Indicator}} Already in a voice channel for {voiceChannel.GuildId}", "[audio]");
-            }
+                GuildId = voiceChannel.GuildId,
+                VoiceChannel = voiceChannel,
+                AllowReconnect = allowReconnect,
+            };
+            
+            audioInstances[voiceChannel.GuildId] = audioInstance;
+            audioInstance.AudioClient = await voiceChannel.ConnectAsync(selfDeaf: true);
+            audioInstance.Stream = audioInstance.AudioClient.CreatePCMStream(Discord.Audio.AudioApplication.Voice, null, 400);
 
             if (audioInstance.AudioClient.ConnectionState == ConnectionState.Connected && audioInstance.Stream.CanWrite)
             {
-                await this.SendAudioAsync(audioInstance, PhrasesConfig.Instance.GetVoiceFileNames(VoicePhraseType.BotJoin).Random());
-            }
-            else
-            {
-                audioInstance.AudioClient.Connected += async () =>
-                {
-                    await this.SendAudioAsync(audioInstance, PhrasesConfig.Instance.GetVoiceFileNames(VoicePhraseType.BotJoin).Random());
-                };
-                audioInstance.AudioClient.Disconnected += (Exception ex) =>
-                {
-                    Log.Error(ex, "{{Indicator}} Disconnected from audio", "[audio]");
-                    return Task.CompletedTask;
-                };
+                await this.SendAudioAsync(audioInstance, BotConfig.Instance.GetVoiceFileNames(VoicePhraseType.BotJoin).Random());
+                audioInstance.SentJoinGreeting = true;
             }
 
-            return joinedAudio;
+            audioInstance.AudioClient.Connected += async () =>
+            {
+                Log.Information("{Indicator} Connected to audio, creating stream", "[audio]");
+                audioInstance.Stream = audioInstance.AudioClient.CreatePCMStream(Discord.Audio.AudioApplication.Voice, null, 400);
+
+                if (!audioInstance.SentJoinGreeting)
+                {
+                    await this.SendAudioAsync(audioInstance, BotConfig.Instance.GetVoiceFileNames(VoicePhraseType.BotJoin).Random());
+                    audioInstance.SentJoinGreeting = true;
+                }
+            };
+
+            audioInstance.AudioClient.Disconnected += async ex =>
+            {
+                Log.Warning(ex, $"{{Indicator}} Disconnected on {voiceChannel.GuildId}", "[audio]");
+
+                if (audioInstance.AllowReconnect)
+                {
+                    audioInstance.NeedsReconnect = true;
+                    Log.Information(ex, $"{{Indicator}} Requesting reconnect on {voiceChannel.GuildId}", "[audio]");
+                }
+            };
+
+            return audioInstance;
         }
 
         public async Task LeaveAllAudioAsync()
@@ -76,19 +96,21 @@
 
         public async Task LeaveAudioAsync(ulong guildId)
         {
-            if (audioInstances.TryRemove(guildId, out AudioInstance audioInstance))
+            if (audioInstances.TryGetValue(guildId, out AudioInstance audioInstance))
             {
                 // say our goodbyes
+                await this.SendAudioAsync(audioInstance, BotConfig.Instance.GetVoiceFileNames(VoicePhraseType.BotLeave).Random());
+
                 try
                 {
-                    await this.SendAudioAsyncInternalAsync(audioInstance, PhrasesConfig.Instance.GetVoiceFileNames(VoicePhraseType.BotLeave).Random());
+                    Log.Debug($"{{Indicator}} Disposing audio instance for {guildId}", "[audio]");
+                    audioInstances.TryRemove(guildId, out _);
+                    audioInstance.Dispose();
                 }
                 catch (Exception ex)
                 {
-                    Log.Error(ex, "{Indicator} Failed to send audio on leave", "[audio]");
+                    Log.Error(ex, "{Indicator} Failed to dispose audio instance on leave", "[audio]");
                 }
-
-                audioInstance.Dispose();
             }
             else
             {
@@ -110,7 +132,7 @@
                         if (voicePhraseType == VoicePhraseType.UserJoin)
                         {
                             // if it's a first time rejoin, let's make it special
-                            voiceFileNames = PhrasesConfig.Instance.GetVoiceFileNames(VoicePhraseType.UserJoin);
+                            voiceFileNames = BotConfig.Instance.GetVoiceFileNames(VoicePhraseType.UserJoin);
                             if (!audioInstance.Users.ContainsKey(guildUser.Id))
                             {
                                 audioInstance.Users[guildUser.Id] = AudioUserState.SeenOnce;
@@ -118,12 +140,12 @@
                             else if (audioInstance.Users[guildUser.Id] == AudioUserState.SeenOnce)
                             {
                                 audioInstance.Users[guildUser.Id] = AudioUserState.SeenMultiple;
-                                voiceFileNames = PhrasesConfig.Instance.GetVoiceFileNames(VoicePhraseType.UserRejoin);
+                                voiceFileNames = BotConfig.Instance.GetVoiceFileNames(VoicePhraseType.UserRejoin);
                             }
                         }
                         else
                         {
-                            voiceFileNames = PhrasesConfig.Instance.GetVoiceFileNames(VoicePhraseType.UserLeave);
+                            voiceFileNames = BotConfig.Instance.GetVoiceFileNames(VoicePhraseType.UserLeave);
                         }
 
                         await this.SendAudioAsync(audioInstance, voiceFileNames.Random());
@@ -134,81 +156,147 @@
 
         public async Task SendAudioAsync(AudioInstance audioInstance, string filename)
         {
-            await this.SendAudioAsyncInternalAsync(audioInstance, filename);
+            try
+            {
+                await this.SendAudioAsyncInternalAsync(audioInstance, filename);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, $"{{Indicator}} Error sending audio clip for {audioInstance.GuildId}", "[audio]");
+            }
+        }
+
+        public async Task Monitor()
+        {
+            if (!this.isMonitoring)
+            {
+                this.isMonitoring = true;
+
+                while (true)
+                {
+                    var reconnects = audioInstances.Where(a => a.Value.NeedsReconnect).Select(a => a.Key);
+                    if (reconnects.Count() > 0)
+                    {
+                        foreach (ulong guildId in reconnects)
+                        {
+                            Log.Information($"{{Indicator}} Reconnecting audio for {guildId}", "[audio]");
+                            try
+                            {
+                                audioInstances.TryRemove(guildId, out var audioInstance);
+                                var voiceChannel = audioInstance.VoiceChannel;
+                                audioInstance.Dispose();
+
+                                await this.CreateAudioInstance(voiceChannel, allowReconnect: true);
+                            }
+                            catch (Exception ex)
+                            {
+                                Log.Error(ex, $"{{Indicator}} Failed to reonnect audio instance on {guildId}", "[audio]");
+                            }
+                        }
+                    }
+
+                    await Task.Delay(10000);
+                }
+            }
         }
 
         private async Task SendAudioAsyncInternalAsync(AudioInstance audioInstance, string filePath)
         {
             var filename = Path.GetFileName(filePath);
+            string cacheFilePath = null;
+            if (!string.IsNullOrEmpty(BotConfig.Instance.VoiceCachePath))
+            {
+                cacheFilePath = Path.Combine(BotConfig.Instance.VoiceCachePath, Path.ChangeExtension(filename, ".cache"));
+            }
 
-            Process p = null;
+            Log.Verbose($"{{Indicator}} [{filename}] waiting on stream lock", "[audio]");
+            if (audioInstance == null || audioInstance.isDisposed)
+            {
+                Log.Warning($"{{Indicator}} [{filename}] audio instance is disposed, aborting send", "[audio]");
+                return;
+            }
+
+            await audioInstance.streamLock.WaitAsync();
+            Log.Verbose($"{{Indicator}} [{filename}] lock obtained", "[audio]");
+
+            // if not in memory cache, check disk cache or run ffmpeg
             if (!audioBytes.ContainsKey(filename))
             {
                 Log.Verbose($"{{Indicator}} [{filename}] reading data", "[audio]");
-                p = Process.Start(new ProcessStartInfo
+
+                if (cacheFilePath != null && File.Exists(cacheFilePath))
                 {
-                    FileName = "ffmpeg",
-                    Arguments = $"-i \"{filePath}\" -f s16le -ar 48000 -ac 2 pipe:1 -loglevel error",
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardInput = true,
-                });
+                    Log.Verbose($"{{Indicator}} [{filename}] reading data from disk cache", "[audio]");
+                    var bytes = await File.ReadAllBytesAsync(cacheFilePath);
+                    audioBytes[filename] = bytes;
+                }
+                else
+                {
+                    Log.Verbose($"{{Indicator}} [{filename}] running ffmpeg", "[audio]");
+
+                    var p = Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "ffmpeg",
+                        Arguments = $"-hide_banner -re -i \"{filePath}\" -f s16le -ar 48000 -ac 2 -loglevel error pipe:1",
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        RedirectStandardInput = true,
+                    });
+
+                    using var audioStream = new MemoryStream();
+                    await p.StandardOutput.BaseStream.CopyToAsync(audioStream);
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+                    await p.WaitForExitAsync(cts.Token);
+
+                    Log.Verbose($"{{Indicator}} [{filename}] ffmpeg complete", "[audio]");
+
+                    using var binaryReader = new BinaryReader(audioStream);
+                    binaryReader.BaseStream.Position = 0;
+                    
+                    var data = binaryReader.ReadBytes((int)audioStream.Length);
+                    ScaleVolumeSpan(data, .75f);
+
+                    if (cacheFilePath != null)
+                    {
+                        await File.WriteAllBytesAsync(cacheFilePath, data);
+                        Log.Verbose($"{{Indicator}} [{filename}] saved to disk cache", "[audio]");
+                        audioBytes[filename] = data;
+                    }
+                }
             }
             else
             {
                 Log.Verbose($"{{Indicator}} [{filename}] using cached bytes", "[audio]");
             }
 
-            await audioInstance.streamLock.WaitAsync();
-
-            Log.Verbose($"{{Indicator}} [{filename}] lock obtained", "[audio]");
-
             try
             {
                 if (audioInstance.Stream != null)
                 {
-                    Log.Verbose($"{{Indicator}} [{filename}] stream copy", "[audio]");
+                    Log.Verbose($"{{Indicator}} [{filename}] copying audio bytes to audio stream", "[audio]");
+                    using var memoryStream = new MemoryStream(audioBytes[filename]);    
+                    await memoryStream.CopyToAsync(audioInstance.Stream);
 
-                    if (p != null)
-                    {
-                        using (var memoryStream = new MemoryStream())
-                        {
-                            await p.StandardOutput.BaseStream.CopyToAsync(memoryStream);
-                            byte[] data;
-                            using (var binaryReader = new BinaryReader(memoryStream))
-                            {
-                                binaryReader.BaseStream.Position = 0;
-                                data = binaryReader.ReadBytes((int)memoryStream.Length);
-                            }
+                    Log.Verbose($"{{Indicator}} [{filename}] flushing audio stream", "[audio]");
+                    var cts = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+                    await audioInstance.Stream.FlushAsync(cts.Token);
 
-                            if (!audioBytes.ContainsKey(filename))
-                            {
-                                ScaleVolumeSpan(data, .75f);
-                                audioBytes[filename] = data;
-                            }
-                        }
-                    }
-
-                    using (var memoryStream = new MemoryStream(audioBytes[filename]))
-                    { 
-                        await memoryStream.CopyToAsync(audioInstance.Stream);
-                    }
-
-                    p?.WaitForExit(8000);
-                    var flushTask = audioInstance.Stream.FlushAsync();
-                    var timeoutTask = Task.Delay(8000);
-
-                    if (await Task.WhenAny(flushTask, timeoutTask) == timeoutTask)
-                    {
-                        Log.Debug($"{{Indicator}} [{filename}] timeout occurred", "[audio]");
-                        throw new TimeoutException();
-                    }
+                    Log.Verbose($"{{Indicator}} [{filename}] audio send complete", "[audio]");
                 }
+                else
+                {
+                    Log.Warning($"{{Indicator}} [{filename}] audio stream is null", "[audio]");
+                }
+            }
+            catch (TaskCanceledException ex)
+            {
+                // TODO: Track to trigger a reconnect if stream writes are timing out
+
+                Log.Warning(ex, $"{{Indicator}} [{filename}] timeout occurred", "[audio]");
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "{Indicator} Error sending audio clip", "[audio]");
-                p?.Dispose();
             }
             finally
             {

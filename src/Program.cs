@@ -56,7 +56,13 @@
                                 foreach (var chan in channels)
                                 {
                                     var channelPermissions = botGuildUser.GetPermissions(chan);
-                                    channelsResponse.Channels.Add(chan.Id, new GuildChannelPermissions { CanRead = channelPermissions.ViewChannel, CanSend = channelPermissions.SendMessages, CanEmbed = channelPermissions.EmbedLinks });
+                                    channelsResponse.Channels.Add(chan.Id, new GuildChannelPermissions
+                                    { 
+                                        CanRead = channelPermissions.ViewChannel,
+                                        CanSend = channelPermissions.SendMessages,
+                                        CanEmbed = channelPermissions.EmbedLinks,
+                                        CanSpeak = channelPermissions.Speak,
+                                    });
                                 }
 
                                 foreach (var emoji in guild.Emotes)

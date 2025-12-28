@@ -2,6 +2,7 @@
 {
     using System;
     using System.Collections.Generic;
+    using System.IO;
     using Newtonsoft.Json;
     using Serilog.Events;
     using UB3RIRC;
@@ -72,10 +73,24 @@
 
         /// Settings for voice support
         public string VoiceFilePath { get; set; }
+        public string VoiceCachePath { get; set; }
+        public string VoiceFileExtension { get; set; } = "*.mp3";
 
         public Dictionary<ThrottleType, Throttle> Throttles { get; set; } = new Dictionary<ThrottleType, Throttle>();
 
         public AprilFoolsConfig AprilFools { get; set; } = new AprilFoolsConfig();
+
+        public string[] GetVoiceFileNames(VoicePhraseType voicePhraseType)
+        {
+            if (!voiceFileNames.ContainsKey(voicePhraseType))
+            {
+                voiceFileNames[voicePhraseType] = Directory.GetFiles(Path.Combine(this.VoiceFilePath, voicePhraseType.ToString().ToLowerInvariant()), this.VoiceFileExtension);
+            }
+
+            return voiceFileNames[voicePhraseType];
+        }
+
+        private readonly Dictionary<VoicePhraseType, string[]> voiceFileNames = new Dictionary<VoicePhraseType, string[]>();
     }
 
     public class MetricsConfig

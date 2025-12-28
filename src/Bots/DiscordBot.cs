@@ -172,7 +172,7 @@ namespace UB3RB0T
         protected override async Task<bool> SendNotification(NotificationData notification)
         {
             // if the guild wasn't found, it belongs to another shard.
-            if (!(this.Client.GetGuild(Convert.ToUInt64(notification.Server)) is IGuild guild))
+            if (this.Client.GetGuild(Convert.ToUInt64(notification.Server)) is not IGuild guild)
             {
                 return false;
             }
@@ -292,6 +292,46 @@ namespace UB3RB0T
                 UserCount = this.Client.Guilds.Sum(x => x.MemberCount),
                 ChannelCount = this.Client.Guilds.Sum(x => x.TextChannels.Count),
             };
+        }
+
+        /// <summary>
+        /// Join configured audio channels after a startup delay
+        /// </summary>
+        private void JoinAudio()
+        {
+            Task.Run(async () =>
+            {
+                await Task.Delay(10000);
+                try
+                {
+                    foreach (var guildSetting in SettingsConfig.Instance.Settings)
+                    {
+                        if (guildSetting.Value.VoiceId != 0)
+                        {
+                            try
+                            {
+                                var guild = this.Client.GetGuild(Convert.ToUInt64(guildSetting.Key));
+                                var voiceChannel = guild?.GetVoiceChannel(guildSetting.Value.VoiceId);
+                                if (voiceChannel != null && voiceChannel.GetCurrentUserPermissions().Speak)
+                                {
+                                    Log.Verbose($"{{Indiactor}} Joining audio channel {voiceChannel.Id} on guild {guildSetting.Key} on startup", "[audio]");
+                                    await this.audioManager.JoinAudioAsync(voiceChannel, allowReconnect: true);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                Log.Error(ex, $"{{Indicator}} Failed to join audio channel on guild {guildSetting.Key} on startup", "[audio]");
+                            }
+                        }
+                    }
+
+                    await this.audioManager.Monitor();
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "{Indicator} Failed to process audio joins on startup", "[audio]");
+                }
+            }).Forget();
         }
 
         /// <summary>

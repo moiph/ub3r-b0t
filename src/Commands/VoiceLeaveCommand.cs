@@ -15,6 +15,7 @@
                 {
                     try
                     {
+                        Log.Information($"{{Indicator}} Leaving audio on guild {channel.Guild.Id}", "[audio]");
                         await context.AudioManager.LeaveAudioAsync(channel);
                     }
                     catch (Exception ex)
