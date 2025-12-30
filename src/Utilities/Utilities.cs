@@ -71,6 +71,11 @@ namespace UB3RB0T
             return haystack.Contains(needle, StringComparison.OrdinalIgnoreCase);
         }
 
+        public static bool IStartsWith(this string haystack, string needle)
+        {
+            return haystack.StartsWith(needle, StringComparison.OrdinalIgnoreCase);
+        }
+
         public static bool IEquals(this string first, string second)
         {
             return first.Equals(second, StringComparison.OrdinalIgnoreCase);

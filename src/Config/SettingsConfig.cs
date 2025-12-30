@@ -153,7 +153,7 @@
         public bool AutoTitlesEnabled { get; set; }
         public bool SeenEnabled { get; set; }
         public bool DisableMessageCleanup { get; set; }
-
+        public bool StrictReminders { get; set; }
         public bool PreferEmbeds { get; set; }
         public NotificationType Notif_EmbedOptions { get; set; }
 

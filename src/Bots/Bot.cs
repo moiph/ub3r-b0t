@@ -391,7 +391,8 @@ namespace UB3RB0T
 
                 if (string.IsNullOrEmpty(command))
                 {
-                    if (messageData.Content.IContains("remind "))
+                    var possibleReminder = settings.StrictReminders ? messageData.Content.IStartsWith("remind ") : messageData.Content.IContains("remind ");
+                    if (possibleReminder)
                     {
                         // check for reminders
                         Match timerAtMatch = Consts.TimerOnRegex.Match(messageData.Content);
