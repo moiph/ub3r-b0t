@@ -70,7 +70,7 @@
 
                 if (audioInstance.AllowReconnect)
                 {
-                    audioInstance.NeedsReconnect = true;
+                    audioInstance.DisconnectedTime = DateTime.UtcNow;
                     Log.Information(ex, $"{{Indicator}} Requesting reconnect on {voiceChannel.GuildId}", "[audio]");
                 }
             };
@@ -174,23 +174,36 @@
 
                 while (true)
                 {
-                    var reconnects = audioInstances.Where(a => a.Value.NeedsReconnect).Select(a => a.Key);
-                    if (reconnects.Count() > 0)
+                    var reconnects = audioInstances.Where(a =>
+                        a.Value.DisconnectedTime != DateTime.MinValue &&
+                        DateTime.UtcNow.Subtract(a.Value.DisconnectedTime) > TimeSpan.FromSeconds(BotConfig.Instance.VoiceReconnectTime)
+                    ).Select(a => a.Key);
+
+                    if (reconnects.Any())
                     {
                         foreach (ulong guildId in reconnects)
                         {
-                            Log.Information($"{{Indicator}} Reconnecting audio for {guildId}", "[audio]");
-                            try
+                            // verify connection state; reset disconnected time if already reconnected
+                            if (audioInstances[guildId].AudioClient.ConnectionState == ConnectionState.Connected)
                             {
-                                audioInstances.TryRemove(guildId, out var audioInstance);
-                                var voiceChannel = audioInstance.VoiceChannel;
-                                audioInstance.Dispose();
-
-                                await this.CreateAudioInstance(voiceChannel, allowReconnect: true);
+                                Log.Information($"{{Indicator}} Skipped reconnecting audio for {guildId}; already connected", "[audio]");
+                                audioInstances[guildId].DisconnectedTime = DateTime.MinValue;
                             }
-                            catch (Exception ex)
+                            else
                             {
-                                Log.Error(ex, $"{{Indicator}} Failed to reonnect audio instance on {guildId}", "[audio]");
+                                Log.Information($"{{Indicator}} Reconnecting audio for {guildId}", "[audio]");
+                                try
+                                {
+                                    audioInstances.TryRemove(guildId, out var audioInstance);
+                                    var voiceChannel = audioInstance.VoiceChannel;
+                                    audioInstance.Dispose();
+
+                                    await this.CreateAudioInstance(voiceChannel, allowReconnect: true);
+                                }
+                                catch (Exception ex)
+                                {
+                                    Log.Error(ex, $"{{Indicator}} Failed to reonnect audio instance on {guildId}", "[audio]");
+                                }
                             }
                         }
                     }

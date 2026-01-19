@@ -367,9 +367,10 @@ namespace UB3RB0T
             {
                 // match fun
                 bool mentionsBot = messageData.MentionsBot(this.Config.Name, Convert.ToUInt64(this.UserId));
-                if (CommandsConfig.Instance.TryParseForCommand(messageData.Content, mentionsBot, out _, out string query))
+                if (CommandsConfig.Instance.TryParseForCommand(messageData.Content, mentionsBot, out _, out string query, out var priority))
                 {
                     messageData.Content = $"{settings.Prefix}{query}";
+                    messageData.CommandPriority = priority;
                 }
             }
         }
@@ -381,6 +382,8 @@ namespace UB3RB0T
             var responses = new List<string>();
             var responseData = new BotResponseData { Responses = responses };
 
+            string[] phrasesResponse = this.GetPhraseResponses(messageData, settings);
+
             if (this.BotApi != null)
             {
                 // if an explicit command is being used, it wins out over any implicitly parsed command
@@ -389,7 +392,7 @@ namespace UB3RB0T
 
                 string[] contentParts = messageData.Content.Split(new[] { ' ' });
 
-                if (string.IsNullOrEmpty(command))
+                if (string.IsNullOrEmpty(command) || messageData.CommandPriority == CommandPriority.Low)
                 {
                     var possibleReminder = settings.StrictReminders ? messageData.Content.IStartsWith("remind ") : messageData.Content.IContains("remind ");
                     if (possibleReminder)
@@ -401,6 +404,7 @@ namespace UB3RB0T
                             timerAt2Match.Success && Utilities.TryParseAbsoluteReminder(timerAt2Match, messageData, out query))
                         {
                             command = "timer";
+                            messageData.CommandPriority = CommandPriority.High;
                         }
                         else // try relative timers if absolute had no match
                         {
@@ -413,6 +417,7 @@ namespace UB3RB0T
                                 if (Utilities.TryParseReminder(matchToUse, messageData, out query))
                                 {
                                     command = "timer";
+                                    messageData.CommandPriority = CommandPriority.High;
                                 }
                             }
                         }
@@ -436,6 +441,12 @@ namespace UB3RB0T
                             query = $"{command} {contentParts[0]}";
                         }
                     }
+                }
+
+                // if the command is low priority and we have a phrase response, skip processing
+                if (messageData.CommandPriority == CommandPriority.Low && phrasesResponse != null)
+                {
+                    command = string.Empty;
                 }
 
                 // Ignore if the command is disabled on this server
@@ -489,44 +500,54 @@ namespace UB3RB0T
                     {
                         messageData.Content = $"{settings.Prefix}{query}";
                         responseData = await this.BotApi.IssueRequestAsync(messageData);
+                        if (responseData.SetTypingState)
+                        {
+                            _ = messageData.DiscordMessageData.Channel.TriggerTypingAsync();
+                        }
                     }
                 }
             }
-
-            if (responseData.Responses.Count == 0 && responseData.Embed == null)
+            
+            if (responseData.Responses.Count == 0 && responseData.Embed == null && phrasesResponse != null)
             {
-                string response = null;
-                if (messageData.MentionsBot(this.Config.Name, Convert.ToUInt64(this.UserId)))
-                {
-                    var responseValue = PhrasesConfig.Instance.PartialMentionPhrases.FirstOrDefault(kvp => messageData.Content.IContains(kvp.Key)).Value;
-                    if (!string.IsNullOrEmpty(responseValue))
-                    {
-                        response = PhrasesConfig.Instance.Responses[responseValue].Random();
-                    }
-                }
-
-                if (response == null && PhrasesConfig.Instance.ExactPhrases.TryGetValue(messageData.Content, out var phrase) && (settings.FunResponsesEnabled && this.Random.Next(1, 100) <= settings.FunResponseChance || IsAuthorOwner(messageData)))
-                {
-                    if (settings.SasshatEnabled && PhrasesConfig.Instance.Responses.TryGetValue($"{phrase}_nice", out var phraseResponses) || PhrasesConfig.Instance.Responses.TryGetValue(phrase, out phraseResponses))
-                    {
-                        response = phraseResponses.Random();
-                    }
-                }
-
-                if (response == null && settings.CustomCommands.Count > 0)
-                {
-                    response = settings.TryCustomCommand(messageData.Content);
-                }
-
-                if (response != null)
-                {
-                    response = response.Replace("%from%", messageData.UserName);
-                    string[] resps = response.Split("||");
-                    responseData.Responses.AddRange(resps);
-                }
+                responseData.Responses.AddRange(phrasesResponse);
             }
 
             return responseData;
+        }
+
+        protected string[] GetPhraseResponses(BotMessageData messageData, Settings settings)
+        {
+            string response = null;
+            if (messageData.MentionsBot(this.Config.Name, Convert.ToUInt64(this.UserId)))
+            {
+                var responseValue = PhrasesConfig.Instance.PartialMentionPhrases.FirstOrDefault(kvp => messageData.Content.IContains(kvp.Key)).Value;
+                if (!string.IsNullOrEmpty(responseValue))
+                {
+                    response = PhrasesConfig.Instance.Responses[responseValue].Random();
+                }
+            }
+
+            if (response == null && PhrasesConfig.Instance.ExactPhrases.TryGetValue(messageData.Content, out var phrase) && (settings.FunResponsesEnabled && this.Random.Next(1, 100) <= settings.FunResponseChance || IsAuthorOwner(messageData)))
+            {
+                if (settings.SasshatEnabled && PhrasesConfig.Instance.Responses.TryGetValue($"{phrase}_nice", out var phraseResponses) || PhrasesConfig.Instance.Responses.TryGetValue(phrase, out phraseResponses))
+                {
+                    response = phraseResponses.Random();
+                }
+            }
+
+            if (response == null && settings.CustomCommands.Count > 0)
+            {
+                response = settings.TryCustomCommand(messageData.Content);
+            }
+
+            if (response != null)
+            {
+                response = response.Replace("%from%", messageData.UserName);
+                return response.Split("||");
+            }
+
+            return null;
         }
 
         protected void TrackTimer(string eventName, double value, Dictionary<string, string> properties = null)

@@ -31,6 +31,7 @@
         public string MessageId { get; set; }
         public string Content { get; set; }
         public string Command => Query.Split(new[] { ' ' }, 2)?[0];
+        public CommandPriority CommandPriority { get; set; }
         public string Prefix { get; set; }
         public Dictionary<string, string> RequestOptions { get; set; }
         public string Query

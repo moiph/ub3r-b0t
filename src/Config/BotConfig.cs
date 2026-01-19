@@ -76,6 +76,7 @@
         public string VoiceCachePath { get; set; }
         public string VoiceFileExtension { get; set; } = "*.mp3";
 
+        public int VoiceReconnectTime { get; set; } = 60;
         public Dictionary<ThrottleType, Throttle> Throttles { get; set; } = new Dictionary<ThrottleType, Throttle>();
 
         public AprilFoolsConfig AprilFools { get; set; } = new AprilFoolsConfig();

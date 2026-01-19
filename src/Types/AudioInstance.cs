@@ -20,7 +20,7 @@
         public Stream Stream { get; set; }
         public bool SentJoinGreeting { get; set; }
         public bool AllowReconnect { get; set; }
-        public bool NeedsReconnect { get; set; }
+        public DateTime DisconnectedTime { get; set; }
 
         public void Dispose()
         {

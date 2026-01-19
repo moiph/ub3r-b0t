@@ -23,10 +23,11 @@
 
         public List<CommandPattern> CommandPatterns { get; set; }
 
-        public bool TryParseForCommand(string text, bool mentionsBot, out string command, out string query)
+        public bool TryParseForCommand(string text, bool mentionsBot, out string command, out string query, out CommandPriority priority)
         {
             query = string.Empty;
             command = string.Empty;
+            priority = CommandPriority.High;
 
             // if the text is greater than a configurable number of characters, just bail out. not a valid command to parse.
             if (text.Length > this.CommandLengthLimit)
@@ -48,6 +49,8 @@
             {
                 query = commandPattern.Regex.Value.Replace(text, commandPattern.Replacement);
                 command = commandPattern.Command;
+                priority = commandPattern.Priority;
+
                 return true;
             }
 
@@ -68,6 +71,11 @@
         public bool RequiresMention { get; set; }
 
         /// <summary>
+        /// If low priority is set, custom commands and phrase matching will be handled first
+        /// </summary>
+        public CommandPriority Priority { get; set; }
+
+        /// <summary>
         /// Tag to match for OcrModule
         /// </summary>
         public string AnalysisTag { get; set; }
@@ -76,5 +84,11 @@
         {
             this.Regex = new Lazy<Regex>(() => new Regex(this.Pattern, RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(100)));
         }
+    }
+
+    public enum CommandPriority
+    {
+        High,
+        Low,
     }
 }

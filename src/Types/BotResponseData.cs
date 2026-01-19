@@ -9,5 +9,6 @@ namespace UB3RB0T
         public string AttachmentUrl;
         public bool Ephemeral;
         public bool AllowMentions { get; set; }
+        public bool SetTypingState { get; set; }
     }
 }

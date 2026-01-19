@@ -16,8 +16,8 @@
     <UpdateAssemblyInfoVersion>False</UpdateAssemblyInfoVersion>
     <AssemblyVersionSettings>IncrementOnDemand.IncrementOnDemand.DateStamp.Increment</AssemblyVersionSettings>
     <Version>4.7.0</Version>
-    <AssemblyVersion>4.7.2512.12</AssemblyVersion>
-    <FileVersion>4.7.2512.12</FileVersion>
+    <AssemblyVersion>4.7.2601.2</AssemblyVersion>
+    <FileVersion>4.7.2601.2</FileVersion>
     <StartupObject></StartupObject>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -50,7 +50,7 @@
     <Content Include="ub3rb0t.ico" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Azure.Messaging.ServiceBus" Version="7.7.0" />
+    <PackageReference Include="Azure.Messaging.ServiceBus" Version="7.20.1" />
     <PackageReference Include="Discord.Net.WebSocket" Version="3.18.0-nightly.20250903.618" />
     <PackageReference Include="DogStatsD-CSharp-Client" Version="8.0.0" />
     <PackageReference Include="Flurl.Http" Version="4.0.2" />
