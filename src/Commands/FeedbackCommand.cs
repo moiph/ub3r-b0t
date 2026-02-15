@@ -7,8 +7,8 @@
     [SpecialUserOnly]
     public class FeedbackCommand : IDiscordCommand
     {
-        private static Regex FeedbackMessageRx = new Regex("^.*\\[server:([0-9]+) chan:([0-9]+) user:([0-9]+)\\] \\(mid: [0-9]+\\)$", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Multiline);
-        private static Regex FeedbackEmbedRx = new Regex("^S: ([0-9]+) \\| C: ([0-9]+) \\| U: ([0-9]+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Multiline);
+        private static Regex FeedbackMessageRx = new Regex("^.*\\[server:([0-9]+) chan:([0-9]+) user:([0-9]+) type:([A-Z]+)\\] \\(mid: [0-9]+\\)$", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Multiline);
+        private static Regex FeedbackEmbedRx = new Regex("^S: ([A-Z0-9]+) \\| C: ([A-Z0-9]+) \\| U: ([A-Z0-9]+) \\| T: ([A-Z]+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Multiline);
 
         public async Task<CommandResponse> Process(IDiscordBotContext context)
         {
@@ -50,7 +50,7 @@
                 return new CommandResponse { Text = "failed to find match" };
             }
 
-            context.MessageData.Content = $"{context.Settings.Prefix}feedback reply {match.Groups[1]} {match.Groups[2]} {match.Groups[3]} {parts[2]}";
+            context.MessageData.Content = $"{context.Settings.Prefix}feedback reply {match.Groups[1]} {match.Groups[2]} {match.Groups[3]} {match.Groups[4]} {parts[2]}";
             var response = (await context.BotApi.IssueRequestAsync(context.MessageData)).Responses.FirstOrDefault();
 
             if (response != null)

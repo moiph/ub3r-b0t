@@ -39,6 +39,8 @@
         public ulong[] OcrAutoRespondIds { get; set; } = Array.Empty<ulong>();
 
         public DiscordConfig Discord { get; set; }
+        public StoatConfig Stoat { get; set; }
+        public FluxerBotConfig Fluxer { get; set; }
         public Irc Irc { get; set; }
 
         // endpoint to send heartbeat data to
@@ -53,6 +55,7 @@
 
         /// Hostname to listen on for incoming http requests (for monitoring)
         public string WebListenerHostName { get; set; }
+        public int WebListenerPort { get; set; } = 9100;
         // List of allowed incoming IPs for web queries
         public List<string> WebListenerInboundAddresses { get; set; } = new List<string>();
 
@@ -163,6 +166,29 @@
         /// Native commands
         /// </summary>
         public Dictionary<string, string> CommandTypes { get; set; }
+    }
+    public class StoatConfig
+    {
+        [JsonRequired]
+        public string Token { get; set; }
+
+        [JsonRequired]
+        public string OwnerId { get; set; }
+
+        [JsonRequired]
+        public string BotId { get; set; }
+    }
+
+    public class FluxerBotConfig
+    {
+        [JsonRequired]
+        public string Token { get; set; }
+
+        [JsonRequired]
+        public string OwnerId { get; set; }
+
+        [JsonRequired]
+        public string BotId { get; set; }
     }
 
     public class BotStatData

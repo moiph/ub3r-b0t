@@ -283,15 +283,15 @@ namespace UB3RB0T
             return true;
         }
 
-        protected override HeartbeatData GetHeartbeatData()
+        protected override Task<HeartbeatData> GetHeartbeatData()
         {
-            return new HeartbeatData
+            return Task.FromResult(new HeartbeatData
             {
                 ServerCount = this.Client.Guilds.Count(),
                 VoiceChannelCount = this.Client.Guilds.Select(g => g.CurrentUser?.VoiceChannel).Where(v => v != null).Count(),
                 UserCount = this.Client.Guilds.Sum(x => x.MemberCount),
                 ChannelCount = this.Client.Guilds.Sum(x => x.TextChannels.Count),
-            };
+            });
         }
 
         /// <summary>

@@ -4,5 +4,7 @@
     {
         Irc,
         Discord,
+        Stoat,
+        Fluxer,
     }
 }

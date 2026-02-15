@@ -18,6 +18,12 @@ namespace UB3RB0T
     using System.Text;
     using System.Text.RegularExpressions;
     using System.Threading.Tasks;
+    using StoatEmbed = StoatSharp.Embed;
+    using StoatEmbedBuilder = StoatSharp.EmbedBuilder;
+    using FluxerEmbed = Fluxer.Net.Data.Models.Embed;
+    using FluxerEmbedMedia = Fluxer.Net.Data.Models.EmbedMedia;
+    using FluxerEmbedAuthor = Fluxer.Net.Data.Models.EmbedAuthor;
+    using FluxerEmbedFooter = Fluxer.Net.Data.Models.EmbedFooter;
 
     public static class Utilities
     {
@@ -153,6 +159,127 @@ namespace UB3RB0T
             }
 
             return embedBuilder;
+        }
+
+        public static StoatEmbed CreateStoatEmbed(this EmbedData embedData)
+        {
+
+            var embed = new StoatEmbedBuilder
+            {
+                Title = embedData.Title,
+                Description = embedData.Description,
+            };
+
+            if (!string.IsNullOrEmpty(embedData.Author))
+            {
+                // no author field
+            }
+
+            if (!string.IsNullOrEmpty(embedData.ThumbnailUrl))
+            {
+                embed.SetIconUrl(embedData.ThumbnailUrl);
+            }
+
+            if (!string.IsNullOrEmpty(embedData.ImageUrl))
+            {
+                embed.SetImage(embedData.ImageUrl);
+            }
+
+            if (!string.IsNullOrEmpty(embedData.Url))
+            {
+                embed.SetUrl(embedData.Url);
+            }
+
+            if (!string.IsNullOrEmpty(embedData.Color))
+            {
+                var red = Convert.ToInt32(embedData.Color.Substring(0, 2), 16);
+                var green = Convert.ToInt32(embedData.Color.Substring(2, 2), 16);
+                var blue = Convert.ToInt32(embedData.Color.Substring(4, 2), 16);
+
+                embed.SetColor(new StoatSharp.StoatColor(red, green, blue));
+            }
+
+            // No footer, fields at present in Stoat
+
+            return embed.Build();
+        }
+
+
+        public static FluxerEmbed CreateFluxerEmbed(this EmbedData embedData)
+        {
+            var embed = new FluxerEmbed
+            {
+                Title = embedData.Title,
+                Description = embedData.Description,
+            };
+
+            if (!string.IsNullOrEmpty(embedData.Author))
+            {
+                embed.Author = new FluxerEmbedAuthor
+                {
+                    Name = embedData.Author,
+                    Url = embedData.AuthorUrl,
+                    IconUrl = embedData.AuthorIconUrl,
+                };
+            }
+
+            if (!string.IsNullOrEmpty(embedData.ThumbnailUrl))
+            {
+                embed.Thumbnail = new FluxerEmbedMedia
+                {
+                    Url = embedData.ThumbnailUrl,
+                };
+            }
+
+            if (!string.IsNullOrEmpty(embedData.ImageUrl))
+            {
+                embed.Image = new FluxerEmbedMedia
+                {
+                    Url = embedData.ImageUrl,
+                };
+            }
+
+            if (!string.IsNullOrEmpty(embedData.Url))
+            {
+                embed.Url = embedData.Url;
+            }
+
+            if (!string.IsNullOrEmpty(embedData.Color))
+            {
+                var red = Convert.ToInt32(embedData.Color.Substring(0, 2), 16);
+                var green = Convert.ToInt32(embedData.Color.Substring(2, 2), 16);
+                var blue = Convert.ToInt32(embedData.Color.Substring(4, 2), 16);
+
+                embed.Color = 5;
+            }
+
+            if (!string.IsNullOrEmpty(embedData.Footer))
+            {
+                embed.Footer = new FluxerEmbedFooter
+                {
+                    Text = embedData.Footer,
+                    IconUrl = embedData.FooterIconUrl,
+                };
+            }
+
+            if (embedData.EmbedFields != null)
+            {
+                embed.Fields = [];
+                foreach (var embedField in embedData.EmbedFields)
+                {
+                    if (!string.IsNullOrEmpty(embedField.Name) && !string.IsNullOrEmpty(embedField.Value))
+                    {
+                        embed.Fields.Add(new Fluxer.Net.Data.Models.EmbedField
+                        {
+                            Name = embedField.Name,
+                            Value = embedField.Value,
+                            Inline = embedField.IsInline,
+                        });
+                    }
+                }
+            }
+
+            return embed;
         }
 
         public static bool HasMentionPrefix(this string text, ulong botUserId, ref int argPos)

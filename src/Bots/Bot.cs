@@ -72,6 +72,12 @@ namespace UB3RB0T
                     case BotType.Discord:
                         suffix = $"{shard}";
                         break;
+                    case BotType.Stoat:
+                        suffix = "stoat";
+                        break;
+                    case BotType.Fluxer:
+                        suffix = "fluxer";
+                        break;
                 }
 
                 this.queueName = $"{this.Config.QueueNamePrefix}{suffix}";
@@ -109,6 +115,14 @@ namespace UB3RB0T
 
                 case BotType.Discord:
                     bot = new DiscordBot(shard, totalShards);
+                    break;
+
+                case BotType.Stoat:
+                    bot = new StoatBot(shard, totalShards);
+                    break;
+
+                case BotType.Fluxer:
+                    bot = new FluxerBot(shard, totalShards);
                     break;
 
                 default:
@@ -229,6 +243,7 @@ namespace UB3RB0T
                 {
                     try
                     {
+                        Log.Information($"Sending notification {notificationData.Type} to {notificationData.BotType} server {notificationData.Server} on channel {notificationData.Channel}");
                         await this.SendNotification(notificationData);
                     }
                     catch (Exception ex)
@@ -293,7 +308,7 @@ namespace UB3RB0T
 
         protected abstract Task StopAsyncInternal(bool unexpected);
 
-        protected abstract HeartbeatData GetHeartbeatData();
+        protected abstract Task<HeartbeatData> GetHeartbeatData();
 
         /// <summary>
         /// Attempts to process and send a notification.
@@ -366,7 +381,7 @@ namespace UB3RB0T
             if (string.IsNullOrEmpty(command))
             {
                 // match fun
-                bool mentionsBot = messageData.MentionsBot(this.Config.Name, Convert.ToUInt64(this.UserId));
+                bool mentionsBot = messageData.MentionsBot(this.Config.Name, this.UserId);
                 if (CommandsConfig.Instance.TryParseForCommand(messageData.Content, mentionsBot, out _, out string query, out var priority))
                 {
                     messageData.Content = $"{settings.Prefix}{query}";
@@ -519,7 +534,7 @@ namespace UB3RB0T
         protected string[] GetPhraseResponses(BotMessageData messageData, Settings settings)
         {
             string response = null;
-            if (messageData.MentionsBot(this.Config.Name, Convert.ToUInt64(this.UserId)))
+            if (messageData.MentionsBot(this.Config.Name, this.UserId))
             {
                 var responseValue = PhrasesConfig.Instance.PartialMentionPhrases.FirstOrDefault(kvp => messageData.Content.IContains(kvp.Key)).Value;
                 if (!string.IsNullOrEmpty(responseValue))
@@ -596,10 +611,14 @@ namespace UB3RB0T
         {
             Task.Run(() =>
             {
-                int port = 9100;
+                int port = this.Config.WebListenerPort;
                 if (this.BotType == BotType.Discord)
                 {
                     port += 10 + this.Shard;
+                }
+                else
+                {
+                    port += (int)this.BotType;
                 }
 
                 X509Certificate2 cert = null;
@@ -722,18 +741,35 @@ namespace UB3RB0T
 
             if (this.Config.HeartbeatEndpoint != null && !this.Config.IsDevMode)
             {
-                var heartbeatData = this.GetHeartbeatData();
-                heartbeatData.BotType = this.BotType.ToString();
-                heartbeatData.Shard = this.Shard;
-                heartbeatData.StartTime = Bot.startTime;
 
+                HeartbeatData heartbeatData = null;
                 try
                 {
-                    var result = await this.Config.HeartbeatEndpoint.PostJsonAsync(heartbeatData);
+                    heartbeatData = await this.GetHeartbeatData();
                 }
                 catch (Exception ex)
                 {
-                    Log.Error(ex, "Error sending heartbeat data");
+                    Log.Error(ex, "Error getting heartbeat data");
+                }
+
+                if (heartbeatData == null)
+                {
+                    Log.Warning("GetHeartbeatData returned null, skip sending heartbeat post");
+                }
+                else
+                {
+                    heartbeatData.BotType = this.BotType.ToString();
+                    heartbeatData.Shard = this.Shard;
+                    heartbeatData.StartTime = Bot.startTime;
+
+                    try
+                    {
+                        var result = await this.Config.HeartbeatEndpoint.PostJsonAsync(heartbeatData);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, "Error sending heartbeat data");
+                    }
                 }
             }
 

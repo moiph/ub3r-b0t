@@ -5,6 +5,8 @@
     using System.Text.Json.Serialization;
     using Discord;
     using Discord.WebSocket;
+    using Fluxer.Net.Gateway.Data;
+    using StoatSharp;
     using UB3RIRC;
 
     /// <summary>
@@ -19,6 +21,10 @@
         public SocketInteraction DiscordInteraction { get; private set; }
         [JsonIgnore]
         public MessageData IrcMessageData { get; private set; }
+        [JsonIgnore]
+        public Message StoatMessageData { get; private set; }
+        [JsonIgnore]
+        public MessageGatewayData FluxerMessageData { get; private set; }
 
         public BotType BotType { get; set; }
         public string UserName { get; set; }
@@ -63,24 +69,34 @@
             this.BotType = botType;
         }
 
-        public bool MentionsBot(string botName, ulong? id)
+        public bool MentionsBot(string botName, string id)
         {
-            if (this.BotType == BotType.Discord)
+            if (string.IsNullOrEmpty(this.Content))
             {
-                if (!string.IsNullOrEmpty(this.Content) && this.Content.IContains(botName))
-                {
-                    return true;
-                }
-
-                if (this.DiscordMessageData is SocketUserMessage socketUserMessage)
-                {
-                    return socketUserMessage.MentionedUsers.Count == 1 && socketUserMessage.MentionedUsers.First().Id == id;     
-                }
-
                 return false;
             }
 
-            return this.IrcMessageData.Text.Contains(botName);
+            if (this.Content.IContains(botName))
+            {
+                return true;
+            }
+
+            if (this.BotType == BotType.Discord && this.DiscordMessageData is SocketUserMessage socketUserMessage)
+            {
+                return socketUserMessage.MentionedUsers.Count == 1 && socketUserMessage.MentionedUsers.First().Id.ToString() == id;
+            }
+
+            if (this.BotType == BotType.Stoat && this.Content.Contains(id))
+            {
+                return true;
+            }
+
+            if (this.BotType == BotType.Fluxer)
+            {
+                return this.FluxerMessageData.Mentions?.Count == 1 && this.FluxerMessageData.Mentions.First().Id.ToString() == id;
+            }
+
+            return false;
         }
 
         public static BotMessageData Create(MessageData ircMessageData, IrcClient ircClient, Settings serverSettings)
@@ -93,6 +109,45 @@
                 Channel = ircMessageData.Target,
                 Server = ircClient.Host,
                 Content = ircMessageData.Text,
+                Prefix = serverSettings.Prefix,
+            };
+        }
+        public static BotMessageData Create(Message message, Settings serverSettings)
+        {
+            return new BotMessageData(BotType.Stoat)
+            {
+                StoatMessageData = message,
+                UserName = message.Author.DisplayName ?? message.Author.Username,
+                UserHost = message.Author.Id,
+                UserId = message.Author.Id,
+                Channel = message.ChannelId,
+                Server = message.ServerId,
+                MessageId = message.Id,
+                Content = message.Content,
+                Format = serverSettings.PreferEmbeds ? "embed" : string.Empty,
+                AfEnabled = serverSettings.AprilFoolsEnabled,
+                UwuChance = serverSettings.UwuResponseChance,
+                Sasshat = serverSettings.SasshatEnabled,
+                Prefix = serverSettings.Prefix,
+            };
+        }
+
+        public static BotMessageData Create(MessageGatewayData data, Settings serverSettings)
+        {
+            return new BotMessageData(BotType.Fluxer)
+            {
+                FluxerMessageData = data,
+                UserName = data.Author.Username,
+                UserHost = data.Author.Id.ToString(),
+                UserId = data.Author.Id.ToString(),
+                Channel = data.ChannelId.ToString(),
+                Server = data.GuildId.ToString(),
+                MessageId = data.Id.ToString(),
+                Content = data.Content,
+                Format = serverSettings.PreferEmbeds ? "embed" : string.Empty,
+                AfEnabled = serverSettings.AprilFoolsEnabled,
+                UwuChance = serverSettings.UwuResponseChance,
+                Sasshat = serverSettings.SasshatEnabled,
                 Prefix = serverSettings.Prefix,
             };
         }

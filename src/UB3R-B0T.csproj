@@ -16,8 +16,8 @@
     <UpdateAssemblyInfoVersion>False</UpdateAssemblyInfoVersion>
     <AssemblyVersionSettings>IncrementOnDemand.IncrementOnDemand.DateStamp.Increment</AssemblyVersionSettings>
     <Version>4.7.0</Version>
-    <AssemblyVersion>4.7.2601.2</AssemblyVersion>
-    <FileVersion>4.7.2601.2</FileVersion>
+    <AssemblyVersion>4.7.2602.1</AssemblyVersion>
+    <FileVersion>4.7.2602.1</FileVersion>
     <StartupObject></StartupObject>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -51,13 +51,15 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Azure.Messaging.ServiceBus" Version="7.20.1" />
-    <PackageReference Include="Discord.Net.WebSocket" Version="3.18.0-nightly.20250903.618" />
+    <PackageReference Include="Discord.Net.WebSocket" Version="3.19.0-beta.1" />
     <PackageReference Include="DogStatsD-CSharp-Client" Version="8.0.0" />
     <PackageReference Include="Flurl.Http" Version="4.0.2" />
+    <PackageReference Include="Fluxer.Net" Version="1.0.0-alpha11" />
     <PackageReference Include="Microsoft.ApplicationInsights" Version="2.23.0" />
     <PackageReference Include="Serilog" Version="4.3.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+    <PackageReference Include="StoatSharp" Version="9.0.2" />
     <PackageReference Include="UB3RIRC" Version="2.1.1" />
   </ItemGroup>
   <ItemGroup>

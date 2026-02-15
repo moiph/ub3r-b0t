@@ -203,7 +203,7 @@ namespace UB3RB0T
         }
 
         /// <inheritdoc />
-        protected override HeartbeatData GetHeartbeatData()
+        protected override Task<HeartbeatData> GetHeartbeatData()
         {
             var heartbeatData = new HeartbeatData
             {
@@ -212,7 +212,7 @@ namespace UB3RB0T
                 ChannelCount = this.serverData.Values.Sum(i => i.Channels.Count),
             };
 
-            return heartbeatData;
+            return Task.FromResult(heartbeatData);
         }
 
         protected override Task RespondAsync(BotMessageData messageData, string text)
