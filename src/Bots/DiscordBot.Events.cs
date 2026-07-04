@@ -178,7 +178,7 @@ namespace UB3RB0T
             // TODO: Temporary filter for audio warnings; remove with future Discord.NET update
             if (logMessage.Message != null && logMessage.Message.Contains("Unknown OpCode") || 
                 logMessage.Source != null && logMessage.Source.Contains("Audio") && logMessage.Message != null && 
-                (logMessage.Message.Contains("Latency = ") || logMessage.Message.Contains("Malformed Frame")))
+                (logMessage.Message.Contains("Latency = ") || logMessage.Message.Contains("Malformed Frame") || logMessage.Message.Contains("Buffer under run")))
             {
                 return Task.CompletedTask;
             }
@@ -423,9 +423,12 @@ namespace UB3RB0T
 
                     await this.audioManager.SendAudioAsync(guildUser, afterState.VoiceChannel, VoicePhraseType.UserJoin);
                 }
-                else if (beforeState.VoiceChannel != afterState.VoiceChannel && beforeState.VoiceChannel == botGuildUser.VoiceChannel)
+                else if (beforeState.VoiceChannel != null && beforeState.VoiceChannel != afterState.VoiceChannel && beforeState.VoiceChannel == botGuildUser.VoiceChannel)
                 {
-                    await this.audioManager.SendAudioAsync(guildUser, beforeState.VoiceChannel, VoicePhraseType.UserLeave);
+                    if (beforeState.VoiceChannel.ConnectedUsers?.Count > 1)
+                    {
+                        await this.audioManager.SendAudioAsync(guildUser, beforeState.VoiceChannel, VoicePhraseType.UserLeave);
+                    }
                 }
             }
 

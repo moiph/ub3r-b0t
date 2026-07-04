@@ -5,7 +5,7 @@
     using System.Text.Json.Serialization;
     using Discord;
     using Discord.WebSocket;
-    using Fluxer.Net.Gateway.Data;
+    using Fluxer.Net.Gateway.Data.Messages;
     using StoatSharp;
     using UB3RIRC;
 
@@ -93,7 +93,7 @@
 
             if (this.BotType == BotType.Fluxer)
             {
-                return this.FluxerMessageData.Mentions?.Count == 1 && this.FluxerMessageData.Mentions.First().Id.ToString() == id;
+                return this.FluxerMessageData.Mentions?.Length == 1 && this.FluxerMessageData.Mentions.First().Id.ToString() == id;
             }
 
             return false;

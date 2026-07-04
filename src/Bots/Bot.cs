@@ -677,7 +677,11 @@ namespace UB3RB0T
             {
                 Log.Debug("Fetching server settings...");
                 var sinceToken = SettingsConfig.Instance.SinceToken;
-                var configEndpoint = this.Config.SettingsEndpoint.AppendQueryParam("since", $"{sinceToken}").AppendQueryParam("shard", $"{this.Shard}").AppendQueryParam("shardcount", $"{this.TotalShards}");
+                var configEndpoint = this.Config.SettingsEndpoint
+                    .AppendQueryParam("bottype", $"{this.BotType}")
+                    .AppendQueryParam("since", $"{sinceToken}")
+                    .AppendQueryParam("shard", $"{this.Shard}")
+                    .AppendQueryParam("shardcount", $"{this.TotalShards}");
                 await SettingsConfig.Instance.OverrideAsync(configEndpoint);
                 Log.Debug("Server settings updated.");
             }

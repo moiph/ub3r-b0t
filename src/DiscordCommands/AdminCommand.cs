@@ -19,7 +19,7 @@
                 var guildName = WebUtility.UrlEncode(context.GuildChannel.Guild.Name);
                 try
                 {
-                    var resp = await httpClient.GetAsync($"{SettingsConfig.Instance.CreateEndpoint}?id={context.GuildChannel.Guild.Id}&name={guildName}");
+                    var resp = await httpClient.GetAsync($"{SettingsConfig.Instance.CreateEndpoint}?id={context.GuildChannel.Guild.Id}&name={guildName}&platform={context.Bot.BotType}");
                     if (resp.StatusCode == HttpStatusCode.OK)
                     {
                         return new CommandResponse { Text = $"Manage from {SettingsConfig.Instance.ManagementEndpoint}" };

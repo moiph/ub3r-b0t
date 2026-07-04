@@ -4,8 +4,9 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Fluxer.Net;
-using Fluxer.Net.Data.Models;
 using Fluxer.Net.Gateway.Data;
+using Fluxer.Net.Gateway.Data.Messages;
+using Fluxer.Net.Rest.Requests;
 using Serilog;
 using Serilog.Core;
 
@@ -13,8 +14,7 @@ namespace UB3RB0T
 {
     public class FluxerBot : Bot
     {
-        private readonly GatewayClient client;
-        private readonly ApiClient apiClient;
+        private readonly FluxerClient client;
         private readonly MessageCache<ulong> botResponsesCache = new();
 
         private readonly Timer heartbeatTimer;
@@ -24,16 +24,17 @@ namespace UB3RB0T
         {
             var fluxerConfig = new FluxerConfig
             {
-                Serilog = Log.Logger as Logger,
+                RestSerilog = Log.Logger as Logger,
+                GatewaySerilog = Log.Logger as Logger,
+                IgnoredGatewayEvents = ["PRESENCE_UPDATE", "TYPING_START"],
             };
 
-            this.apiClient = new ApiClient(this.Config.Fluxer.Token, fluxerConfig);
-            this.client = new GatewayClient(this.Config.Fluxer.Token, fluxerConfig);
+            this.client = new FluxerClient(this.Config.Fluxer.Token, fluxerConfig);
 
-            this.client.MessageCreate += async data => await this.HandleMessageCreated(data);
-            this.client.MessageUpdate += async data => await this.HandleMessageUpdated(data);
-            this.client.MessageDelete += async data => await this.HandleMessageDeleted(data);
-            this.client.HeartbeatAck += this.HeartbeatAck;
+            this.client.Gateway.MessageCreate += async data => await this.HandleMessageCreated(data);
+            this.client.Gateway.MessageUpdate += async data => await this.HandleMessageUpdated(data);
+            this.client.Gateway.MessageDelete += async data => await this.HandleMessageDeleted(data);
+            this.client.Gateway.HeartbeatAck += this.HeartbeatAck;
 
             this.heartbeatTimer = new Timer(HeartBeatTimerAsync, null, 60000, 60000 * 5);
         }
@@ -43,10 +44,10 @@ namespace UB3RB0T
 
         protected override async Task<HeartbeatData> GetHeartbeatData()
         {
-            List<GuildProperties> guilds = null;
+            List<Guild> guilds = null;
             try
             {
-                guilds = await this.apiClient.GetCurrentUserGuilds();
+                guilds = (await this.client.Rest.GetCurrentUserGuildsAsync()).ToList();
             }
             catch (Exception ex)
             {
@@ -56,7 +57,6 @@ namespace UB3RB0T
             var heartbeatData = new HeartbeatData
             {
                 ServerCount = guilds?.Count ?? 0,
-                UserCount = guilds?.Sum(g => g.MemberCount) ?? 0,
                 ChannelCount = 0,
             };
 
@@ -107,7 +107,7 @@ namespace UB3RB0T
 
                 if (responseData.Embed != null)
                 {
-                    await this.RespondAsync(data, string.Empty, bypassEdit: true, responseData.Embed.CreateFluxerEmbed());
+                    await this.RespondAsync(data, string.Empty, embed: responseData.Embed.CreateFluxerEmbed());
                 }
                 else
                 {
@@ -127,7 +127,7 @@ namespace UB3RB0T
         {
             try
             {
-                if (DateTimeOffset.UtcNow.Subtract(data.Timestamp) < TimeSpan.FromHours(1) && !string.IsNullOrEmpty(data.Content))
+                if (DateTimeOffset.UtcNow.Subtract(data.CreatedAt) < TimeSpan.FromHours(1) && !string.IsNullOrEmpty(data.Content))
                 {
                     await this.HandleMessageCreated(data);
                 }
@@ -150,7 +150,7 @@ namespace UB3RB0T
                 var botMessageId = this.botResponsesCache.Remove(data.Id.Value);
                 if (botMessageId != 0)
                 {
-                    await this.apiClient.DeleteMessage(data.ChannelId.Value, botMessageId);
+                    await this.client.Rest.DeleteMessageAsync(data.ChannelId.Value, botMessageId);
                 }
             }
             catch (Exception ex)
@@ -159,24 +159,21 @@ namespace UB3RB0T
             }
         }
 
-        private async Task RespondAsync(MessageGatewayData messageData, string text, bool bypassEdit = false, Embed embed = null)
+        private async Task RespondAsync(MessageGatewayData messageData, string text, bool bypassEdit = false, EmbedRequest embed = null)
         {
             this.TrackEvent("messageSent");
-            Message sentMessage;
-            List<Embed> embeds = null;
+            List<EmbedRequest> embeds = null;
             if (embed != null)
             {
                 embeds = [embed];
             }
 
-            var message = new Message
+            var message = new MessageRequest
             {
-                Embeds = embeds,
-                Reference = new MessageRef
+                MessageReference = new MessageReferenceRequest
                 {
                     MessageId = messageData.Id,
                     ChannelId = messageData.ChannelId,
-                    Type = messageData.Type,
                 },
                 Content = text,
             };
@@ -185,8 +182,52 @@ namespace UB3RB0T
             {
                 try
                 {
-                    var oldMessage = await this.apiClient.GetMessage(messageData.ChannelId, oldMessageId);
-                    await this.apiClient.EditMessage(oldMessage.ChannelId, oldMessageId, message);
+                    var oldMessage = await this.client.Rest.GetMessageAsync(messageData.ChannelId, oldMessageId);
+
+                    var messageUpdateRequest = new UpdateMessageRequest
+                    {
+                        Content = message.Content,
+                    };
+
+                    if (embed != null)
+                    {
+                        var embedRequest = new EmbedRequest
+                        {
+                            Title = embed?.Title,
+                            Description = embed?.Description,
+                            Url = embed?.Url,
+                            Color = embed?.Color,
+                            Author = embed?.Author != null ? new EmbedAuthorRequest
+                            {
+                                Name = embed.Author.Name,
+                                Url = embed.Author.Url,
+                                IconUrl = embed.Author.IconUrl,
+                            } : null,
+                            Image = embed?.Image != null ? new EmbedMediaRequest
+                            {
+                                Url = embed.Image.Url,
+                            } : null,
+                            Thumbnail = embed.Thumbnail != null ? new EmbedMediaRequest
+                            {
+                                Url = embed.Thumbnail.Url,
+                            } : null,
+                            Footer = embed?.Footer != null ? new EmbedFooterRequest
+                            {
+                                Text = embed.Footer.Text,
+                                IconUrl = embed.Footer.IconUrl,
+                            } : null,
+                            Fields = embed?.Fields?.Select(f => new EmbedFieldRequest
+                            {
+                                Name = f.Name,
+                                Value = f.Value,
+                                IsInline = f.IsInline,
+                            }).ToArray(),
+                        };
+
+                        messageUpdateRequest.Embeds = [embedRequest];
+                    }
+
+                    await this.client.Rest.EditMessageAsync(oldMessage.ChannelId, oldMessageId, messageUpdateRequest);
                     return;
                 }
                 catch (Exception ex)
@@ -195,7 +236,7 @@ namespace UB3RB0T
                 }
             }
 
-            sentMessage = await this.apiClient.SendMessage(messageData.ChannelId, message);
+            var sentMessage = await this.client.Rest.SendMessageAsync(messageData.ChannelId, message.Content, embeds, message.MessageReference);
 
             this.botResponsesCache.Add(messageData.Id, sentMessage.Id);
         }
@@ -207,7 +248,7 @@ namespace UB3RB0T
             {
                 try
                 {
-                    originalMessage = await this.apiClient.GetMessage(channelId, messageId);
+                    originalMessage = await this.client.Rest.GetMessageAsync(channelId, messageId);
                 }
                 catch (Exception ex)
                 {
@@ -215,34 +256,29 @@ namespace UB3RB0T
                 }
             }
 
-            var message = new Message
+            var message = new MessageRequest
             {
                 Content = notification.Text,
-            };
-
-            if (originalMessage != null)
-            {
-                message.Reference = new MessageRef
+                MessageReference = originalMessage != null ? new MessageReferenceRequest
                 {
                     MessageId = originalMessage.Id,
                     ChannelId = originalMessage.ChannelId,
-                    Type = originalMessage.Type,
-                };
-            }
+                } : null,
+            };
             
-            await this.apiClient.SendMessage(ulong.Parse(notification.Channel), message);
+            await this.client.Rest.SendMessageAsync(ulong.Parse(notification.Channel), message.Content, reference: message.MessageReference);
 
             return true;
         }
 
         protected override async Task StartAsyncInternal()
         {
-            await this.client.ConnectAsync();
+            await this.client.Gateway.ConnectAsync();
         }
 
         protected override Task StopAsyncInternal(bool unexpected)
         {
-            this.client.Dispose();
+            this.client.Gateway.Dispose();
             return Task.CompletedTask;
         }
 
@@ -274,7 +310,7 @@ namespace UB3RB0T
                     }
 
                     lastHeartbeatAck = DateTime.UtcNow;
-                    await this.client.ConnectAsync();
+                    await this.client.Gateway.ConnectAsync();
                 }
                 catch (Exception ex)
                 {

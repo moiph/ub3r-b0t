@@ -71,6 +71,7 @@ namespace UB3RB0T
                 TotalShards = this.TotalShards,
                 LogLevel = LogSeverity.Debug,
                 MessageCacheSize = this.Config.Discord.MessageCacheSize,
+                EnableVoiceDaveEncryption = true,
                 GatewayIntents =
                     GatewayIntents.Guilds |
                     GatewayIntents.GuildMembers |
@@ -236,18 +237,9 @@ namespace UB3RB0T
 
                 if (notification.Embed != null && settings.HasFlag(notification.Type))
                 {
-                    // TODO: discord handles twitter embeds nicely; should adjust the notification data accordingly so we don't need this explicit check here
-                    if (notification.Type == NotificationType.Twitter)
-                    {
-                        var messageText = $"{notification.Embed.Title} {notification.Embed.Url} {customText}{extraText}".Trim();
-                        await channelToUse.SendMessageAsync(messageText, allowedMentions: allowedMentions, messageReference: messageReference);
-                    }
-                    else
-                    {
-                        var messageText = string.IsNullOrEmpty(notification.Embed.Url) ? string.Empty : $"<{notification.Embed.Url}>";
-                        messageText += $" {customText}{extraText}".TrimEnd();
-                        await channelToUse.SendMessageAsync(messageText, false, notification.Embed.CreateEmbedBuilder().Build(), allowedMentions: allowedMentions, messageReference: messageReference);
-                    }
+                    var messageText = string.IsNullOrEmpty(notification.Embed.Url) ? string.Empty : $"<{notification.Embed.Url}>";
+                    messageText += $" {customText}{extraText}".TrimEnd();
+                    await channelToUse.SendMessageAsync(messageText, false, notification.Embed.CreateEmbedBuilder().Build(), allowedMentions: allowedMentions, messageReference: messageReference);
                 }
                 else
                 {

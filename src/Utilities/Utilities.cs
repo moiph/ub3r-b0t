@@ -5,6 +5,7 @@ namespace UB3RB0T
     using Discord.Net;
     using Discord.WebSocket;
     using Flurl.Http;
+    using Fluxer.Net.Rest.Requests;
     using Microsoft.AspNetCore.WebUtilities;
     using Newtonsoft.Json;
     using Serilog;
@@ -18,12 +19,13 @@ namespace UB3RB0T
     using System.Text;
     using System.Text.RegularExpressions;
     using System.Threading.Tasks;
+    using FluxerEmbed = Fluxer.Net.Rest.Requests.EmbedRequest;
+    using FluxerEmbedAuthor = Fluxer.Net.Rest.Requests.EmbedAuthorRequest;
+    using FluxerEmbedFooter = Fluxer.Net.Rest.Requests.EmbedFooterRequest;
+    using FluxerEmbedMedia = Fluxer.Net.Rest.Requests.EmbedMediaRequest;
+    using FluxerEmbedField = Fluxer.Net.Rest.Requests.EmbedFieldRequest;
     using StoatEmbed = StoatSharp.Embed;
     using StoatEmbedBuilder = StoatSharp.EmbedBuilder;
-    using FluxerEmbed = Fluxer.Net.Data.Models.Embed;
-    using FluxerEmbedMedia = Fluxer.Net.Data.Models.EmbedMedia;
-    using FluxerEmbedAuthor = Fluxer.Net.Data.Models.EmbedAuthor;
-    using FluxerEmbedFooter = Fluxer.Net.Data.Models.EmbedFooter;
 
     public static class Utilities
     {
@@ -47,9 +49,28 @@ namespace UB3RB0T
             return new Uri(QueryHelpers.AddQueryString(uri.ToString(), newQueryParams));
         }
 
-        public static Task<IFlurlResponse> PostJsonAsync(this Uri uri, object data)
+        public static Task<IFlurlResponse> PostJsonAsync(this Uri uri, object data, string proxyAddress = null)
         {
-            return uri.ToString().WithTimeout(15).PostJsonAsync(data);
+            IFlurlRequest flurlRequest = null;
+            if (!string.IsNullOrEmpty(proxyAddress))
+            {
+                var httpClientHandler = new HttpClientHandler
+                {
+                    Proxy = new WebProxy(proxyAddress),
+                    UseProxy = true,
+                };
+
+                var httpClient = new HttpClient(httpClientHandler);
+
+                var flurlClient = new FlurlClient(httpClient);
+                flurlRequest = flurlClient.Request(uri.ToString());
+            }
+            else
+            {
+                flurlRequest = new FlurlRequest(uri.ToString());
+            }
+
+            return flurlRequest.WithTimeout(15).PostJsonAsync(data);
         }
 
         public static bool IsSuccessStatusCode(this IFlurlResponse response)
@@ -264,19 +285,21 @@ namespace UB3RB0T
 
             if (embedData.EmbedFields != null)
             {
-                embed.Fields = [];
+                var embedFields = new List<FluxerEmbedField>();
                 foreach (var embedField in embedData.EmbedFields)
                 {
                     if (!string.IsNullOrEmpty(embedField.Name) && !string.IsNullOrEmpty(embedField.Value))
                     {
-                        embed.Fields.Add(new Fluxer.Net.Data.Models.EmbedField
+                        embedFields.Add(new FluxerEmbedField
                         {
                             Name = embedField.Name,
                             Value = embedField.Value,
-                            Inline = embedField.IsInline,
+                            IsInline = embedField.IsInline,
                         });
                     }
                 }
+
+                embed.Fields = embedFields.ToArray();
             }
 
             return embed;
@@ -523,9 +546,22 @@ namespace UB3RB0T
                 int totalMinutes = 0;
 
                 string minuteString = matchGroups["minutes"].ToString();
-                if (!string.IsNullOrEmpty(minuteString) && int.TryParse(minuteString.Remove(minuteString.Length - 7, 7), out int minuteValue))
+                if (!string.IsNullOrEmpty(minuteString))
                 {
-                    totalMinutes += minuteValue;
+                    if (minuteString.Contains("minute"))
+                    {
+                        if (int.TryParse(minuteString.Remove(minuteString.Length - 7, 7), out int minuteValue))
+                        {
+                            totalMinutes += minuteValue;
+                        }
+                    }
+                    else
+                    {
+                        if (int.TryParse(minuteString.Remove(minuteString.Length - 4, 4), out int minuteValue))
+                        {
+                            totalMinutes += minuteValue;
+                        }
+                    }
                 }
 
                 string shrekString = matchGroups["shreks"].ToString();

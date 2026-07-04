@@ -44,18 +44,22 @@
             
             audioInstances[voiceChannel.GuildId] = audioInstance;
             audioInstance.AudioClient = await voiceChannel.ConnectAsync(selfDeaf: true);
-            audioInstance.Stream = audioInstance.AudioClient.CreatePCMStream(Discord.Audio.AudioApplication.Voice, null, 400);
+            audioInstance.Stream = audioInstance.AudioClient.CreatePCMStream(AudioApplication.Voice, null, 400);
 
             if (audioInstance.AudioClient.ConnectionState == ConnectionState.Connected && audioInstance.Stream.CanWrite)
             {
-                await this.SendAudioAsync(audioInstance, BotConfig.Instance.GetVoiceFileNames(VoicePhraseType.BotJoin).Random());
+                if (await audioInstance.GetUserCountAsync() > 1)
+                {
+                    await this.SendAudioAsync(audioInstance, BotConfig.Instance.GetVoiceFileNames(VoicePhraseType.BotJoin).Random());
+                }
+
                 audioInstance.SentJoinGreeting = true;
             }
 
             audioInstance.AudioClient.Connected += async () =>
             {
                 Log.Information("{Indicator} Connected to audio, creating stream", "[audio]");
-                audioInstance.Stream = audioInstance.AudioClient.CreatePCMStream(Discord.Audio.AudioApplication.Voice, null, 400);
+                audioInstance.Stream = audioInstance.AudioClient.CreatePCMStream(AudioApplication.Voice, null, 400);
 
                 if (!audioInstance.SentJoinGreeting)
                 {
@@ -287,8 +291,9 @@
                 if (audioInstance.Stream != null)
                 {
                     Log.Verbose($"{{Indicator}} [{filename}] copying audio bytes to audio stream", "[audio]");
-                    using var memoryStream = new MemoryStream(audioBytes[filename]);    
-                    await memoryStream.CopyToAsync(audioInstance.Stream);
+                    using var memoryStream = new MemoryStream(audioBytes[filename]);
+                    var copyCts = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+                    await memoryStream.CopyToAsync(audioInstance.Stream, copyCts.Token);
 
                     Log.Verbose($"{{Indicator}} [{filename}] flushing audio stream", "[audio]");
                     var cts = new CancellationTokenSource(TimeSpan.FromSeconds(8));

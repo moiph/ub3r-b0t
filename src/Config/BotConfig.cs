@@ -167,6 +167,7 @@
         /// </summary>
         public Dictionary<string, string> CommandTypes { get; set; }
     }
+
     public class StoatConfig
     {
         [JsonRequired]

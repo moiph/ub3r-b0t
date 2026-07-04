@@ -5,7 +5,9 @@
     using System;
     using System.Collections.Generic;
     using System.IO;
+    using System.Linq;
     using System.Threading;
+    using System.Threading.Tasks;
 
     public class AudioInstance : IDisposable
     {
@@ -21,6 +23,11 @@
         public bool SentJoinGreeting { get; set; }
         public bool AllowReconnect { get; set; }
         public DateTime DisconnectedTime { get; set; }
+
+        public async Task<int> GetUserCountAsync()
+        {
+            return (await this.VoiceChannel.GetUsersAsync().FlattenAsync()).Count();
+        }
 
         public void Dispose()
         {
