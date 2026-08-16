@@ -4,9 +4,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Fluxer.Net;
-using Fluxer.Net.Gateway.Data;
-using Fluxer.Net.Gateway.Data.Messages;
-using Fluxer.Net.Rest.Requests;
+using Fluxer.Net.Gateway;
+using Fluxer.Net.Rest;
 using Serilog;
 using Serilog.Core;
 

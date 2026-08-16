@@ -5,7 +5,7 @@ namespace UB3RB0T
     using Discord.Net;
     using Discord.WebSocket;
     using Flurl.Http;
-    using Fluxer.Net.Rest.Requests;
+    using Fluxer.Net.Rest;
     using Microsoft.AspNetCore.WebUtilities;
     using Newtonsoft.Json;
     using Serilog;
@@ -19,11 +19,11 @@ namespace UB3RB0T
     using System.Text;
     using System.Text.RegularExpressions;
     using System.Threading.Tasks;
-    using FluxerEmbed = Fluxer.Net.Rest.Requests.EmbedRequest;
-    using FluxerEmbedAuthor = Fluxer.Net.Rest.Requests.EmbedAuthorRequest;
-    using FluxerEmbedFooter = Fluxer.Net.Rest.Requests.EmbedFooterRequest;
-    using FluxerEmbedMedia = Fluxer.Net.Rest.Requests.EmbedMediaRequest;
-    using FluxerEmbedField = Fluxer.Net.Rest.Requests.EmbedFieldRequest;
+    using FluxerEmbed = Fluxer.Net.Rest.EmbedRequest;
+    using FluxerEmbedAuthor = Fluxer.Net.Rest.EmbedAuthorRequest;
+    using FluxerEmbedFooter = Fluxer.Net.Rest.EmbedFooterRequest;
+    using FluxerEmbedMedia = Fluxer.Net.Rest.EmbedMediaRequest;
+    using FluxerEmbedField = Fluxer.Net.Rest.EmbedFieldRequest;
     using StoatEmbed = StoatSharp.Embed;
     using StoatEmbedBuilder = StoatSharp.EmbedBuilder;
 

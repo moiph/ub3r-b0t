@@ -5,7 +5,7 @@
     using System.Text.Json.Serialization;
     using Discord;
     using Discord.WebSocket;
-    using Fluxer.Net.Gateway.Data.Messages;
+    using Fluxer.Net.Gateway;
     using StoatSharp;
     using UB3RIRC;
 

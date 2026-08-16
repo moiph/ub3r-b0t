@@ -11,28 +11,44 @@
 
             var dataSb = new StringBuilder();
             dataSb.Append("```cs\n" +
-               "type       shard   servers      users\n");
+               "type     shard   servers |  shard   servers\n");
 
             int serverTotal = 0;
-            int userTotal = 0;
-            int voiceTotal = 0;
+            var i = 0;
             foreach (HeartbeatData heartbeat in serversStatus)
             {
                 serverTotal += heartbeat.ServerCount;
-                userTotal += heartbeat.UserCount;
-                voiceTotal += heartbeat.VoiceChannelCount;
 
-                var botType = heartbeat.BotType.PadRight(11);
+                var botType = heartbeat.BotType;
+                if (!string.IsNullOrEmpty(botType) || i % 2 == 0)
+                {
+                    dataSb.Append(botType.PadRight(9));
+                }
                 var shard = heartbeat.Shard.ToString().PadLeft(4);
                 var servers = heartbeat.ServerCount.ToString().PadLeft(8);
-                var users = heartbeat.UserCount.ToString().PadLeft(10);
 
-                dataSb.Append($"{botType} {shard}  {servers} {users}\n");
+                dataSb.Append($"{shard}  {servers}");
+                if (string.IsNullOrEmpty(botType) || botType == "Discord")
+                {
+                    if (i % 2 == 0)
+                    {
+                        dataSb.Append("  |  ");
+                    }
+                    else
+                    {
+                        dataSb.Append("\n");
+                    }
+                }
+                else
+                {
+                    dataSb.Append("\n");
+                }
+                i++;
             }
 
             // add up totals
             dataSb.Append($"-------\n");
-            dataSb.Append($"Total:            {serverTotal,8} {userTotal,10}\n");
+            dataSb.Append($"Total:            {serverTotal,8}\n");
 
             dataSb.Append("```");
 
