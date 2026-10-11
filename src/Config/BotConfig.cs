@@ -189,7 +189,7 @@
         public string OwnerId { get; set; }
 
         [JsonRequired]
-        public string BotId { get; set; }
+        public ulong BotId { get; set; }
     }
 
     public class BotStatData

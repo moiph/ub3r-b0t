@@ -56,6 +56,7 @@ namespace UB3RB0T
         public int TotalShards { get; private set; } = 1;
         public BotConfig Config => BotConfig.Instance;
         public abstract BotType BotType { get; }
+        public virtual bool SupportsSettings => false;
 
         protected Bot(int shard, int totalShards)
         {
@@ -139,8 +140,8 @@ namespace UB3RB0T
             Console.Title = $"{this.Config.Name} - {this.BotType} {this.Shard} #{this.instanceCount}";
 
             // If user customizeable server settings are supported...support them
-            // Currently discord only.
-            if (this.Config.SettingsEndpoint != null && this.BotType == BotType.Discord)
+            // Currently discord/fluxer only.
+            if (this.Config.SettingsEndpoint != null && this.SupportsSettings)
             {
                 await this.UpdateSettingsAsync();
             }
@@ -666,7 +667,7 @@ namespace UB3RB0T
         }
 
         /// <summary>
-        /// Updates settings from the service. (Currently Discord only)
+        /// Updates settings from the service. (Currently Discord/Fluxer only)
         /// </summary>
         /// <returns></returns>
         private async Task UpdateSettingsAsync()
@@ -678,7 +679,7 @@ namespace UB3RB0T
                 Log.Debug("Fetching server settings...");
                 var sinceToken = SettingsConfig.Instance.SinceToken;
                 var configEndpoint = this.Config.SettingsEndpoint
-                    .AppendQueryParam("bottype", $"{this.BotType}")
+                    .AppendQueryParam("platform", $"{this.BotType}")
                     .AppendQueryParam("since", $"{sinceToken}")
                     .AppendQueryParam("shard", $"{this.Shard}")
                     .AppendQueryParam("shardcount", $"{this.TotalShards}");

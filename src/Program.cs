@@ -17,6 +17,7 @@
     using Serilog;
     using Serilog.Core;
     using Serilog.Events;
+    using Fluxer.Net;
 
     public enum ExitCode : int
     {
@@ -36,43 +37,104 @@
 
                 try
                 {
-                    if (BotInstance is DiscordBot discordBot && BotConfig.Instance.WebListenerInboundAddresses.Contains(context.Connection.RemoteIpAddress.ToString()))
+                    if (BotConfig.Instance.WebListenerInboundAddresses.Contains(context.Connection.RemoteIpAddress.ToString()))
                     {
                         if (context.Request.Query["guilds"] == "1")
                         {
-                            response = string.Join($",{Environment.NewLine}",
-                                discordBot.Client.Guilds.OrderByDescending(g => g.MemberCount).Select(g => $"{g.Id} | {g.Name} | {g.MemberCount}"));
+                            if (BotInstance is DiscordBot discordBot)
+                            {
+                                response = string.Join($",{Environment.NewLine}",
+                                    discordBot.Client.Guilds.OrderByDescending(g => g.MemberCount).Select(g => $"{g.Id} | {g.Name} | {g.MemberCount}"));
+                            }
+                            else if (BotInstance is FluxerBot fluxerBot)
+                            {
+                                response = string.Join($",{Environment.NewLine}",
+                                    fluxerBot.client.Gateway.Guilds.OrderByDescending(g => g.Value.MemberCount).Select(g => $"{g.Value.Id} | {g.Value.Name} | {g.Value.MemberCount}"));
+                            }
                         }
                         else if (ulong.TryParse(context.Request.Query["guildId"], out ulong guildId))
                         {
-                            var guild = discordBot.Client.GetGuild(guildId);
-                            if (guild != null)
+                            if (BotInstance is DiscordBot discordBot)
+                            { 
+                                var guild = discordBot.Client.GetGuild(guildId);
+                                if (guild != null)
+                                {
+                                    var channelsResponse = new GuildPermisssionsData();
+
+                                    var botGuildUser = guild.CurrentUser;
+                                    var channels = guild.Channels.Where(c => c is ITextChannel || c is IVoiceChannel);
+
+                                    foreach (var chan in channels)
+                                    {
+                                        var channelPermissions = botGuildUser.GetPermissions(chan);
+                                        channelsResponse.Channels.Add(chan.Id, new GuildChannelPermissions
+                                        {
+                                            CanRead = channelPermissions.ViewChannel,
+                                            CanSend = channelPermissions.SendMessages,
+                                            CanEmbed = channelPermissions.EmbedLinks,
+                                            CanSpeak = channelPermissions.Speak,
+                                        });
+                                    }
+
+                                    foreach (var emoji in guild.Emotes)
+                                    {
+                                        channelsResponse.Emoji.Add(emoji.Id, new EmojiData { Name = emoji.Name, Url = emoji.Url });
+                                    }
+
+                                    channelsResponse.HighestRolePosition = botGuildUser.Roles.OrderByDescending(r => r.Position).FirstOrDefault()?.Position ?? 0;
+
+                                    response = JsonConvert.SerializeObject(channelsResponse);
+                                }
+                                else
+                                {
+                                    response = JsonConvert.SerializeObject(new { error = "Not found" });
+                                }
+                            }
+                            else if (BotInstance is FluxerBot fluxerBot)
                             {
-                                var channelsResponse = new GuildPermisssionsData();
-
-                                var botGuildUser = guild.CurrentUser;
-                                var channels = guild.Channels.Where(c => c is ITextChannel || c is IVoiceChannel);
-
-                                foreach (var chan in channels)
+                                var guild = fluxerBot.client.Gateway.GetGuild(guildId);
+                                if (guild != null)
                                 {
-                                    var channelPermissions = botGuildUser.GetPermissions(chan);
-                                    channelsResponse.Channels.Add(chan.Id, new GuildChannelPermissions
-                                    { 
-                                        CanRead = channelPermissions.ViewChannel,
-                                        CanSend = channelPermissions.SendMessages,
-                                        CanEmbed = channelPermissions.EmbedLinks,
-                                        CanSpeak = channelPermissions.Speak,
-                                    });
-                                }
+                                    var channelsResponse = new GuildPermisssionsData();
 
-                                foreach (var emoji in guild.Emotes)
+                                    var botGuildUser = guild.CurrentMember;
+                                    var channels = guild.Channels.Where(c => c.Value.Type is Fluxer.Net.ChannelType.GuildText|| c.Value.Type is Fluxer.Net.ChannelType.GuildVoice);
+
+                                    foreach (var chan in channels)
+                                    {
+                                        var channelPermissions = new Fluxer.Net.ChannelPermissions((Fluxer.Net.ChannelPermission)0);
+                                        try
+                                        {
+                                            channelPermissions = botGuildUser.GetPermissions(chan.Value);
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            Log.Error(ex, $"Error getting permissions for channel {chan.Key} in guild {guildId}");
+                                        }
+
+                                        channelsResponse.Channels.Add(chan.Key, new GuildChannelPermissions
+                                        {
+                                            CanRead = channelPermissions.ViewChannel,
+                                            CanSend = channelPermissions.SendMessages,
+                                            CanEmbed = channelPermissions.EmbedLinks,
+                                            CanSpeak = channelPermissions.Speak,
+                                        });
+                                    }
+
+                                    var emojis = await guild.GetEmojisAsync();
+                                    foreach (var emoji in emojis)
+                                    {
+                                        channelsResponse.Emoji.Add(emoji.Id, new EmojiData { Name = emoji.Name, Url = emoji.GetEmojiUrl() });
+                                    }
+
+                                    channelsResponse.HighestRolePosition = botGuildUser.Roles.OrderByDescending(r => r.Position).FirstOrDefault()?.Position ?? 0;
+
+                                    response = JsonConvert.SerializeObject(channelsResponse);
+                                }
+                                else
                                 {
-                                    channelsResponse.Emoji.Add(emoji.Id, new EmojiData { Name = emoji.Name, Url = emoji.Url });
+                                    response = JsonConvert.SerializeObject(new { error = "Not found" });
                                 }
-
-                                channelsResponse.HighestRolePosition = botGuildUser.Roles.OrderByDescending(r => r.Position).FirstOrDefault()?.Position ?? 0;
-
-                                response = JsonConvert.SerializeObject(channelsResponse);
                             }
                             else
                             {

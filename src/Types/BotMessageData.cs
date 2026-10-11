@@ -24,7 +24,7 @@
         [JsonIgnore]
         public Message StoatMessageData { get; private set; }
         [JsonIgnore]
-        public MessageGatewayData FluxerMessageData { get; private set; }
+        public Fluxer.Net.IMessage FluxerMessageData { get; private set; }
 
         public BotType BotType { get; set; }
         public string UserName { get; set; }
@@ -46,7 +46,11 @@
             {
                 string query = string.Empty;
                 int argPos = 0;
-                if (this.Content.HasMentionPrefix(BotConfig.Instance.Discord.BotId, ref argPos))
+                if (this.BotType == BotType.Discord && this.Content.HasMentionPrefix(BotConfig.Instance.Discord.BotId, ref argPos))
+                {
+                    query = this.Content.Substring(argPos);
+                }
+                else if (this.BotType == BotType.Fluxer && this.Content.HasMentionPrefix(BotConfig.Instance.Fluxer.BotId, ref argPos))
                 {
                     query = this.Content.Substring(argPos);
                 }
@@ -93,7 +97,7 @@
 
             if (this.BotType == BotType.Fluxer)
             {
-                return this.FluxerMessageData.Mentions?.Length == 1 && this.FluxerMessageData.Mentions.First().Id.ToString() == id;
+                return this.FluxerMessageData.Mentions?.Count() == 1 && this.FluxerMessageData.Mentions.First().Id.ToString() == id;
             }
 
             return false;
@@ -132,18 +136,18 @@
             };
         }
 
-        public static BotMessageData Create(MessageGatewayData data, Settings serverSettings)
+        public static BotMessageData Create(Fluxer.Net.IMessage message, Settings serverSettings, ulong? guildId)
         {
             return new BotMessageData(BotType.Fluxer)
             {
-                FluxerMessageData = data,
-                UserName = data.Author.Username,
-                UserHost = data.Author.Id.ToString(),
-                UserId = data.Author.Id.ToString(),
-                Channel = data.ChannelId.ToString(),
-                Server = data.GuildId.ToString(),
-                MessageId = data.Id.ToString(),
-                Content = data.Content,
+                FluxerMessageData = message,
+                UserName = message.Author.Username,
+                UserHost = message.Author.Id.ToString(),
+                UserId = message.Author.Id.ToString(),
+                Channel = message.ChannelId.ToString(),
+                Server = guildId?.ToString() ?? (message as Fluxer.Net.SocketMessage)?.Guild.Id.ToString(),
+                MessageId = message.Id.ToString(),
+                Content = message.Content,
                 Format = serverSettings.PreferEmbeds ? "embed" : string.Empty,
                 AfEnabled = serverSettings.AprilFoolsEnabled,
                 UwuChance = serverSettings.UwuResponseChance,

@@ -57,6 +57,7 @@ namespace UB3RB0T
         private readonly ConcurrentDictionary<ITextChannel, List<string>> messageBatch = new ConcurrentDictionary<ITextChannel, List<string>>();
 
         public override BotType BotType => BotType.Discord;
+        public override bool SupportsSettings => true;
 
         protected override async Task StartAsyncInternal()
         {

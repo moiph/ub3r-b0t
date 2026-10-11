@@ -17,6 +17,7 @@
         Feedback = 1 << 8,
         Bluesky = 1 << 9,
         Birthday = 1 << 10,
+        YouTube = 1 << 11,
     }
 
     public enum SubType

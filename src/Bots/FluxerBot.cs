@@ -1,23 +1,28 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Fluxer.Net;
+﻿using Fluxer.Net;
 using Fluxer.Net.Gateway;
 using Fluxer.Net.Rest;
 using Serilog;
 using Serilog.Core;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
+using UB3RB0T.Commands;
 
 namespace UB3RB0T
 {
     public class FluxerBot : Bot
     {
-        private readonly FluxerClient client;
+        public readonly FluxerClient client;
         private readonly MessageCache<ulong> botResponsesCache = new();
 
         private readonly Timer heartbeatTimer;
         private DateTime lastHeartbeatAck = DateTime.MinValue;
+
+        private Dictionary<string, IFluxerCommand> fluxerCommands;
 
         public FluxerBot(int shard, int totalShards) : base(shard, totalShards)
         {
@@ -25,21 +30,31 @@ namespace UB3RB0T
             {
                 RestSerilog = Log.Logger as Logger,
                 GatewaySerilog = Log.Logger as Logger,
-                IgnoredGatewayEvents = ["PRESENCE_UPDATE", "TYPING_START"],
             };
 
             this.client = new FluxerClient(this.Config.Fluxer.Token, fluxerConfig);
 
-            this.client.Gateway.MessageCreate += async data => await this.HandleMessageCreated(data);
-            this.client.Gateway.MessageUpdate += async data => await this.HandleMessageUpdated(data);
-            this.client.Gateway.MessageDelete += async data => await this.HandleMessageDeleted(data);
+            this.client.Gateway.MessageCreated += async data => await this.HandleMessageCreated(data);
+            this.client.Gateway.MessageUpdated += async data => await this.HandleMessageUpdated(data);
+            this.client.Gateway.MessageDeleted += async (channel, userId, messageId, content) => await this.HandleMessageDeleted(channel, userId, messageId, content);
+            this.client.Gateway.MessageReactionAdded += async data => await this.HandleReactionAdded(data);
+            this.client.Gateway.MemberJoined += async data => await this.HandleMemberJoined(data);
+            this.client.Gateway.MemberLeft += async (guild, data) => await this.HandleMemberLeft(guild, data);
+
             this.client.Gateway.HeartbeatAck += this.HeartbeatAck;
 
             this.heartbeatTimer = new Timer(HeartBeatTimerAsync, null, 60000, 60000 * 5);
+
+            // TODO: config driven
+            this.fluxerCommands = new Dictionary<string, IFluxerCommand>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "admin", new FluxerAdminCommand() },
+                { "debug", new FluxerDebugCommand() },
+            };
         }
 
         public override BotType BotType => BotType.Fluxer;
-        protected override string UserId => this.Config.Fluxer.BotId;
+        protected override string UserId => this.Config.Fluxer.BotId.ToString();
 
         protected override async Task<HeartbeatData> GetHeartbeatData()
         {
@@ -67,30 +82,148 @@ namespace UB3RB0T
             return this.RespondAsync(messageData.FluxerMessageData, text);
         }
 
-        private async Task HandleMessageCreated(MessageGatewayData data)
+        private async Task HandleMemberJoined(SocketGuildMember data)
+        {
+            var guildId = data.GuildId;
+            var userId = data.User.Id;
+            var settings = SettingsConfig.GetSettings(guildId);
+
+            if (settings.Greetings.Count > 0 && settings.GreetingId != 0)
+            {
+                var greeting = settings.Greetings.Random().Replace("%user%", data.Mention);
+                greeting = greeting.Replace("%username%", $"{data}");
+
+                greeting = Consts.ChannelRegex.Replace(greeting, new MatchEvaluator((Match chanMatch) =>
+                {
+                    string channelName = chanMatch.Groups[1].Value;
+                    var channel = data.Guild.Channels.FirstOrDefault(c => c.Value.Type is ChannelType.GuildText && c.Value.Name.Equals(channelName, StringComparison.OrdinalIgnoreCase)).Value;
+                    return channel?.Mention ?? $"#{channelName}";
+                }));
+
+                var greetingChannel = this.client.Gateway.GetChannel(settings.GreetingId) ?? data.Guild.SystemChannel;
+                if (data.Guild.CurrentMember.GetPermissions(greetingChannel).SendMessages)
+                {
+                    await greetingChannel.SendMessageAsync(greeting);
+                }
+                else
+                {
+                    if (settings.DebugMode)
+                    {
+                        Log.Verbose($"[DBGM] [guild: {guildId}] User joined, missing permissions to send greeting");
+                    }
+                }
+            }
+        }
+
+        private async Task HandleMemberLeft(SocketGuild guild, Cacheable<SocketGuildMember> member)
+        {
+            if (guild != null)
+            {
+                var settings = SettingsConfig.GetSettings(guild.Id);
+
+                if (settings.Farewells.Count > 0 && settings.FarewellId != 0)
+                {
+                    var farewell = settings.Farewells.Random().Replace("%user%", member.Value?.Mention ?? member.Id.ToString());
+                    farewell = farewell.Replace("%username%", $"{member.Value?.GetCurrentName() ?? member.Id.ToString()}");
+
+                    farewell = Consts.ChannelRegex.Replace(farewell, new MatchEvaluator((Match chanMatch) =>
+                    {
+                        string channelName = chanMatch.Groups[1].Value;
+                        var channel = guild.Channels.FirstOrDefault(c => c.Value.Type is ChannelType.GuildText && c.Value.Name.Equals(channelName, StringComparison.OrdinalIgnoreCase)).Value;
+                        return channel?.Mention ?? $"#{channelName}";
+                    }));
+
+                    var farewellChannel = this.client.Gateway.GetChannel(settings.FarewellId) ?? guild.SystemChannel;
+                    if (guild.CurrentMember.GetPermissions(farewellChannel).SendMessages)
+                    {
+                        await farewellChannel.SendMessageAsync(farewell);
+                    }
+                    else
+                    {
+                        if (settings.DebugMode)
+                        {
+                            Log.Verbose($"[DBGM] [guild: {guild.Id}] User left, missing permissions to send farewell");
+                        }
+                    }
+                }
+            }
+        }
+
+        private async Task HandleReactionAdded(MessageReactionGatewayData data)
+        {
+            if (data.UserId == this.Config.Fluxer.BotId)
+            {
+                return;
+            }
+
+            var reactionEmote = data.Emoji.Name;
+
+            if (reactionEmote == "💬" || reactionEmote == "🗨️")
+            {
+                var reactionMessage = await this.client.Rest.GetMessageAsync(data.ChannelId, data.MessageId);
+
+                // if the reaction already exists, don't re-process.
+                if (reactionMessage == null || reactionMessage.Author.IsBot || reactionMessage.Reactions.Any(r => (r.Emoji.Name == "💬" || r.Emoji.Name == "🗨️") && r.Count > 1))
+                {
+                    return;
+                }
+
+                if (!string.IsNullOrEmpty(reactionMessage.Content))
+                {
+                    var reactionUser = await this.client.Rest.GetUserAsync(data.UserId);
+                    await this.HandleMessageCreated(reactionMessage, reactionEmote, reactionUser);
+                }
+            }
+            else if (reactionEmote == "🏅")
+            {
+                var reactionMessage = await this.client.Rest.GetMessageAsync(data.ChannelId, data.MessageId);
+
+                if (reactionMessage == null || reactionMessage.Author.IsBot)
+                {
+                    return;
+                }
+
+                if (!string.IsNullOrEmpty(reactionMessage.Content))
+                {
+                    var reactionUser = await this.client.Rest.GetUserAsync(data.UserId);
+                    await this.HandleMessageCreated(reactionMessage, reactionEmote, reactionUser);
+                }
+            }
+        }
+
+        private async Task HandleMessageCreated(Message message, string reactionEmote = null, User reactionUser = null)
         {
             try
             {
-                if (data.Author.Id == ulong.Parse(this.Config.Fluxer.BotId))
+                if (message.Author.Id == this.Config.Fluxer.BotId)
                 {
                     return;
                 }
 
-                if (this.Throttler.IsThrottled(data.Author.Id.ToString(), ThrottleType.User))
+                ulong? guildId = 0;
+                if (message is SocketMessage socketMessage)
                 {
-                    Log.Debug($"messaging throttle from user: {data.Author} on chan {data.ChannelId} server {data.GuildId}");
+                    guildId = socketMessage.Guild.Id;
+                }
+                else
+                {
+                    guildId = this.client.Gateway.GetChannel(message.ChannelId).GuildId;
+                }
+
+                if (this.Throttler.IsThrottled(message.Author.Id.ToString(), ThrottleType.User))
+                {
+                    Log.Debug($"messaging throttle from user: {message.Author} on chan {message.ChannelId} server {guildId}");
                     return;
                 }
 
-                if (this.Throttler.IsThrottled(data.GuildId.ToString(), ThrottleType.Guild))
+                if (this.Throttler.IsThrottled(guildId.ToString(), ThrottleType.Guild))
                 {
-                    Log.Debug($"messaging throttle from guild: {data.Author} on chan {data.ChannelId} server {data.GuildId}");
+                    Log.Debug($"messaging throttle from guild: {message.Author} on chan {message.ChannelId} server {guildId}");
                     return;
                 }
 
-                Log.Debug($"Received message from {data.Author} in channel {data.ChannelId} on server {data.GuildId}");
+                Log.Debug($"Received message from {message.Author} in channel {message.ChannelId} on server {guildId}");
 
-                // Temporary settings until admin panel stuff is wired up
                 var settings = new Settings
                 {
                     FunResponsesEnabled = true,
@@ -98,21 +231,62 @@ namespace UB3RB0T
                     PreferEmbeds = true,
                 };
 
-                var messageData = BotMessageData.Create(data, settings);
+                if (guildId != null)
+                {
+                    settings = SettingsConfig.GetSettings(guildId.Value);
+                }
+
+                var messageData = BotMessageData.Create(message, settings, guildId);
+
+                if (reactionEmote == "💬" || reactionEmote == "🗨️")
+                {
+                    var quote = messageData.Content.ReplaceMulti(["\"", "”", "“"], "&quot;");
+                    messageData.Content = $"{settings.Prefix}quote add \"{quote}\" - userid:{message.Author.Id} {message.Author.Username}";
+                    await message.AddReactionAsync("💬");
+                }
+                else if (reactionEmote == "🏅")
+                {
+                    messageData.Content = $"{settings.Prefix}rep add {message.Author.Id}";
+                    messageData.UserId = reactionUser.Id.ToString();
+                    messageData.TargetUserId = message.Author.Id.ToString();
+                }
 
                 await this.PreProcessMessage(messageData, settings);
 
-                BotResponseData responseData = await this.ProcessMessageAsync(messageData, settings);
+                string command = messageData.Command;
 
-                if (responseData.Embed != null)
+                var commandHandled = false;
+                if (this.fluxerCommands.TryGetValue(command, out IFluxerCommand fluxerCommand))
                 {
-                    await this.RespondAsync(data, string.Empty, embed: responseData.Embed.CreateFluxerEmbed());
-                }
-                else
-                {
-                    foreach (string response in responseData.Responses)
+                    var typeInfo = fluxerCommand.GetType().GetTypeInfo();
+                    var context = new FluxerBotContext(this.client, messageData);
+                    var permissionChecksPassed = await this.CheckPermissions(context, typeInfo);
+
+                    if (permissionChecksPassed)
                     {
-                        await this.RespondAsync(data, response, bypassEdit: responseData.Responses.Count > 1);
+                        var response = await fluxerCommand.Process(context);
+                        if (!string.IsNullOrEmpty(response?.Text) || response?.Embed != null)
+                        {
+                            await this.RespondAsync(messageData, response.Text);
+                            commandHandled = true;
+                        }
+                    }
+                }
+
+                if (!commandHandled)
+                {
+                    BotResponseData responseData = await this.ProcessMessageAsync(messageData, settings);
+
+                    if (responseData.Embed != null)
+                    {
+                        await this.RespondAsync(message, string.Empty, embed: responseData.Embed.CreateFluxerEmbed());
+                    }
+                    else
+                    {
+                        foreach (string response in responseData.Responses)
+                        {
+                            await this.RespondAsync(message, response, bypassEdit: responseData.Responses.Count > 1);
+                        }
                     }
                 }
             }
@@ -121,14 +295,33 @@ namespace UB3RB0T
                 Log.Warning(ex, $"Error in HandleMessageCreated");
             }
         }
+        private async Task<bool> CheckPermissions(IFluxerBotContext context, TypeInfo typeInfo)
+        {
+            var attributes = typeInfo.GetCustomAttributes().Where(a => a is FluxerPermissionsAttribute);
+            var attributeChecksPassed = true;
+            foreach (FluxerPermissionsAttribute attr in attributes)
+            {   
+                if (!await attr.CheckPermissions(context))
+                {
+                    if (!string.IsNullOrEmpty(attr.FailureString))
+                    {
+                        await this.RespondAsync(context.MessageData, context.Settings.GetString(attr.FailureString));
+                    }
 
-        private async Task HandleMessageUpdated(MessageGatewayData data)
+                    attributeChecksPassed = false;
+                }
+            }
+
+            return attributeChecksPassed;
+        }
+
+        private async Task HandleMessageUpdated(SocketMessage message)
         {
             try
             {
-                if (DateTimeOffset.UtcNow.Subtract(data.CreatedAt) < TimeSpan.FromHours(1) && !string.IsNullOrEmpty(data.Content))
+                if (DateTimeOffset.UtcNow.Subtract(message.CreatedAt) < TimeSpan.FromHours(1) && !string.IsNullOrEmpty(message.Content))
                 {
-                    await this.HandleMessageCreated(data);
+                    await this.HandleMessageCreated(message);
                 }
             }
             catch (Exception ex)
@@ -137,19 +330,19 @@ namespace UB3RB0T
             }
         }
 
-        private async Task HandleMessageDeleted(EntityRemovedGatewayData data)
+        private async Task HandleMessageDeleted(Channel channel, ulong? userId, ulong messageId, string? content)
         {
             try
             {
-                if (data.Id == null || data.ChannelId == null)
+                if (messageId == 0 || channel == null)
                 {
                     return;
                 }
 
-                var botMessageId = this.botResponsesCache.Remove(data.Id.Value);
+                var botMessageId = this.botResponsesCache.Remove(messageId);
                 if (botMessageId != 0)
                 {
-                    await this.client.Rest.DeleteMessageAsync(data.ChannelId.Value, botMessageId);
+                    await this.client.Rest.DeleteMessageAsync(channel.Id, botMessageId);
                 }
             }
             catch (Exception ex)
@@ -158,7 +351,7 @@ namespace UB3RB0T
             }
         }
 
-        private async Task RespondAsync(MessageGatewayData messageData, string text, bool bypassEdit = false, EmbedRequest embed = null)
+        private async Task RespondAsync(IMessage messageData, string text, bool bypassEdit = false, EmbedRequest embed = null)
         {
             this.TrackEvent("messageSent");
             List<EmbedRequest> embeds = null;
@@ -183,11 +376,7 @@ namespace UB3RB0T
                 {
                     var oldMessage = await this.client.Rest.GetMessageAsync(messageData.ChannelId, oldMessageId);
 
-                    var messageUpdateRequest = new UpdateMessageRequest
-                    {
-                        Content = message.Content,
-                    };
-
+                    List<EmbedRequest> editEmbeds = null;
                     if (embed != null)
                     {
                         var embedRequest = new EmbedRequest
@@ -223,10 +412,10 @@ namespace UB3RB0T
                             }).ToArray(),
                         };
 
-                        messageUpdateRequest.Embeds = [embedRequest];
+                        editEmbeds = [embedRequest];
                     }
 
-                    await this.client.Rest.EditMessageAsync(oldMessage.ChannelId, oldMessageId, messageUpdateRequest);
+                    await this.client.Rest.EditMessageAsync(oldMessage.ChannelId, oldMessageId, message.Content, editEmbeds);
                     return;
                 }
                 catch (Exception ex)
@@ -272,7 +461,12 @@ namespace UB3RB0T
 
         protected override async Task StartAsyncInternal()
         {
-            await this.client.Gateway.ConnectAsync();
+            var gatewayConfig = new FluxerGatewayConfig
+            {
+                IgnoredEvents = ["PRESENCE_UPDATE", "TYPING_START"]
+            };
+
+            await this.client.Gateway.ConnectAsync(gatewayConfig);
         }
 
         protected override Task StopAsyncInternal(bool unexpected)
