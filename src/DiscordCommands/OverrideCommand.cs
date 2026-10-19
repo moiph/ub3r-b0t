@@ -7,9 +7,9 @@
     [GuildOwnerOnly("RequireUserGuildOwner")]
     public class OverrideCommand : IDiscordCommand
     {
-        public async Task<CommandResponse> Process(IDiscordBotContext context)
+        public async Task<CommandResponse?> Process(IDiscordBotContext context)
         {
-            if (context.GuildChannel != null)
+            if (context.GuildChannel != null && context.Message != null && context.BotApi != null)
             {
                 var settings = SettingsConfig.GetSettings(context.GuildChannel.Guild.Id.ToString());
 
@@ -26,7 +26,7 @@
                     return new CommandResponse { Text = "Only `bday` is supported for overrides right now" };
                 }
 
-                SocketUser targetUser = context.SocketMessage?.MentionedUsers?.FirstOrDefault();
+                SocketUser? targetUser = context.SocketMessage?.MentionedUsers?.FirstOrDefault();
 
                 if (targetUser == null)
                 {
@@ -38,17 +38,14 @@
                     return new CommandResponse { Text = "User not found. Try a direct mention." };
                 }
 
-                if (targetUser != null)
+                if (targetUser.Id == context.Client.CurrentUser.Id)
                 {
-                    if (targetUser.Id == context.Client.CurrentUser.Id)
-                    {
-                        return new CommandResponse { Text = $"How DARE you try to override my own settings? goodness gracious" };
-                    }
+                    return new CommandResponse { Text = $"How DARE you try to override my own settings? goodness gracious" };
+                }
 
-                    if (targetUser.Id == context.Message.Author.Id)
-                    {
-                        return new CommandResponse { Text = $"Don't override your own settings, just do it normally ffs" };
-                    }
+                if (targetUser.Id == context.Message.Author.Id)
+                {
+                    return new CommandResponse { Text = $"Don't override your own settings, just do it normally ffs" };
                 }
 
                 context.MessageData.Content = $"{settings.Prefix}override {CommandsConfig.Instance.HelperKey} {targetUser.Id} {overrideCommand} {parts[3]}";

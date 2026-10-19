@@ -22,34 +22,65 @@ namespace UB3RB0T
     {
         private const int TWELVE_HOURS = 1000 * 60 * 60 * 12;
         private const int FIVE_MINUTES = 1000 * 60 * 5;
-        private readonly AudioManager audioManager = new AudioManager();
-        private Timer statsTimer;
-        private Dictionary<string, IDiscordCommand> discordCommands;
+        private readonly AudioManager audioManager = new();
+        private Timer? statsTimer;
+        private readonly Dictionary<string, IDiscordCommand> discordCommands = new(StringComparer.OrdinalIgnoreCase);
 
-        private readonly Dictionary<IModule, TypeInfo> preProcessModules = new Dictionary<IModule, TypeInfo>();
-        private readonly Dictionary<IModule, TypeInfo> postProcessModules = new Dictionary<IModule, TypeInfo>();
+        private readonly Dictionary<IModule, TypeInfo> preProcessModules = [];
+        private readonly Dictionary<IModule, TypeInfo> postProcessModules = [];
 
-        private Channel<DiscordEvent> eventChannel;
-        private Channel<DiscordEvent> voiceEventChannel;
+        private readonly Channel<DiscordEvent> eventChannel;
+        private readonly Channel<DiscordEvent> voiceEventChannel;
+
+        private DiscordConfig discordConfig => this.Config.Discord!;
 
         public DiscordBot(int shard, int totalShards) : base(shard, totalShards)
         {
+            if (this.Config.Discord == null)
+            {
+                throw new InvalidConfigException("Discord configuration is missing.");
+            }
+
             foreach (var module in this.Config.Discord.PreProcessModuleTypes)
             {
                 var moduleType = Type.GetType(module);
-                var instance = Activator.CreateInstance(moduleType) as IModule;
-                this.preProcessModules.Add(instance, moduleType.GetTypeInfo());
+                if (moduleType != null)
+                {
+                    var instance = Activator.CreateInstance(moduleType) as IModule;
+                    if (instance != null)
+                    {
+                        this.preProcessModules.Add(instance, moduleType.GetTypeInfo());
+                    }
+                }
             }
 
             foreach (var module in this.Config.Discord.PostProcessModuleTypes)
             {
                 var moduleType = Type.GetType(module);
-                var instance = Activator.CreateInstance(moduleType) as IModule;
-                this.postProcessModules.Add(instance, moduleType.GetTypeInfo());
+                if (moduleType != null)
+                {
+                    var instance = Activator.CreateInstance(moduleType) as IModule;
+                    if (instance != null)
+                    {
+                        this.postProcessModules.Add(instance, moduleType.GetTypeInfo());
+                    }
+                }
             }
+
+            this.Client = new DiscordSocketClient();
+
+            this.eventChannel = Channel.CreateBounded<DiscordEvent>(new BoundedChannelOptions(this.Config.Discord.EventQueueSize)
+            {
+                FullMode = BoundedChannelFullMode.Wait
+            });
+
+            this.voiceEventChannel = Channel.CreateBounded<DiscordEvent>(new BoundedChannelOptions(this.Config.Discord.VoiceEventQueueSize)
+            {
+                FullMode = BoundedChannelFullMode.Wait
+            });
         }
 
-        protected override string UserId => this.Client.CurrentUser.Id.ToString();
+        protected override string UserId => this.Client?.CurrentUser?.Id.ToString() ?? string.Empty;
 
         public DiscordSocketClient Client { get; private set; }
 
@@ -61,7 +92,7 @@ namespace UB3RB0T
 
         protected override async Task StartAsyncInternal()
         {
-            if (string.IsNullOrEmpty(this.Config.Discord.Token))
+            if (string.IsNullOrEmpty(this.discordConfig.Token))
             {
                 throw new InvalidConfigException("Discord auth token is missing.");
             }
@@ -71,7 +102,7 @@ namespace UB3RB0T
                 ShardId = this.Shard,
                 TotalShards = this.TotalShards,
                 LogLevel = LogSeverity.Debug,
-                MessageCacheSize = this.Config.Discord.MessageCacheSize,
+                MessageCacheSize = this.discordConfig.MessageCacheSize,
                 EnableVoiceDaveEncryption = true,
                 GatewayIntents =
                     GatewayIntents.Guilds |
@@ -110,14 +141,18 @@ namespace UB3RB0T
             this.Client.MessageCommandExecuted += (SocketMessageCommand command) => this.HandleEvent(DiscordEventType.MessageCommand, command);
             this.Client.SelectMenuExecuted += (SocketMessageComponent component) => this.HandleEvent(DiscordEventType.MessageComponent, component);
 
-            this.discordCommands = new Dictionary<string, IDiscordCommand>(StringComparer.OrdinalIgnoreCase);
-            foreach (var (command, type) in this.Config.Discord.CommandTypes)
+            foreach (var (command, type) in this.discordConfig.CommandTypes)
             {
                 try
                 {
                     var commandType = Type.GetType(type);
-                    var instance = Activator.CreateInstance(commandType) as IDiscordCommand;
-                    this.discordCommands.Add(command, instance);
+                    if (commandType != null)
+                    {
+                        if (Activator.CreateInstance(commandType) is IDiscordCommand instance)
+                        {
+                            this.discordCommands.Add(command, instance);
+                        }
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -125,21 +160,11 @@ namespace UB3RB0T
                 }
             }
 
-            await this.Client.LoginAsync(TokenType.Bot, this.Config.Discord.Token);
+            await this.Client.LoginAsync(TokenType.Bot, this.discordConfig.Token);
             await this.Client.StartAsync();
 
             this.statsTimer = new Timer(StatsTimerAsync, null, TWELVE_HOURS + this.Shard * FIVE_MINUTES, TWELVE_HOURS * 2);
             this.StartBatchMessageProcessing();
-
-            this.eventChannel = Channel.CreateBounded<DiscordEvent>(new BoundedChannelOptions(this.Config.Discord.EventQueueSize)
-            {
-                FullMode = BoundedChannelFullMode.Wait
-            });
-
-            this.voiceEventChannel = Channel.CreateBounded<DiscordEvent>(new BoundedChannelOptions(this.Config.Discord.VoiceEventQueueSize)
-            {
-                FullMode = BoundedChannelFullMode.Wait
-            });
 
             Task.Run(() => this.ProcessEvents()).Forget();
         }
@@ -154,7 +179,7 @@ namespace UB3RB0T
                 await Task.WhenAny(audioTask, timeoutTask);
             }
 
-            this.Client.StopAsync().Forget(); // TODO: awaiting this likes to hang -- investigate w/ library
+            this.Client?.StopAsync().Forget(); // TODO: awaiting this likes to hang -- investigate w/ library
             await Task.Delay(5000);
         }
 
@@ -215,7 +240,7 @@ namespace UB3RB0T
 
             var settings = SettingsConfig.GetSettings(notification.Server);
             // adjust the notification text to disable discord link parsing, if configured to do so
-            if (settings.DisableLinkParsing && notification.Type != NotificationType.Reminder)
+            if (settings.DisableLinkParsing && notification.Type != NotificationType.Reminder && notification.Text != null)
             {
                 notification.Text = Consts.UrlRegex.Replace(notification.Text, new MatchEvaluator((Match urlMatch) =>
                 {
@@ -230,8 +255,8 @@ namespace UB3RB0T
                     new AllowedMentions { MentionRepliedUser = false, AllowedTypes = AllowedMentionTypes.Roles | AllowedMentionTypes.Users | AllowedMentionTypes.Everyone } :
                     AllowedMentions.None;
 
-                MessageReference messageReference = null;
-                if (channelToUse.GetCurrentUserPermissions().ReadMessageHistory && !string.IsNullOrEmpty(notification.MessageId) && ulong.TryParse(notification.MessageId, out var messageId))
+                MessageReference? messageReference = null;
+                if (channelToUse!.GetCurrentUserPermissions().ReadMessageHistory && !string.IsNullOrEmpty(notification.MessageId) && ulong.TryParse(notification.MessageId, out var messageId))
                 {
                     messageReference = new MessageReference(messageId, failIfNotExists: false);
                 }
@@ -240,12 +265,12 @@ namespace UB3RB0T
                 {
                     var messageText = string.IsNullOrEmpty(notification.Embed.Url) ? string.Empty : $"<{notification.Embed.Url}>";
                     messageText += $" {customText}{extraText}".TrimEnd();
-                    await channelToUse.SendMessageAsync(messageText, false, notification.Embed.CreateEmbedBuilder().Build(), allowedMentions: allowedMentions, messageReference: messageReference);
+                    await channelToUse!.SendMessageAsync(messageText, false, notification.Embed.CreateEmbedBuilder().Build(), allowedMentions: allowedMentions, messageReference: messageReference);
                 }
                 else
                 {
                     var messageText = $"{notification.Text} {customText}{extraText}".TrimEnd();
-                    var sentMesage = await channelToUse.SendMessageAsync(messageText.SubstringUpTo(Discord.DiscordConfig.MaxMessageSize), allowedMentions: allowedMentions, messageReference: messageReference);
+                    var sentMesage = await channelToUse!.SendMessageAsync(messageText.SubstringUpTo(Discord.DiscordConfig.MaxMessageSize), allowedMentions: allowedMentions, messageReference: messageReference);
 
                     // update feedback messages to include the message ID
                     if (notification.Type == NotificationType.Feedback && notification.SubType != SubType.Reply)
@@ -255,8 +280,8 @@ namespace UB3RB0T
                 }
 
                 var props = new Dictionary<string, string> {
-                        { "server", notification.Server },
-                        { "channel", notification.Channel },
+                        { "server", notification.Server ?? string.Empty },
+                        { "channel", notification.Channel ?? string.Empty },
                         { "notificationType", notification.Type.ToString() },
                 };
                 this.TrackEvent("notificationSent", props);
@@ -265,7 +290,7 @@ namespace UB3RB0T
             {
                 // TODO:
                 // Add retry support.
-                string extraData = null;
+                string extraData = string.Empty;
                 if (notification.Embed != null)
                 {
                     extraData = JsonConvert.SerializeObject(notification.Embed);
@@ -331,15 +356,15 @@ namespace UB3RB0T
         /// Timer callback to update various bot stats sites.
         /// </summary>
         /// <param name="state"></param>
-        private async void StatsTimerAsync(object state)
+        private async void StatsTimerAsync(object? state)
         {
             var shardCount = this.TotalShards;
-            var guildCount = this.Client.Guilds.Count();
-            var shardId = this.Client.ShardId;
+            var guildCount = this.Client?.Guilds.Count() ?? 0;
+            var shardId = this.Client?.ShardId ?? 0;
 
-            foreach (var botData in this.Config.Discord.BotStats)
+            foreach (var botData in this.discordConfig.BotStats)
             {
-                if (botData.Enabled)
+                if (botData.Enabled && botData.Endpoint != null)
                 {
                     string endpoint = botData.Endpoint.Replace("{{userId}}", this.UserId);
 
@@ -408,26 +433,29 @@ namespace UB3RB0T
                             messageBatch.TryRemove(channel, out var messages);
 
                             string messageToSend = string.Empty;
-                            foreach (var message in messages)
+                            if (messages != null)
                             {
-                                if (messageToSend.Length + message.Length + 1 < Consts.MaxMessageLength)
+                                foreach (var message in messages)
                                 {
-                                    messageToSend += message + "\n";
-                                }
-                                else
-                                {
-                                    if (!string.IsNullOrEmpty(messageToSend))
+                                    if (messageToSend.Length + message.Length + 1 < Consts.MaxMessageLength)
                                     {
-                                        await channel.SendMessageAsync(messageToSend, allowedMentions: AllowedMentions.None);
-                                    }
-
-                                    if (message.Length == Consts.MaxMessageLength)
-                                    {
-                                        messageToSend = message;
+                                        messageToSend += message + "\n";
                                     }
                                     else
                                     {
-                                        messageToSend = message + "\n";
+                                        if (!string.IsNullOrEmpty(messageToSend))
+                                        {
+                                            await channel.SendMessageAsync(messageToSend, allowedMentions: AllowedMentions.None);
+                                        }
+
+                                        if (message.Length == Consts.MaxMessageLength)
+                                        {
+                                            messageToSend = message;
+                                        }
+                                        else
+                                        {
+                                            messageToSend = message + "\n";
+                                        }
                                     }
                                 }
                             }
@@ -453,14 +481,14 @@ namespace UB3RB0T
             return IsAuthorOwner(message.Author);
         }
 
-        private bool IsAuthorOwner(IUser author)
+        private bool IsAuthorOwner(IUser? author)
         {
-            return author.Id == this.Config.Discord?.OwnerId;
+            return author != null && author.Id == this.discordConfig.OwnerId;
         }
 
         private bool IsAuthorPatron(ulong userId)
         {
-            return this.Config.Discord.Patrons.Contains(userId);
+            return this.discordConfig.Patrons.Contains(userId);
         }
     }
 }

@@ -24,7 +24,7 @@ namespace UB3RB0T
 
         protected override async Task StartAsyncInternal()
         {
-            if (this.Config.Irc.Servers == null)
+            if (this.Config.Irc?.Servers == null)
             {
                 throw new InvalidConfigException("Irc server list is missing.");
             }
@@ -36,6 +36,11 @@ namespace UB3RB0T
 
             foreach (IrcServer server in this.Config.Irc.Servers.Where(s => s.Enabled))
             {
+                if (server.Host == null)
+                {
+                    throw new InvalidConfigException("Irc server host is missing.");
+                }
+
                 this.serverData.Add(server.Host, new ServerData());
                 var ircClient = new IrcClient(server.Id ?? server.Host, server.Nick ?? this.Config.Name, server.Host, server.Port, server.UseSsl, server.Password, this.Config.Irc.LogType);
                 this.ircClients.Add(server.Host, ircClient);
@@ -74,7 +79,7 @@ namespace UB3RB0T
 
             if (data.Verb == ReplyCode.RPL_ENDOFMOTD || data.Verb == ReplyCode.RPL_NOMOTD) //  motd end or motd missing
             {
-                var server = this.Config.Irc.Servers.FirstOrDefault(s => s.Id == client.Id || s.Host == client.Id);
+                var server = this.Config.Irc?.Servers.FirstOrDefault(s => s.Id == client.Id || s.Host == client.Id);
                 if (server == null)
                 {
                     Log.Error($"Received message on {client.Id} but no matching configuration found");
@@ -187,7 +192,7 @@ namespace UB3RB0T
         /// <inheritdoc />
         protected override Task<bool> SendNotification(NotificationData notification)
         {
-            if (this.ircClients.TryGetValue(notification.Server, out var ircClient))
+            if (notification.Server != null && notification.Channel != null &&this.ircClients.TryGetValue(notification.Server, out var ircClient))
             {
                 ircClient.Command("PRIVMSG", notification.Channel, notification.Text);
                 var props = new Dictionary<string, string> {
@@ -217,6 +222,12 @@ namespace UB3RB0T
 
         protected override Task RespondAsync(BotMessageData messageData, string text)
         {
+            if (messageData.Server == null || messageData.Channel == null)
+            {
+                Log.Warning("Unable to respond to message; server or channel is null");
+                return Task.CompletedTask;
+            }
+
             this.ircClients[messageData.Server]?.Command("PRIVMSG", messageData.Channel, text);
 
             var props = new Dictionary<string, string> {

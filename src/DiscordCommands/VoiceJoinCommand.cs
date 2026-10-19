@@ -7,12 +7,17 @@
 
     public class VoiceJoinCommand : IDiscordCommand
     {
-        public Task<CommandResponse> Process(IDiscordBotContext context)
+        public Task<CommandResponse?> Process(IDiscordBotContext context)
         {
-            var channel = (context.Message.Author as SocketGuildUser)?.VoiceChannel;
+            var channel = (context.Message?.Author as SocketGuildUser)?.VoiceChannel;
             if (channel == null)
             {
-                return Task.FromResult(new CommandResponse { Text = "Join a voice channel first" });
+                return Task.FromResult<CommandResponse?>(new CommandResponse { Text = "Join a voice channel first" });
+            }
+
+            if (context.AudioManager == null)
+            {
+                return Task.FromResult<CommandResponse?>(new CommandResponse { Text = "Audio is not available" });
             }
 
             Task.Run(async () =>
@@ -22,7 +27,7 @@
                     Log.Information($"{{Indicator}} Joining audio on guild {channel.Guild.Id}", "[audio]");
                     if (await context.AudioManager.JoinAudioAsync(channel, allowReconnect: false))
                     {
-                        await context.Message.Channel.SendMessageAsync($"[Joined <#{channel.Id}>]");
+                        await context.Message!.Channel.SendMessageAsync($"[Joined <#{channel.Id}>]");
                     }
                 }
                 catch (Exception ex)
@@ -31,7 +36,7 @@
                 }
             }).Forget();
 
-            return Task.FromResult((CommandResponse)null);
+            return Task.FromResult<CommandResponse?>(null);
         }
     }
 }

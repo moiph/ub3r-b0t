@@ -4,8 +4,8 @@
 
     public class RepeatData
     {
-        public HashSet<string> Nicks { get; set; } = new HashSet<string>();
-        public string Text { get; set; }
+        public HashSet<string> Nicks { get; set; } = [];
+        public string? Text { get; set; }
 
         public void Reset(string nick, string text)
         {

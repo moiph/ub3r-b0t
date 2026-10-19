@@ -7,9 +7,9 @@
 
     public class ServerInfoCommand : IDiscordCommand
     {
-        public async Task<CommandResponse> Process(IDiscordBotContext context)
+        public async Task<CommandResponse?> Process(IDiscordBotContext context)
         {
-            EmbedBuilder embedBuilder = null;
+            EmbedBuilder? embedBuilder = null;
             string text = string.Empty;
 
             if (context.Channel is SocketGuildChannel guildChannel && context.Channel is ITextChannel textChannel)
@@ -67,7 +67,7 @@
                 {
                     Title = $"Server Info for {guild.Name}",
                     UserCount = guild.MemberCount,
-                    Owner = guild.Owner.Username,
+                    Owner = guild.Owner?.Username,
                     Created = $"{guild.CreatedAt:dd MMM yyyy} {guild.CreatedAt:hh:mm:ss tt} UTC",
                     EmojiText = emojiText,
                 };

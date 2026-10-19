@@ -7,24 +7,24 @@
     [BotPermissions(ChannelPermission.AddReactions, "RequireReactionAdd")]
     public class QuickPollCommand : IDiscordCommand
     {
-        private readonly Regex optionsRx = new Regex("--options? #?(?<count>[0-9]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        public async Task<CommandResponse> Process(IDiscordBotContext context)
+        private readonly Regex optionsRx = new("--options? #?(?<count>[0-9]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        public async Task<CommandResponse?> Process(IDiscordBotContext context)
         {
             var guildChannel = context.GuildChannel;
-            if (guildChannel == null)
+            if (guildChannel == null || context.Message == null)
             {
                 return null;
             }
 
-            var parts = context.Message.Content.Split(new[] { ' ' }, 2);
-            if (parts.Length == 1)
+            var parts = context.Message.Content.Split([' '], 2) ?? [];
+            if (parts.Length <= 1)
             {
                 return new CommandResponse { Text = "Ask a question for your poll, jeez... (add --options # to use a numbered list instead of yes/no)" };
             }
 
-            var currentPermissions = (guildChannel as ITextChannel).GetCurrentUserPermissions();
+            var currentPermissions = (guildChannel as ITextChannel)?.GetCurrentUserPermissions();
 
-            if (!currentPermissions.AddReactions)
+            if (currentPermissions?.AddReactions != true)
             {
                 return new CommandResponse { Text = "oy barfbag I don't have permissions to add reactions in here." };
             }
@@ -43,7 +43,7 @@
                     await context.Message.AddReactionAsync(new Emoji($"{codepoint}"));
                 }
             }
-            else if (currentPermissions.UseExternalEmojis)
+            else if (currentPermissions?.UseExternalEmojis == true)
             {
                 await context.Message.AddReactionAsync(Emote.Parse("<:check:363764608969867274>"));
                 await context.Message.AddReactionAsync(Emote.Parse("<:xmark:363764632160043008>"));

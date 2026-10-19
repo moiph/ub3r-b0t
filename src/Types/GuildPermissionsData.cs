@@ -4,8 +4,8 @@ namespace UB3RB0T
 {
     public class GuildPermisssionsData
     {
-        public Dictionary<ulong, GuildChannelPermissions> Channels { get; set; } = new Dictionary<ulong, GuildChannelPermissions>();
-        public Dictionary<ulong, EmojiData> Emoji { get; set; } = new Dictionary<ulong, EmojiData>();
+        public Dictionary<ulong, GuildChannelPermissions> Channels { get; set; } = [];
+        public Dictionary<ulong, EmojiData> Emoji { get; set; } = [];
         public int HighestRolePosition { get; set; }
     }
 
@@ -19,7 +19,7 @@ namespace UB3RB0T
 
     public class EmojiData
     {
-        public string Name { get; set; }
-        public string Url { get; set; }
+        public string? Name { get; set; }
+        public string? Url { get; set; }
     }
 }

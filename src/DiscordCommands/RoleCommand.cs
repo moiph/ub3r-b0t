@@ -35,16 +35,16 @@
             this.isAdd = isAdd;
         }
 
-        public async Task<CommandResponse> Process(IDiscordBotContext context)
+        public async Task<CommandResponse?> Process(IDiscordBotContext context)
         {
             if (context.GuildChannel != null)
             {
-                var guildAuthor = context.Author as IGuildUser;
                 var settings = SettingsConfig.GetSettings(context.GuildChannel.Guild.Id.ToString());
 
-                IRole requestedRole = null;
+                var guildAuthor = context.Author as IGuildUser;
+                IRole? requestedRole = null;
 
-                if (context.Interaction is SocketMessageComponent messageComponent)
+                if (context.Interaction is SocketMessageComponent messageComponent && guildAuthor != null)
                 {
                     var rolesToAdd = new List<IRole>();
                     var rolesToRemove = new List<IRole>();
@@ -99,16 +99,16 @@
                 }
                 else
                 {
-                    var roleArgs = context.Message.Content.Split(new[] { ' ' }, 2);
+                    var roleArgs = context.Message?.Content.Split(new[] { ' ' }, 2);
 
-                    if (roleArgs.Length == 1)
+                    if (roleArgs == null || roleArgs.Length == 1)
                     {
                         return new CommandResponse { Text = $"Usage: {settings.Prefix}role rolename | {settings.Prefix}derole rolename" };
                     }
 
                     if (roleArgs[1].StartsWith("generate "))
                     {
-                        var roleGenArgs = context.Message.Content.Split(new[] { ' ' }, 5);
+                        var roleGenArgs = context.Message!.Content.Split(new[] { ' ' }, 5);
                         if (roleGenArgs.Length >= 3)
                         {
                             return await this.RoleGenerate(context, roleGenArgs);
@@ -134,27 +134,30 @@
                     return new CommandResponse { Text = $"woah there buttmunch tryin' to cheat the system? you don't have the AUTHORITY to self-assign the {requestedRole.Name.ToUpperInvariant()} role. now make like a tree and get outta here" };
                 }
 
-                if (isAdd && guildAuthor.RoleIds.Contains(requestedRole.Id))
+                if (isAdd && guildAuthor != null && guildAuthor.RoleIds.Contains(requestedRole.Id))
                 {
                     return new CommandResponse { Text = $"seriously? you already have the {requestedRole.Name} role. settle DOWN, freakin' role enthustiast" };
                 }
 
-                if (!isAdd && !guildAuthor.RoleIds.Contains(requestedRole.Id))
+                if (!isAdd && guildAuthor != null && !guildAuthor.RoleIds.Contains(requestedRole.Id))
                 {
                     return new CommandResponse { Text = $"seriously? you don't even have the {requestedRole.Name} role. settle DOWN, freakin' role unenthustiast" };
                 }
 
                 try
                 {
-                    if (isAdd)
+                    if (guildAuthor != null)
                     {
-                        await guildAuthor.AddRoleAsync(requestedRole);
-                        return new CommandResponse { Text = $"access granted to role `{requestedRole.Name}`. congratulation !" };
-                    }
-                    else
-                    {
-                        await guildAuthor.RemoveRoleAsync(requestedRole);
-                        return new CommandResponse { Text = $"access removed from role `{requestedRole.Name}`. congratulation ... ?" };
+                        if (isAdd)
+                        {
+                            await guildAuthor.AddRoleAsync(requestedRole);
+                            return new CommandResponse { Text = $"access granted to role `{requestedRole.Name}`. congratulation !" };
+                        }
+                        else
+                        {
+                            await guildAuthor.RemoveRoleAsync(requestedRole);
+                            return new CommandResponse { Text = $"access removed from role `{requestedRole.Name}`. congratulation ... ?" };
+                        }
                     }
                 }
                 catch (HttpException ex) when (ex.HttpCode == HttpStatusCode.Forbidden)
@@ -195,9 +198,8 @@
                     if (settings.SelfRoles.ContainsKey(roleId))
                     {
                         var requestedRole = guildChannel.Guild.Roles.FirstOrDefault(r => r.Id == roleId);
-                        if (requestedRole != null)
+                        if (requestedRole != null && user is IGuildUser guildAuthor)
                         {
-                            var guildAuthor = user as IGuildUser;
                             var customEmote = reaction.Emote as Emote;
                             var isAdd = reaction.Emote.Name == "➕" || customEmote?.Id == settings.RoleAddEmoteId;
                             var isRemove = reaction.Emote.Name == "➖" || customEmote?.Id == settings.RoleRemoveEmoteId;
@@ -272,22 +274,22 @@
             return false;
         }
 
-        private async Task<CommandResponse> RoleGenerate(IDiscordBotContext context, string[] roleGenArgs)
+        private async Task<CommandResponse?> RoleGenerate(IDiscordBotContext context, string[] roleGenArgs)
         {
-            var guildUser = context.Message.Author as SocketGuildUser;
+            var guildUser = context.Message?.Author as SocketGuildUser;
             var settings = context.Settings;
 
-            if (!guildUser.GuildPermissions.Has(GuildPermission.ManageRoles))
+            if (guildUser == null || !guildUser.GuildPermissions.Has(GuildPermission.ManageRoles))
             {
                 return new CommandResponse { Text = "You need manage roles permission do that." };
             }
 
             var helpText = $"Usage: {settings.Prefix}role generate @role channelId Text to pair with the message here";
 
-            IRole genRole = context.SocketMessage?.MentionedRoles.FirstOrDefault();
+            IRole? genRole = context.SocketMessage?.MentionedRoles.FirstOrDefault();
             if (genRole == null && ulong.TryParse(roleGenArgs[2], out var roleId))
             {
-                genRole = context.GuildChannel.Guild.GetRole(roleId);
+                genRole = context.GuildChannel?.Guild.GetRole(roleId);
             }
 
             if (genRole == null)
@@ -303,7 +305,7 @@
             var channel = context.SocketMessage?.MentionedChannels.FirstOrDefault() as SocketTextChannel;
             if (channel == null && ulong.TryParse(roleGenArgs[3], out var chanId))
             {
-                channel = context.GuildChannel.Guild.GetChannel(chanId) as SocketTextChannel;
+                channel = context.GuildChannel?.Guild.GetChannel(chanId) as SocketTextChannel;
             }
 
             if (channel != null)
@@ -312,10 +314,10 @@
                 {
                     var genMessage = await channel.SendMessageAsync($"{genRole.Mention} - {roleGenArgs[4]}");
                     var addEmote = settings.RoleAddEmoteId != 0 ? 
-                        await context.GuildChannel.Guild.GetEmoteAsync(settings.RoleAddEmoteId) :
+                        await channel.Guild.GetEmoteAsync(settings.RoleAddEmoteId) :
                         new Emoji("➕") as IEmote;
                     var removeEmote = settings.RoleRemoveEmoteId != 0 ?
-                        await context.GuildChannel.Guild.GetEmoteAsync(settings.RoleRemoveEmoteId) :
+                        await channel.Guild.GetEmoteAsync(settings.RoleRemoveEmoteId) :
                         new Emoji("➖") as IEmote;
 
                     await genMessage.AddReactionAsync(addEmote);

@@ -4,9 +4,9 @@ namespace UB3RB0T
 {
     public class BotResponseData
     {
-        public List<string> Responses { get; set; } = new List<string>();
-        public EmbedData Embed;
-        public string AttachmentUrl;
+        public List<string> Responses { get; set; } = [];
+        public EmbedData? Embed;
+        public string? AttachmentUrl;
         public bool Ephemeral;
         public bool AllowMentions { get; set; }
         public bool SetTypingState { get; set; }

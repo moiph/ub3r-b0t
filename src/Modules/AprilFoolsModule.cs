@@ -7,7 +7,7 @@
 
     public class AprilFoolsModule : BaseDiscordModule
     {
-        private static Random random = new Random();
+        private static Random random = new();
 
         public override Task<ModuleResult> ProcessDiscordModule(IDiscordBotContext context)
         {
@@ -19,8 +19,8 @@
                     try
                     {
                         await context.GuildChannel.Guild.DownloadUsersAsync();
-                        var bots = context.GuildChannel.Guild.Users.Where(u => u.IsBot && !u.IsWebhook && u.Id != BotConfig.Instance.Discord.BotId && !BotConfig.Instance.AprilFools.IgnoreIds.Contains(u.Id));
-                        if (bots.Any())
+                        var bots = context.GuildChannel.Guild.Users.Where(u => u.IsBot && !u.IsWebhook && u.Id != BotConfig.Instance.Discord?.BotId && !BotConfig.Instance.AprilFools.IgnoreIds.Contains(u.Id));
+                        if (bots.Any() && context.Message != null)
                         {
                             var botMention = bots.Select(b => b.Mention).ToArray().Random();
                             var botInsult = BotConfig.Instance.AprilFools.Responses.Random().Replace("{bot}", botMention).Replace("{author}", context.Message.Author.UserOrNickname());

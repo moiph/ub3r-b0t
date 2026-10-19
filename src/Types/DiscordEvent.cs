@@ -11,10 +11,10 @@ namespace UB3RB0T
 
         public DiscordEventType EventType { get; set; }
 
-        public object[] Args { get; set; }
+        public object[] Args { get; set; } = [];
 
         public long Created { get; }
 
-        public TimeSpan Elapsed => new TimeSpan(DateTime.Now.Ticks - this.Created);
+        public TimeSpan Elapsed => new(DateTime.Now.Ticks - this.Created);
     }
 }

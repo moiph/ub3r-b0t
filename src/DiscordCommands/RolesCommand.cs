@@ -10,9 +10,9 @@
     [BotPermissions(GuildPermission.ManageRoles, "RequireManageRoles")]
     public class RolesCommand : IDiscordCommand
     {
-        public async Task<CommandResponse> Process(IDiscordBotContext context)
+        public async Task<CommandResponse?> Process(IDiscordBotContext context)
         {
-            if (context.Interaction is SocketSlashCommand slashCommand)
+            if (context.Interaction is SocketSlashCommand slashCommand && context.GuildChannel != null)
             {
                 var settings = SettingsConfig.GetSettings(context.GuildChannel.Guild.Id);
 
@@ -54,7 +54,7 @@
                 return new CommandResponse { IsHandled = true };
             }
 
-            if (context.Message.Channel is SocketGuildChannel guildChannel)
+            if (context.Message?.Channel is SocketGuildChannel guildChannel)
             {
                 var settings = SettingsConfig.GetSettings(guildChannel.Guild.Id.ToString());
                 var roles = guildChannel.Guild.Roles.OrderByDescending(r => r.Position).Where(r => settings.SelfRoles.ContainsKey(r.Id)).Select(r => $"``{r.Name.Replace("`", @"\`")}``");

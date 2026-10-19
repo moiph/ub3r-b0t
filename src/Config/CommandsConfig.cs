@@ -11,17 +11,17 @@
 
         public Dictionary<string, string> Commands { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-        public Uri JpegEndpoint { get; set; }
+        public Uri? JpegEndpoint { get; set; }
 
         public int CommandLengthLimit { get; set; }
 
-        public string HelperKey { get; set; }
+        public string? HelperKey { get; set; }
 
-        public string[] UserInfoSnippets { get; set; }
+        public string[] UserInfoSnippets { get; set; } = [];
 
-        public string[] AutoTitleMatches { get; set; }
+        public string[] AutoTitleMatches { get; set; } = [];
 
-        public List<CommandPattern> CommandPatterns { get; set; }
+        public List<CommandPattern> CommandPatterns { get; set; } = [];
 
         public bool TryParseForCommand(string text, bool mentionsBot, out string command, out string query, out CommandPriority priority)
         {
@@ -35,7 +35,7 @@
                 return false;
             }
 
-            CommandPattern commandPattern = null;
+            CommandPattern? commandPattern = null;
             try
             {
                 commandPattern = this.CommandPatterns.FirstOrDefault(t => t.Regex.Value.IsMatch(text));
@@ -62,9 +62,9 @@
     {
         public Lazy<Regex> Regex { get; }
 
-        public string Pattern { get; set; }
-        public string Replacement { get; set; }
-        public string Command { get; set; }
+        public string Pattern { get; set; } = string.Empty;
+        public string Replacement { get; set; } = string.Empty;
+        public string Command { get; set; } = string.Empty;
         /// <summary>
         /// Set to true if the match only applies if the bot's name is directly mentioned.
         /// </summary>
@@ -78,7 +78,7 @@
         /// <summary>
         /// Tag to match for OcrModule
         /// </summary>
-        public string AnalysisTag { get; set; }
+        public string AnalysisTag { get; set; } = string.Empty;
 
         public CommandPattern()
         {

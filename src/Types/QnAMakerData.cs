@@ -5,7 +5,7 @@ namespace UB3RB0T
 
     public class QnAMakerData
     {
-        public QnAMakerAnswer[] Answers { get; set; }
+        public QnAMakerAnswer[]? Answers { get; set; }
     }
 
     public class QnAMakerAnswer
@@ -14,7 +14,7 @@ namespace UB3RB0T
             /// The top answer found in the QnA Service.
             /// </summary>
             [JsonProperty(PropertyName = "answer")]
-            public string Answer { get; set; }
+            public string? Answer { get; set; }
 
             /// <summary>
             /// The score in range [0, 1] corresponding to the top answer found in the QnA Service.

@@ -22,7 +22,7 @@
         public async Task<bool> JoinAudioAsync(IVoiceChannel voiceChannel, bool allowReconnect)
         {
             var currentUser = await voiceChannel.Guild.GetCurrentUserAsync();
-            if (!audioInstances.TryGetValue(voiceChannel.GuildId, out AudioInstance audioInstance) || currentUser.VoiceChannel == null)
+            if (!audioInstances.TryGetValue(voiceChannel.GuildId, out _) || currentUser.VoiceChannel == null)
             {
                 await this.CreateAudioInstance(voiceChannel, allowReconnect);
                 Log.Information($"{{Indicator}} Joined voice channel for {voiceChannel.GuildId}", "[audio]");
@@ -100,7 +100,7 @@
 
         public async Task LeaveAudioAsync(ulong guildId)
         {
-            if (audioInstances.TryGetValue(guildId, out AudioInstance audioInstance))
+            if (audioInstances.TryGetValue(guildId, out AudioInstance? audioInstance))
             {
                 // say our goodbyes
                 await this.SendAudioAsync(audioInstance, BotConfig.Instance.GetVoiceFileNames(VoicePhraseType.BotLeave).Random());
@@ -130,7 +130,7 @@
 
                 if (voiceChannel != null && botGuildUser.VoiceChannel == voiceChannel)
                 {
-                    if (audioInstances.TryGetValue(voiceChannel.GuildId, out AudioInstance audioInstance))
+                    if (audioInstances.TryGetValue(voiceChannel.GuildId, out AudioInstance? audioInstance))
                     {
                         string[] voiceFileNames;
                         if (voicePhraseType == VoicePhraseType.UserJoin)
@@ -188,7 +188,7 @@
                         foreach (ulong guildId in reconnects)
                         {
                             // verify connection state; reset disconnected time if already reconnected
-                            if (audioInstances[guildId].AudioClient.ConnectionState == ConnectionState.Connected)
+                            if (audioInstances[guildId].AudioClient?.ConnectionState == ConnectionState.Connected)
                             {
                                 Log.Information($"{{Indicator}} Skipped reconnecting audio for {guildId}; already connected", "[audio]");
                                 audioInstances[guildId].DisconnectedTime = DateTime.MinValue;
@@ -199,10 +199,17 @@
                                 try
                                 {
                                     audioInstances.TryRemove(guildId, out var audioInstance);
-                                    var voiceChannel = audioInstance.VoiceChannel;
-                                    audioInstance.Dispose();
+                                    if (audioInstance != null)
+                                    {
+                                        var voiceChannel = audioInstance.VoiceChannel;
+                                        audioInstance.Dispose();
 
-                                    await this.CreateAudioInstance(voiceChannel, allowReconnect: true);
+                                        if (voiceChannel != null)
+                                        {
+                                            await this.CreateAudioInstance(voiceChannel, allowReconnect: true);
+                                        }
+                                    }
+                                    
                                 }
                                 catch (Exception ex)
                                 {
@@ -220,7 +227,7 @@
         private async Task SendAudioAsyncInternalAsync(AudioInstance audioInstance, string filePath)
         {
             var filename = Path.GetFileName(filePath);
-            string cacheFilePath = null;
+            string? cacheFilePath = null;
             if (!string.IsNullOrEmpty(BotConfig.Instance.VoiceCachePath))
             {
                 cacheFilePath = Path.Combine(BotConfig.Instance.VoiceCachePath, Path.ChangeExtension(filename, ".cache"));
@@ -259,6 +266,12 @@
                         RedirectStandardOutput = true,
                         RedirectStandardInput = true,
                     });
+
+                    if (p == null)
+                    {
+                        Log.Error($"{{Indicator}} [{filename}] failed to start ffmpeg process", "[audio]");
+                        return;
+                    }
 
                     using var audioStream = new MemoryStream();
                     await p.StandardOutput.BaseStream.CopyToAsync(audioStream);

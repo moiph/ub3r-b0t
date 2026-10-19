@@ -12,7 +12,7 @@
     [UserPermissions(ChannelPermission.ManageMessages, "RequireUserManageMessages")]
     public class ClearCommand : IDiscordCommand
     {
-        public async Task<CommandResponse> Process(IDiscordBotContext context)
+        public async Task<CommandResponse?> Process(IDiscordBotContext context)
         {
             if (context.Channel is IDMChannel)
             {
@@ -21,21 +21,26 @@
 
             var guildUser = context.Author as SocketGuildUser;
 
+            if (guildUser == null)
+            {
+                return new CommandResponse { Text = "This command can only be used in a server." };
+            }
+
             var guildChannel = context.Channel as SocketGuildChannel;
 
-            string[] parts = context.Message.Content.Split(new[] { ' ' }, 3);
+            string[] parts = context.Message?.Content.Split([' '], 3) ?? [];
             if (parts.Length != 2 && parts.Length != 3)
             {
                 return new CommandResponse { Text = "Usage: .clear #; Usage for user specific messages: .clear # username" };
             }
 
-            IUser deletionUser = null;
+            IUser? deletionUser = null;
 
             if (parts.Length == 3)
             {
                 if (ulong.TryParse(parts[2], out ulong userId))
                 {
-                    deletionUser = guildChannel.GetUser(userId);
+                    deletionUser = guildChannel?.GetUser(userId);
                 }
                 else
                 {
@@ -48,11 +53,16 @@
                 }
             }
 
-            var botGuildUser = guildChannel.GetUser(context.Client.CurrentUser.Id);
+            var botGuildUser = guildChannel?.GetUser(context.Client.CurrentUser.Id);
 
             if (int.TryParse(parts[1], out int count))
             {
-                var textChannel = context.Message.Channel as ITextChannel;
+                var textChannel = context.Message?.Channel as ITextChannel;
+                if (textChannel == null)
+                {
+                    return new CommandResponse { Text = "This command can only be used in text channels." };
+                }
+
                 // +1 for the current .clear message
                 if (deletionUser == null)
                 {
@@ -71,7 +81,7 @@
                 while (msgsToDeleteCount < count)
                 {
                     i++;
-                    IEnumerable<IMessage> downloadedMsgs;
+                    IEnumerable<IMessage>? downloadedMsgs = null;
                     try
                     {
                         if (!lastMsgId.HasValue)
@@ -85,11 +95,10 @@
                     }
                     catch (Exception ex)
                     {
-                        downloadedMsgs = Array.Empty<IMessage>();
                         Log.Error(ex, "Failure to download messages in clear command");
                     }
 
-                    if (downloadedMsgs.Count() > 0)
+                    if (downloadedMsgs != null && downloadedMsgs.Count() > 0)
                     {
                         lastMsgId = downloadedMsgs.Last().Id;
 
@@ -117,7 +126,7 @@
 
                 try
                 {
-                    await (context.Message.Channel as ITextChannel).DeleteMessagesAsync(msgsToDelete);
+                    await textChannel.DeleteMessagesAsync(msgsToDelete);
                 }
                 catch (ArgumentOutOfRangeException)
                 {

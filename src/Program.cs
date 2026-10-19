@@ -37,7 +37,7 @@
 
                 try
                 {
-                    if (BotConfig.Instance.WebListenerInboundAddresses.Contains(context.Connection.RemoteIpAddress.ToString()))
+                    if (context.Connection.RemoteIpAddress != null && BotConfig.Instance.WebListenerInboundAddresses.Contains(context.Connection.RemoteIpAddress.ToString()))
                     {
                         if (context.Request.Query["guilds"] == "1")
                         {
@@ -124,7 +124,11 @@
                                     var emojis = await guild.GetEmojisAsync();
                                     foreach (var emoji in emojis)
                                     {
-                                        channelsResponse.Emoji.Add(emoji.Id, new EmojiData { Name = emoji.Name, Url = emoji.GetEmojiUrl() });
+                                        var emojiUrl = emoji.GetEmojiUrl();
+                                        if (emojiUrl != null)
+                                        {
+                                            channelsResponse.Emoji.Add(emoji.Id, new EmojiData { Name = emoji.Name, Url = emojiUrl });
+                                        }
                                     }
 
                                     channelsResponse.HighestRolePosition = botGuildUser.Roles.OrderByDescending(r => r.Position).FirstOrDefault()?.Position ?? 0;
@@ -148,7 +152,7 @@
                         }
                         else
                         {
-                            response = Assembly.GetEntryAssembly().GetName().Version.ToString();
+                            response = Assembly.GetEntryAssembly()?.GetName()?.Version?.ToString() ?? "Unknown";
                         }
 
                         // if empty, response was not handled
@@ -185,10 +189,10 @@
             });
         }
 
-        static Bot BotInstance;
-        static LoggingLevelSwitch levelSwitch;
-        static PhysicalFileProvider fileProvider;
-        static IChangeToken changeToken;
+        static Bot? BotInstance;
+        static LoggingLevelSwitch? levelSwitch;
+        static PhysicalFileProvider? fileProvider;
+        static IChangeToken? changeToken;
 
         static int Main(string[] args)
         {
@@ -293,7 +297,7 @@
             return exitCode;
         }
 
-        private static void Console_CancelKeyPress(object sender, ConsoleCancelEventArgs e)
+        private static void Console_CancelKeyPress(object? sender, ConsoleCancelEventArgs e)
         {
             Log.Information("CancelKeyPress event; stopping bot");
             HandleShutdown();
@@ -304,7 +308,7 @@
             Log.Information("Handling shutdown event");
             try
             {
-                BotInstance.StopAsync().GetAwaiter().GetResult();
+                BotInstance?.StopAsync().GetAwaiter().GetResult();
             }
             catch (Exception ex)
             {
@@ -326,7 +330,10 @@
                 CommandsConfig.Instance.Reset();
                 BotConfig.Instance.Reset();
 
-                levelSwitch.MinimumLevel = BotConfig.Instance.LogEventLevel;
+                if (levelSwitch != null)
+                {
+                    levelSwitch.MinimumLevel = BotConfig.Instance.LogEventLevel;
+                }
 
                 Log.Information("Configs reloaded.");
 
@@ -340,11 +347,14 @@
 
         static void RegisterChangeCallback()
         {
-            changeToken = fileProvider.Watch("*.json");
-            changeToken.RegisterChangeCallback(OnConfigChange, null);
+            if (fileProvider != null)
+            {
+                changeToken = fileProvider.Watch("*.json");
+                changeToken?.RegisterChangeCallback(OnConfigChange, null);
+            }
         }
 
-        static void OnConfigChange(object state)
+        static void OnConfigChange(object? state)
         {
             _ = ReloadConfigs();
         }

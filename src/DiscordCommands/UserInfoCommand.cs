@@ -8,20 +8,20 @@
 
     public class UserInfoCommand : IDiscordCommand
     {
-        public async Task<CommandResponse> Process(IDiscordBotContext context)
+        public async Task<CommandResponse?> Process(IDiscordBotContext context)
         {
-            SocketUser targetUser;
+            SocketUser? targetUser;
             if (context.Interaction != null)
             {
-                targetUser = (context.Interaction as SocketUserCommand).Data.Member;
+                targetUser = (context.Interaction as SocketUserCommand)?.Data.Member;
             }
             else
             {
                 targetUser = context.SocketMessage?.MentionedUsers?.FirstOrDefault();
 
-                if (targetUser == null)
+                if (targetUser == null && context.Message != null)
                 {
-                    var messageParts = context.Message.Content.Split(new[] { ' ' }, 2);
+                    var messageParts = context.Message.Content.Split([' '], 2);
 
                     if (messageParts.Length == 2)
                     {
@@ -48,7 +48,7 @@
                 }
             }
 
-            if (!(targetUser is SocketGuildUser guildUser))
+            if (targetUser is not SocketGuildUser guildUser)
             {
                 return null;
             }
@@ -68,12 +68,12 @@
                 JoinPosition = guildUser.Guild.Users.OrderBy(u => u.JoinedAt).Select((Value, Index) => new { Value, Index }).Single(u => u.Value.Id == targetUser.Id).Index
             };
 
-            EmbedBuilder embedBuilder = null;
+            EmbedBuilder? embedBuilder = null;
             string text = string.Empty;
 
             var settings = SettingsConfig.GetSettings(guildUser.Guild.Id.ToString());
 
-            if ((context.Channel as ITextChannel).GetCurrentUserPermissions().EmbedLinks && settings.PreferEmbeds)
+            if ((context.Channel as ITextChannel)?.GetCurrentUserPermissions().EmbedLinks == true && settings.PreferEmbeds)
             {
                 embedBuilder = new EmbedBuilder
                 {

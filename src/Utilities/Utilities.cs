@@ -45,13 +45,13 @@ namespace UB3RB0T
 
         public static Uri AppendQueryParam(this Uri uri, string key, string value)
         {
-            var newQueryParams = new Dictionary<string, string> { { key, value } };
+            var newQueryParams = new Dictionary<string, string?> { { key, value } };
             return new Uri(QueryHelpers.AddQueryString(uri.ToString(), newQueryParams));
         }
 
-        public static Task<IFlurlResponse> PostJsonAsync(this Uri uri, object data, string proxyAddress = null)
+        public static Task<IFlurlResponse> PostJsonAsync(this Uri uri, object data, string? proxyAddress = null)
         {
-            IFlurlRequest flurlRequest = null;
+            IFlurlRequest? flurlRequest;
             if (!string.IsNullOrEmpty(proxyAddress))
             {
                 var httpClientHandler = new HttpClientHandler
@@ -355,7 +355,7 @@ namespace UB3RB0T
             return array[random.Next(array.Length)];
         }
 
-        public static async Task<T> GetApiResponseAsync<T>(Uri uri)
+        public static async Task<T?> GetApiResponseAsync<T>(Uri uri)
         {
             try
             {
@@ -374,8 +374,7 @@ namespace UB3RB0T
             query = string.Empty;
 
             string toMatch = timerMatch.Groups["target"].ToString().Trim();
-            string to = toMatch.IEquals("me") ? messageData.UserName : toMatch;
-            string req = to == messageData.UserName ? string.Empty : messageData.UserName;
+            string? to = toMatch.IEquals("me") ? messageData.UserName : toMatch;
             string durationStr = string.Empty;
             long duration = 0;
 
@@ -437,8 +436,7 @@ namespace UB3RB0T
             query = string.Empty;
 
             string toMatch = timerMatch.Groups["target"].ToString().Trim();
-            string to = toMatch.IEquals("me") ? messageData.UserName : toMatch;
-            string req = to == messageData.UserName ? string.Empty : messageData.UserName;
+            string? to = toMatch.IEquals("me") ? messageData.UserName : toMatch;
             string durationStr = string.Empty;
             long duration = 0;
 
@@ -629,7 +627,7 @@ namespace UB3RB0T
             return (channel as SocketGuildChannel)?.Guild?.CurrentUser?.GuildPermissions ?? new GuildPermissions();
         }
 
-        public static async Task<IUserMessage> SendOwnerDMAsync(this IGuild guild, string message)
+        public static async Task<IUserMessage?> SendOwnerDMAsync(this IGuild guild, string message)
         {
             if (blockedDMUsers.Contains(guild.OwnerId))
             {
@@ -654,9 +652,9 @@ namespace UB3RB0T
             return null;
         }
 
-        public static async Task<IUser> GetOrDownloadUserAsync(this SocketReaction reaction)
+        public static async Task<IUser?> GetOrDownloadUserAsync(this SocketReaction reaction)
         {
-            IUser reactionUser;
+            IUser? reactionUser;
             if (reaction.User.IsSpecified)
             {
                 reactionUser = reaction.User.Value;
@@ -664,9 +662,9 @@ namespace UB3RB0T
             else
             {
                 var channel = reaction.Channel as SocketTextChannel;
-                reactionUser = channel.GetUser(reaction.UserId);
+                reactionUser = channel?.GetUser(reaction.UserId);
 
-                if (reactionUser == null)
+                if (reactionUser == null && channel != null)
                 {
                     await channel.Guild.DownloadUsersAsync();
                     reactionUser = channel.GetUser(reaction.UserId);
@@ -676,9 +674,9 @@ namespace UB3RB0T
             return reactionUser;
         }
 
-        public static async Task<IUserMessage> GetOrDownloadMessage(this SocketReaction reaction)
+        public static async Task<IUserMessage?> GetOrDownloadMessage(this SocketReaction reaction)
         {
-            IUserMessage reactionMessage = null;
+            IUserMessage? reactionMessage = null;
             if (reaction.Message.IsSpecified)
             {
                 reactionMessage = reaction.Message.Value;
@@ -696,9 +694,9 @@ namespace UB3RB0T
         /// </summary>
         /// <param name="message">The message to parse</param>
         /// <returns>Image URL</returns>
-        public static string ParseImageUrl(this SocketUserMessage message)
+        public static string? ParseImageUrl(this SocketUserMessage message)
         {
-            string attachmentUrl = null;
+            string? attachmentUrl = null;
 
             var attachment = message.Attachments?.FirstOrDefault();
             if (attachment != null)
@@ -711,7 +709,7 @@ namespace UB3RB0T
             }
             else
             {
-                if (Uri.TryCreate(message.Content, UriKind.Absolute, out Uri attachmentUri))
+                if (Uri.TryCreate(message.Content, UriKind.Absolute, out Uri? attachmentUri))
                 {
                     attachmentUrl = attachmentUri.ToString();
                     if (!attachmentUrl.EndsWith(".jpg") && !attachmentUrl.EndsWith(".png"))

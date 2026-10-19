@@ -10,30 +10,36 @@ namespace UB3RB0T
         private readonly Regex botName = new Regex("(.*ub3r-b)o(t.*)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         [JsonProperty(PropertyName = "recognitionResult")]
-        public RecognitionResult Result { get; set; }
+        public RecognitionResult? Result { get; set; }
 
         [JsonProperty(PropertyName = "status")]
-        public string Status { get; set; }
+        public string? Status { get; set; }
 
-        public string AuthorName { get; set; }
+        public string? AuthorName { get; set; }
         public ulong AuthorId { get; set; }
         public ulong ChannelId { get; set; }
 
-        public string CommandType { get; set; }
-        public string MessageText { get; set; }
+        public string? CommandType { get; set; }
+        public string? MessageText { get; set; }
 
         public string GetText()
         {
             var words = new List<string>();
-            foreach (var l in this.Result.Lines)
+            if (this.Result?.Lines != null)
             {
-                // HACK: map ub3r-bot to ub3r-b0t to account for possible misdetection 
-                var text = l.Text;
-                if (botName.IsMatch(text))
+                foreach (var l in this.Result.Lines)
                 {
-                    text = botName.Replace(text, "${1}0${2}");
+                    // HACK: map ub3r-bot to ub3r-b0t to account for possible misdetection 
+                    var text = l.Text;
+                    if (text != null)
+                    {
+                        if (botName.IsMatch(text))
+                        {
+                            text = botName.Replace(text, "${1}0${2}");
+                        }
+                        words.Add(text);
+                    }
                 }
-                words.Add(text);
             }
 
             return string.Join(" ", words);
@@ -43,36 +49,36 @@ namespace UB3RB0T
     public class RecognitionResult
     {
         [JsonProperty(PropertyName = "lines")]
-        public RecognitionLine[] Lines { get; set; }
+        public RecognitionLine[]? Lines { get; set; }
     }
 
     public class RecognitionLine
     {
         [JsonProperty(PropertyName = "boundingBox")]
-        public int[] BoundingBox { get; set; }
+        public int[]? BoundingBox { get; set; }
 
         [JsonProperty(PropertyName = "text")]
-        public string Text { get; set; }
+        public string? Text { get; set; }
 
         [JsonProperty(PropertyName = "words")]
-        public RecognitionWord[] Words { get; set; }
+        public RecognitionWord[]? Words { get; set; }
     }
 
     public class RecognitionWord
     {
         [JsonProperty(PropertyName = "boundingBox")]
-        public int[] BoundingBox { get; set; }
+        public int[]? BoundingBox { get; set; }
 
         [JsonProperty(PropertyName = "text")]
-        public string Text { get; set; }
+        public string? Text { get; set; }
 
         [JsonProperty(PropertyName = "confidence")]
-        public string Confidence { get; set; }
+        public string? Confidence { get; set; }
     }
 
     public class OcrProcessResponse
     {
-        public string Response { get; set; }
-        public string AttachmentUrl { get; set; }
+        public string? Response { get; set; }
+        public string? AttachmentUrl { get; set; }
     }
 }

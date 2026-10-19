@@ -8,7 +8,7 @@
     {
         public override BotType botType => BotType.Discord;
 
-        public async Task<CommandResponse> Process(IDiscordBotContext context)
+        public async Task<CommandResponse?> Process(IDiscordBotContext context)
         {
             return await base.Process(context);
         }

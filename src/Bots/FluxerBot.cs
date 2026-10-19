@@ -17,12 +17,14 @@ namespace UB3RB0T
     public class FluxerBot : Bot
     {
         public readonly FluxerClient client;
-        private readonly MessageCache<ulong> botResponsesCache = new();
+        private readonly MessageCache<ulong, ulong> botResponsesCache = new();
 
         private readonly Timer heartbeatTimer;
         private DateTime lastHeartbeatAck = DateTime.MinValue;
 
         private Dictionary<string, IFluxerCommand> fluxerCommands;
+
+        private FluxerBotConfig fluxerConfig => this.Config.Fluxer!;
 
         public FluxerBot(int shard, int totalShards) : base(shard, totalShards)
         {
@@ -32,7 +34,17 @@ namespace UB3RB0T
                 GatewaySerilog = Log.Logger as Logger,
             };
 
-            this.client = new FluxerClient(this.Config.Fluxer.Token, fluxerConfig);
+            if (this.Config.Fluxer == null)
+            {
+                throw new InvalidConfigException("Fluxer configuration is missing.");
+            }
+
+            if (string.IsNullOrEmpty(this.fluxerConfig.Token))
+            {
+                throw new InvalidConfigException("Fluxer auth token is missing.");
+            }
+
+            this.client = new FluxerClient(this.fluxerConfig.Token, fluxerConfig);
 
             this.client.Gateway.MessageCreated += async data => await this.HandleMessageCreated(data);
             this.client.Gateway.MessageUpdated += async data => await this.HandleMessageUpdated(data);
@@ -54,11 +66,11 @@ namespace UB3RB0T
         }
 
         public override BotType BotType => BotType.Fluxer;
-        protected override string UserId => this.Config.Fluxer.BotId.ToString();
+        protected override string UserId => this.fluxerConfig.BotId.ToString();
 
         protected override async Task<HeartbeatData> GetHeartbeatData()
         {
-            List<Guild> guilds = null;
+            List<Guild>? guilds = null;
             try
             {
                 guilds = (await this.client.Rest.GetCurrentUserGuildsAsync()).ToList();
@@ -77,9 +89,12 @@ namespace UB3RB0T
             return heartbeatData;
         }
 
-        protected override Task RespondAsync(BotMessageData messageData, string text)
+        protected override async Task RespondAsync(BotMessageData messageData, string text)
         {
-            return this.RespondAsync(messageData.FluxerMessageData, text);
+            if (messageData.FluxerMessageData != null)
+            {
+                await this.RespondAsync(messageData.FluxerMessageData, text);
+            }
         }
 
         private async Task HandleMemberJoined(SocketGuildMember data)
@@ -96,12 +111,12 @@ namespace UB3RB0T
                 greeting = Consts.ChannelRegex.Replace(greeting, new MatchEvaluator((Match chanMatch) =>
                 {
                     string channelName = chanMatch.Groups[1].Value;
-                    var channel = data.Guild.Channels.FirstOrDefault(c => c.Value.Type is ChannelType.GuildText && c.Value.Name.Equals(channelName, StringComparison.OrdinalIgnoreCase)).Value;
+                    var channel = data.Guild.Channels.FirstOrDefault(c => c.Value.Type is ChannelType.GuildText && channelName.Equals(c.Value.Name, StringComparison.OrdinalIgnoreCase)).Value;
                     return channel?.Mention ?? $"#{channelName}";
                 }));
 
                 var greetingChannel = this.client.Gateway.GetChannel(settings.GreetingId) ?? data.Guild.SystemChannel;
-                if (data.Guild.CurrentMember.GetPermissions(greetingChannel).SendMessages)
+                if (greetingChannel != null && data.Guild.CurrentMember.GetPermissions(greetingChannel).SendMessages)
                 {
                     await greetingChannel.SendMessageAsync(greeting);
                 }
@@ -129,12 +144,12 @@ namespace UB3RB0T
                     farewell = Consts.ChannelRegex.Replace(farewell, new MatchEvaluator((Match chanMatch) =>
                     {
                         string channelName = chanMatch.Groups[1].Value;
-                        var channel = guild.Channels.FirstOrDefault(c => c.Value.Type is ChannelType.GuildText && c.Value.Name.Equals(channelName, StringComparison.OrdinalIgnoreCase)).Value;
+                        var channel = guild.Channels.FirstOrDefault(c => c.Value.Type is ChannelType.GuildText && channelName.Equals(c.Value.Name, StringComparison.OrdinalIgnoreCase)).Value;
                         return channel?.Mention ?? $"#{channelName}";
                     }));
 
                     var farewellChannel = this.client.Gateway.GetChannel(settings.FarewellId) ?? guild.SystemChannel;
-                    if (guild.CurrentMember.GetPermissions(farewellChannel).SendMessages)
+                    if (farewellChannel != null && guild.CurrentMember.GetPermissions(farewellChannel).SendMessages)
                     {
                         await farewellChannel.SendMessageAsync(farewell);
                     }
@@ -151,7 +166,7 @@ namespace UB3RB0T
 
         private async Task HandleReactionAdded(MessageReactionGatewayData data)
         {
-            if (data.UserId == this.Config.Fluxer.BotId)
+            if (data.UserId == this.fluxerConfig.BotId)
             {
                 return;
             }
@@ -163,7 +178,7 @@ namespace UB3RB0T
                 var reactionMessage = await this.client.Rest.GetMessageAsync(data.ChannelId, data.MessageId);
 
                 // if the reaction already exists, don't re-process.
-                if (reactionMessage == null || reactionMessage.Author.IsBot || reactionMessage.Reactions.Any(r => (r.Emoji.Name == "💬" || r.Emoji.Name == "🗨️") && r.Count > 1))
+                if (reactionMessage == null || reactionMessage.Author.IsBot || reactionMessage.Reactions?.Any(r => (r.Emoji.Name == "💬" || r.Emoji.Name == "🗨️") && r.Count > 1) == true)
                 {
                     return;
                 }
@@ -191,11 +206,11 @@ namespace UB3RB0T
             }
         }
 
-        private async Task HandleMessageCreated(Message message, string reactionEmote = null, User reactionUser = null)
+        private async Task HandleMessageCreated(Message message, string? reactionEmote = null, User? reactionUser = null)
         {
             try
             {
-                if (message.Author.Id == this.Config.Fluxer.BotId)
+                if (message.Author.Id == this.fluxerConfig.BotId)
                 {
                     return;
                 }
@@ -203,11 +218,11 @@ namespace UB3RB0T
                 ulong? guildId = 0;
                 if (message is SocketMessage socketMessage)
                 {
-                    guildId = socketMessage.Guild.Id;
+                    guildId = socketMessage.Guild?.Id;
                 }
                 else
                 {
-                    guildId = this.client.Gateway.GetChannel(message.ChannelId).GuildId;
+                    guildId = this.client.Gateway.GetChannel(message.ChannelId)?.GuildId;
                 }
 
                 if (this.Throttler.IsThrottled(message.Author.Id.ToString(), ThrottleType.User))
@@ -216,7 +231,7 @@ namespace UB3RB0T
                     return;
                 }
 
-                if (this.Throttler.IsThrottled(guildId.ToString(), ThrottleType.Guild))
+                if (guildId != null && this.Throttler.IsThrottled($"{guildId}", ThrottleType.Guild))
                 {
                     Log.Debug($"messaging throttle from guild: {message.Author} on chan {message.ChannelId} server {guildId}");
                     return;
@@ -240,23 +255,23 @@ namespace UB3RB0T
 
                 if (reactionEmote == "💬" || reactionEmote == "🗨️")
                 {
-                    var quote = messageData.Content.ReplaceMulti(["\"", "”", "“"], "&quot;");
+                    var quote = messageData.Content?.ReplaceMulti(["\"", "”", "“"], "&quot;");
                     messageData.Content = $"{settings.Prefix}quote add \"{quote}\" - userid:{message.Author.Id} {message.Author.Username}";
                     await message.AddReactionAsync("💬");
                 }
                 else if (reactionEmote == "🏅")
                 {
                     messageData.Content = $"{settings.Prefix}rep add {message.Author.Id}";
-                    messageData.UserId = reactionUser.Id.ToString();
+                    messageData.UserId = reactionUser?.Id.ToString() ?? string.Empty;
                     messageData.TargetUserId = message.Author.Id.ToString();
                 }
 
                 await this.PreProcessMessage(messageData, settings);
 
-                string command = messageData.Command;
+                string command = messageData.Command ?? string.Empty;
 
                 var commandHandled = false;
-                if (this.fluxerCommands.TryGetValue(command, out IFluxerCommand fluxerCommand))
+                if (this.fluxerCommands.TryGetValue(command, out IFluxerCommand? fluxerCommand))
                 {
                     var typeInfo = fluxerCommand.GetType().GetTypeInfo();
                     var context = new FluxerBotContext(this.client, messageData);
@@ -303,9 +318,9 @@ namespace UB3RB0T
             {   
                 if (!await attr.CheckPermissions(context))
                 {
-                    if (!string.IsNullOrEmpty(attr.FailureString))
+                    if (!string.IsNullOrEmpty(attr.FailureString) && context.Settings.GetString(attr.FailureString) is string failureMessage)
                     {
-                        await this.RespondAsync(context.MessageData, context.Settings.GetString(attr.FailureString));
+                        await this.RespondAsync(context.MessageData, failureMessage);
                     }
 
                     attributeChecksPassed = false;
@@ -351,10 +366,10 @@ namespace UB3RB0T
             }
         }
 
-        private async Task RespondAsync(IMessage messageData, string text, bool bypassEdit = false, EmbedRequest embed = null)
+        private async Task RespondAsync(IMessage messageData, string text, bool bypassEdit = false, EmbedRequest? embed = null)
         {
             this.TrackEvent("messageSent");
-            List<EmbedRequest> embeds = null;
+            List<EmbedRequest>? embeds = null;
             if (embed != null)
             {
                 embeds = [embed];
@@ -376,7 +391,7 @@ namespace UB3RB0T
                 {
                     var oldMessage = await this.client.Rest.GetMessageAsync(messageData.ChannelId, oldMessageId);
 
-                    List<EmbedRequest> editEmbeds = null;
+                    List<EmbedRequest>? editEmbeds = null;
                     if (embed != null)
                     {
                         var embedRequest = new EmbedRequest
@@ -395,7 +410,7 @@ namespace UB3RB0T
                             {
                                 Url = embed.Image.Url,
                             } : null,
-                            Thumbnail = embed.Thumbnail != null ? new EmbedMediaRequest
+                            Thumbnail = embed?.Thumbnail != null ? new EmbedMediaRequest
                             {
                                 Url = embed.Thumbnail.Url,
                             } : null,
@@ -431,7 +446,7 @@ namespace UB3RB0T
 
         protected override async Task<bool> SendNotification(NotificationData notification)
         {
-            Message originalMessage = null;
+            Message? originalMessage = null;
             if (!string.IsNullOrEmpty(notification.MessageId) && ulong.TryParse(notification.Channel, out var channelId) && ulong.TryParse(notification.MessageId, out var messageId))
             {
                 try
@@ -454,7 +469,10 @@ namespace UB3RB0T
                 } : null,
             };
             
-            await this.client.Rest.SendMessageAsync(ulong.Parse(notification.Channel), message.Content, reference: message.MessageReference);
+            if (notification.Channel != null && ulong.TryParse(notification.Channel, out channelId))
+            {
+                await this.client.Rest.SendMessageAsync(channelId, message.Content, reference: message.MessageReference);
+            }
 
             return true;
         }
@@ -481,7 +499,7 @@ namespace UB3RB0T
             lastHeartbeatAck = DateTime.UtcNow;
         }
 
-        private async void HeartBeatTimerAsync(object state)
+        private async void HeartBeatTimerAsync(object? state)
         {
             if (DateTime.UtcNow.Subtract(lastHeartbeatAck) > TimeSpan.FromMinutes(10))
             {

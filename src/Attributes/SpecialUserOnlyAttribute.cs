@@ -6,12 +6,12 @@
     [AttributeUsage(AttributeTargets.Class)]
     public class SpecialUserOnlyAttribute : PermissionsAttribute
     {
-        public SpecialUserOnlyAttribute(string failureString = null)
+        public SpecialUserOnlyAttribute(string? failureString = null)
         {
             this.FailureString = failureString;
         }
 
         public override bool CheckPermissions(IDiscordBotContext context) =>
-            BotConfig.Instance.Discord.SpecialUsers.Contains((context.Author as SocketGuildUser)?.Id ?? 0);
+            BotConfig.Instance.Discord?.SpecialUsers.Contains((context.Author as SocketGuildUser)?.Id ?? 0) ?? false;
     }
 }

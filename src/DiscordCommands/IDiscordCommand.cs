@@ -4,6 +4,6 @@
 
     public interface IDiscordCommand
     {
-        Task<CommandResponse> Process(IDiscordBotContext context);
+        Task<CommandResponse?> Process(IDiscordBotContext context);
     }
 }

@@ -16,11 +16,11 @@
     {
         protected override string FileName => "settingsconfig.json";
 
-        public Uri ManagementEndpoint { get; set; }
-        public Uri CreateEndpoint { get; set; }
+        public Uri? ManagementEndpoint { get; set; }
+        public Uri? CreateEndpoint { get; set; }
         public long SinceToken { get; set; }
 
-        public Dictionary<string, Settings> Settings { get; set; } = new Dictionary<string, Settings>();
+        public Dictionary<string, Settings> Settings { get; set; } = [];
 
         public override async Task OverrideAsync(Uri uri)
         {
@@ -48,7 +48,7 @@
             return SettingsConfig.GetSettings(serverId.ToString());
         }
 
-        public static Settings GetSettings(string serverId)
+        public static Settings GetSettings(string? serverId)
         {
             if (serverId == null)
             {
@@ -87,45 +87,45 @@
 
     public class CustomCommand
     {
-        public string Command { get; set; }
-        public string Response { get; set; }
+        public string Command { get; set; } = string.Empty;
+        public string Response { get; set; } = string.Empty;
         public bool IsExactMatch { get; set; }
         public bool IsRegex { get; set; }
-        public Regex RegexCommand { get; set; }
+        public Regex? RegexCommand { get; set; }
     }
 
     public class NotificationText
     {
         public NotificationType Type { get; set; }
-        public string Text { get; set; }
+        public string Text { get; set; } = string.Empty;
     }
 
     public class Settings
     {
-        private List<Regex> regexWordCensors;
+        private List<Regex?> regexWordCensors = [];
 
         public ulong Id { get; set; }
 
-        public string Greeting { get; set; }
-        public List<string> Greetings { get; set; } = new List<string>();
+        public string Greeting { get; set; } = string.Empty;
+        public List<string> Greetings { get; set; } = [];
         public ulong GreetingId { get; set; }
-        public string Farewell { get; set; }
-        public List<string> Farewells { get; set; } = new List<string>();
+        public string Farewell { get; set; } = string.Empty;
+        public List<string> Farewells { get; set; } = [];
         public ulong FarewellId { get; set; }
         public ulong VoiceId { get; set; }
         public ulong JoinRoleId { get; set; }
 
-        public List<NotificationText> NotificationText = new List<NotificationText>();
+        public List<NotificationText> NotificationText = [];
 
         public HashSet<string> WordCensors { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         public HashSet<string> RegexCensors { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        public Dictionary<ulong, ulong> SelfRoles { get; set; } = new Dictionary<ulong, ulong>();
+        public Dictionary<ulong, ulong> SelfRoles { get; set; } = [];
         public ulong SelfRolesChannelId { get; set; }
 
-        public HashSet<string> DisabledCommands { get; set; } = new HashSet<string>();
-        public List<CustomCommand> CustomCommands = new List<CustomCommand>();
-        public List<CustomCommand> RegexCustomCommands = new List<CustomCommand>();
+        public HashSet<string> DisabledCommands { get; set; } = [];
+        public List<CustomCommand> CustomCommands = [];
+        public List<CustomCommand> RegexCustomCommands = [];
         private bool regexCustomCommandsInitialized = false;
 
         public string Prefix { get; set; } = ".";
@@ -183,20 +183,19 @@
 
         public string GetString(string stringName)
         {
-            return (this.SasshatEnabled ? StringHelper.GetString($"{stringName}Nice") : null) ?? StringHelper.GetString(stringName);
+            return (this.SasshatEnabled ? StringHelper.GetString($"{stringName}Nice") : null) ?? StringHelper.GetString(stringName) ?? string.Empty;
         }
 
-        public string TryCustomCommand(string text)
+        public string? TryCustomCommand(string text)
         {
-            string response = null;
+            string? response = null;
             if (!this.regexCustomCommandsInitialized)
             {
                 this.regexCustomCommandsInitialized = true;
-                this.RegexCustomCommands = this.CustomCommands.Where(c => c.IsRegex).Select(c =>
+                this.RegexCustomCommands = [.. this.CustomCommands.Where(c => c.IsRegex).Select(c =>
                 {
                     try
                     {
-                        
                         c.RegexCommand = new Regex(c.Command, RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(100));
                         return c;
                     }
@@ -206,8 +205,8 @@
                         Log.Warning("Custom command failure on guild {{Guild}} for {{Regex}}", this.Id, c);
                     }
 
-                    return null;
-                }).ToList();
+                    return new();
+                })];
             }
 
             if (this.RegexCustomCommands.Count > 0)
@@ -216,7 +215,7 @@
                 {
                     try
                     {
-                        return r != null && r.RegexCommand.IsMatch(text);
+                        return r.RegexCommand != null && r.RegexCommand.IsMatch(text);
                     }
                     catch (RegexMatchTimeoutException)
                     {
@@ -227,7 +226,7 @@
                     return false;
                 });
 
-                if (matchingCommand != null)
+                if (matchingCommand?.RegexCommand != null)
                 {
                     if (matchingCommand.Response.Contains("$1"))
                     {
@@ -248,7 +247,7 @@
             return response;
         }
 
-        public bool TriggersCensor(string text, out string offendingWord)
+        public bool TriggersCensor(string text, out string? offendingWord)
         {
             offendingWord = null;
             // check boring word censors first, then regex
@@ -267,11 +266,14 @@
             {
                 if (this.regexWordCensors == null)
                 {
-                    this.regexWordCensors = this.RegexCensors.Where(r => !string.IsNullOrWhiteSpace(r)).Select(r =>
+                    this.regexWordCensors = this.RegexCensors.Select(r =>
                     {
                         try
                         {
-                            return new Regex(r, RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(250)); 
+                            if (!string.IsNullOrWhiteSpace(r))
+                            {
+                                return new Regex(r, RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(250));
+                            }
                         }
                         catch (ArgumentException)
                         {

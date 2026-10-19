@@ -8,7 +8,7 @@
     {
         public override BotType botType => BotType.Fluxer;
 
-        public async Task<CommandResponse> Process(IFluxerBotContext context)
+        public async Task<CommandResponse?> Process(IFluxerBotContext context)
         {
             return await base.Process(context);
         }

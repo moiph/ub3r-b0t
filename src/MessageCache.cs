@@ -5,24 +5,25 @@
     using System.Collections.Concurrent;
 
     // Based on https://github.com/RogueException/Discord.Net/blob/dev/src/Discord.Net.WebSocket/Entities/Messages/MessageCache.cs
-    internal class MessageCache<T>
+    internal class MessageCache<TKey, TValue>
+        where TKey : notnull
     {
         private const int PROCESSOR_COUNT_REFRESH_INTERVAL_MS = 30000;
         private static volatile int s_processorCount;
         private static volatile int s_lastProcessorCountRefreshTicks;
 
-        private readonly ConcurrentDictionary<T, T> _messages;
-        private readonly ConcurrentQueue<T> _orderedMessages;
+        private readonly ConcurrentDictionary<TKey, TValue> _messages;
+        private readonly ConcurrentQueue<TKey> _orderedMessages;
         private readonly int _size;
 
         public MessageCache()
         {
             _size = 1000;
-            _messages = new ConcurrentDictionary<T, T>(DefaultConcurrencyLevel, (int)(_size * 1.05));
-            _orderedMessages = new ConcurrentQueue<T>();
+            _messages = new ConcurrentDictionary<TKey, TValue>(DefaultConcurrencyLevel, (int)(_size * 1.05));
+            _orderedMessages = new ConcurrentQueue<TKey>();
         }
 
-        public void Add(T id, T message)
+        public void Add(TKey id, TValue message)
         {
             if (message != null)
             {
@@ -30,20 +31,23 @@
                 {
                     _orderedMessages.Enqueue(id);
 
-                    while (_orderedMessages.Count > _size && _orderedMessages.TryDequeue(out T msgId))
+                    while (_orderedMessages.Count > _size && _orderedMessages.TryDequeue(out TKey? msgId))
                     {
-                        _messages.TryRemove(msgId, out _);
+                        if (msgId != null)
+                        {
+                            _messages.TryRemove(msgId, out _);
+                        }
                     }
                 }
             }
         }
 
-        public T Get(T id)
+        public TValue? Get(TKey id)
         {
-            return _messages.ContainsKey(id) ? _messages[id] : default(T);
+            return _messages.ContainsKey(id) ? _messages[id] : default;
         }
 
-        public T Remove(T id)
+        public TValue? Remove(TKey id)
         {
             _messages.TryRemove(id, out var msg);
             return msg;

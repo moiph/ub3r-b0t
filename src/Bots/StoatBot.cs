@@ -8,13 +8,20 @@ namespace UB3RB0T
     public class StoatBot : Bot
     {
         private readonly StoatClient client;
-        private readonly MessageCache<string> botResponsesCache = new();
+        private readonly MessageCache<string, string> botResponsesCache = new();
+
+        private StoatConfig stoatConfig => this.Config.Stoat!;
 
         public StoatBot(int shard, int totalShards) : base(shard, totalShards)
         {
+            if (this.Config.Stoat == null || !this.Config.Stoat.IsValid())
+            {
+                throw new InvalidConfigException("Stoat config is null or invalid");
+            }
+
             this.client = new StoatClient(ClientMode.WebSocket, new ClientConfig
             {
-                Owners = [this.Config.Stoat.OwnerId],
+                Owners = [this.stoatConfig.OwnerId!],
                 OwnerBypassPermissions = true,
                 LogMode = StoatLogSeverity.Debug,
             });
@@ -32,7 +39,7 @@ namespace UB3RB0T
 
         public override BotType BotType => BotType.Stoat;
 
-        protected override string UserId => this.Config.Stoat.BotId;
+        protected override string UserId => this.stoatConfig.BotId!;
 
         protected override Task<HeartbeatData> GetHeartbeatData()
         {
@@ -46,16 +53,19 @@ namespace UB3RB0T
             return Task.FromResult(heartbeatData);
         }
 
-        protected override Task RespondAsync(BotMessageData messageData, string text)
+        protected override async Task RespondAsync(BotMessageData messageData, string text)
         {
-            return this.RespondAsync(messageData.StoatMessageData, text);
+            if (messageData.StoatMessageData != null)
+            {
+                await this.RespondAsync(messageData.StoatMessageData, text);
+            }
         }
 
         private async Task OnMessageReceived(Message message)
         {
             try
             {
-                if (message.AuthorId == this.client.CurrentUser.Id)
+                if (message.AuthorId == this.client.CurrentUser?.Id)
                 {
                     return;
                 }
@@ -66,7 +76,7 @@ namespace UB3RB0T
                     return;
                 }
 
-                if (this.Throttler.IsThrottled(message.ServerId, ThrottleType.Guild))
+                if (message.ServerId != null && this.Throttler.IsThrottled(message.ServerId, ThrottleType.Guild))
                 {
                     Log.Debug($"messaging throttle from guild: {message.Author} on chan {message.ChannelId} server {message.ServerId}");
                     return;
@@ -113,7 +123,10 @@ namespace UB3RB0T
                 if (DateTimeOffset.UtcNow.Subtract(message.CreatedAt) < TimeSpan.FromHours(1) && !string.IsNullOrEmpty(message.Content.Value))
                 {
                     var msg = await message_cache.GetOrDownloadAsync();
-                    await this.OnMessageReceived(msg);
+                    if (msg != null)
+                    {
+                        await this.OnMessageReceived(msg);
+                    }
                 }
             }
             catch (Exception ex)
@@ -138,33 +151,40 @@ namespace UB3RB0T
             }
         }
 
-        private async Task RespondAsync(Message message, string text, bool bypassEdit = false, Embed embed = null)
+        private async Task RespondAsync(Message message, string text, bool bypassEdit = false, Embed? embed = null)
         {
             this.TrackEvent("messageSent");
 
             if (!bypassEdit && this.botResponsesCache.Get(message.Id) is string oldMessgeId)
             {
                 // Stoat is missing an update/edit capability, so for now just do a delete and send a new message
-                await this.client.GetChannel(message.ChannelId).DeleteMessageAsync(oldMessgeId);
+                var channel = this.client.GetChannel(message.ChannelId);
+                if (channel != null)
+                {
+                    await channel.DeleteMessageAsync(oldMessgeId);
+                }
             }
             
             Message sentMessage;
-            Embed[] embeds = null;
+            Embed[]? embeds = null;
             if (embed != null)
             {
                 embeds = [embed];
             }
 
-            var reply = new MessageReply(message.Id, false);
-            Log.Debug($"Sending message in response to {message.Id} on channel {message.ChannelId} on server {message.ServerId}");
-            sentMessage = await message.Channel.SendMessageAsync(text, embeds: embeds, replies: [reply]);
-            
-            this.botResponsesCache.Add(message.Id, sentMessage.Id);
+            if (message.Channel != null)
+            {
+                var reply = new MessageReply(message.Id, false);
+                Log.Debug($"Sending message in response to {message.Id} on channel {message.ChannelId} on server {message.ServerId}");
+                sentMessage = await message.Channel.SendMessageAsync(text, embeds: embeds, replies: [reply]);
+
+                this.botResponsesCache.Add(message.Id, sentMessage.Id);
+            }
         }
 
         protected override async Task<bool> SendNotification(NotificationData notification)
         {
-            if (notification.Text.Contains("%%username%%"))
+            if (notification.Text != null && notification.Text.Contains("%%username%%") && notification.UserId != null)
             {
                 var member = this.client.GetUser(notification.UserId);
                 if (member != null)
@@ -173,12 +193,20 @@ namespace UB3RB0T
                 }
             }
 
-            Message originalMessage = null;
+            Message? originalMessage = null;
+            Channel? channel = notification.Channel != null ? this.client.GetChannel(notification.Channel) : null;
+            
+            if (channel == null)
+            {
+                Log.Error($"Failed to fetch channel {notification.Channel} for notification {notification.Id}");
+                return false;
+            }
+
             if (!string.IsNullOrEmpty(notification.MessageId))
             {
                 try
                 {
-                    originalMessage = await this.client.GetChannel(notification.Channel).GetMessageAsync(notification.MessageId);
+                    originalMessage = await channel.GetMessageAsync(notification.MessageId);
                 }
                 catch (Exception ex)
                 {
@@ -186,14 +214,14 @@ namespace UB3RB0T
                 }
             }
 
-            if (originalMessage != null)
+            if (originalMessage?.Channel != null)
             {
                 var reply = new MessageReply(originalMessage.Id, false);
                 await originalMessage.Channel.SendMessageAsync(notification.Text, replies: [reply]);
             }
             else
             {
-                await this.client.GetChannel(notification.Channel).SendMessageAsync(notification.Text);
+                await channel.SendMessageAsync(notification.Text);
             }
 
             return true;
@@ -201,7 +229,7 @@ namespace UB3RB0T
 
         protected override async Task StartAsyncInternal()
         {
-            await this.client.LoginAsync(this.Config.Stoat.Token, AccountType.Bot);
+            await this.client.LoginAsync(this.stoatConfig.Token!, AccountType.Bot);
             await this.client.StartAsync();
         }
 

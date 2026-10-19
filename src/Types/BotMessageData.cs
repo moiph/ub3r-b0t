@@ -16,45 +16,45 @@
     {
 
         [JsonIgnore]
-        public IUserMessage DiscordMessageData { get; private set; }
+        public IUserMessage? DiscordMessageData { get; private set; }
         [JsonIgnore]
-        public SocketInteraction DiscordInteraction { get; private set; }
+        public SocketInteraction? DiscordInteraction { get; private set; }
         [JsonIgnore]
-        public MessageData IrcMessageData { get; private set; }
+        public MessageData? IrcMessageData { get; private set; }
         [JsonIgnore]
-        public Message StoatMessageData { get; private set; }
+        public Message? StoatMessageData { get; private set; }
         [JsonIgnore]
-        public Fluxer.Net.IMessage FluxerMessageData { get; private set; }
+        public Fluxer.Net.IMessage? FluxerMessageData { get; private set; }
 
         public BotType BotType { get; set; }
-        public string UserName { get; set; }
-        public string UserId { get; set; }
-        public string UserHost { get; set; }
-        public string TargetUserName { get; set; }
-        public string TargetUserId { get; set; }
-        public string Channel { get; set; }
-        public string Server { get; set; }
-        public string MessageId { get; set; }
-        public string Content { get; set; }
-        public string Command => Query.Split(new[] { ' ' }, 2)?[0];
+        public string? UserName { get; set; }
+        public string? UserId { get; set; }
+        public string? UserHost { get; set; }
+        public string? TargetUserName { get; set; }
+        public string? TargetUserId { get; set; }
+        public string? Channel { get; set; }
+        public string? Server { get; set; }
+        public string? MessageId { get; set; }
+        public string? Content { get; set; }
+        public string? Command => Query.Split([' '], 2)?[0];
         public CommandPriority CommandPriority { get; set; }
-        public string Prefix { get; set; }
-        public Dictionary<string, string> RequestOptions { get; set; }
+        public string Prefix { get; set; } = ".";
+        public Dictionary<string, string> RequestOptions { get; set; } = [];
         public string Query
         {
             get
             {
                 string query = string.Empty;
                 int argPos = 0;
-                if (this.BotType == BotType.Discord && this.Content.HasMentionPrefix(BotConfig.Instance.Discord.BotId, ref argPos))
+                if (this.BotType == BotType.Discord && this.Content != null && BotConfig.Instance.Discord != null && this.Content.HasMentionPrefix(BotConfig.Instance.Discord.BotId, ref argPos))
                 {
                     query = this.Content.Substring(argPos);
                 }
-                else if (this.BotType == BotType.Fluxer && this.Content.HasMentionPrefix(BotConfig.Instance.Fluxer.BotId, ref argPos))
+                else if (this.BotType == BotType.Fluxer && this.Content != null && BotConfig.Instance.Fluxer != null && this.Content.HasMentionPrefix(BotConfig.Instance.Fluxer.BotId, ref argPos))
                 {
                     query = this.Content.Substring(argPos);
                 }
-                else if (this.Content.StartsWith(this.Prefix))
+                else if (this.Content != null && this.Content.StartsWith(this.Prefix))
                 {
                     query = this.Content.Substring(this.Prefix.Length);
                 }
@@ -62,7 +62,7 @@
                 return query;
             }
         }
-        public string Format { get; set; }
+        public string? Format { get; set; }
         public bool Sasshat { get; set; }
         public bool AfEnabled { get; set; }
         public int UwuChance { get; set; }
@@ -73,7 +73,7 @@
             this.BotType = botType;
         }
 
-        public bool MentionsBot(string botName, string id)
+        public bool MentionsBot(string botName, string? id)
         {
             if (string.IsNullOrEmpty(this.Content))
             {
@@ -83,6 +83,11 @@
             if (this.Content.IContains(botName))
             {
                 return true;
+            }
+
+            if (id == null)
+            {
+                return false;
             }
 
             if (this.BotType == BotType.Discord && this.DiscordMessageData is SocketUserMessage socketUserMessage)
@@ -95,7 +100,7 @@
                 return true;
             }
 
-            if (this.BotType == BotType.Fluxer)
+            if (this.BotType == BotType.Fluxer && this.FluxerMessageData != null)
             {
                 return this.FluxerMessageData.Mentions?.Count() == 1 && this.FluxerMessageData.Mentions.First().Id.ToString() == id;
             }
@@ -121,9 +126,9 @@
             return new BotMessageData(BotType.Stoat)
             {
                 StoatMessageData = message,
-                UserName = message.Author.DisplayName ?? message.Author.Username,
-                UserHost = message.Author.Id,
-                UserId = message.Author.Id,
+                UserName = message.Author?.DisplayName ?? message.Author?.Username,
+                UserHost = message.Author?.Id,
+                UserId = message.Author?.Id,
                 Channel = message.ChannelId,
                 Server = message.ServerId,
                 MessageId = message.Id,
@@ -145,7 +150,7 @@
                 UserHost = message.Author.Id.ToString(),
                 UserId = message.Author.Id.ToString(),
                 Channel = message.ChannelId.ToString(),
-                Server = guildId?.ToString() ?? (message as Fluxer.Net.SocketMessage)?.Guild.Id.ToString(),
+                Server = guildId?.ToString() ?? (message as Fluxer.Net.SocketMessage)?.Guild?.Id.ToString(),
                 MessageId = message.Id.ToString(),
                 Content = message.Content,
                 Format = serverSettings.PreferEmbeds ? "embed" : string.Empty,
@@ -186,7 +191,7 @@
             return messageData;
         }
 
-        public static BotMessageData Create(SocketInteraction interaction, IUserMessage message, Settings serverSettings)
+        public static BotMessageData Create(SocketInteraction interaction, IUserMessage? message, Settings serverSettings)
         {
             var preferEmbeds = ((interaction.Channel as SocketTextChannel)?.GetCurrentUserPermissions().EmbedLinks ?? false) && serverSettings.PreferEmbeds;
 
@@ -226,14 +231,14 @@
                     else if (option.Type == ApplicationCommandOptionType.User)
                     {
                         // map the user to a userid for command processing
-                        var optionValue = $"<@{(option.Value as IGuildUser).Id}>";
+                        var optionValue = $"<@{(option.Value as IGuildUser)?.Id}>";
                         messageData.Content += $" {optionValue}";
                         messageData.RequestOptions.Add(option.Name, optionValue);
                     }
                     else
                     {
                         messageData.Content += $" {option.Value}";
-                        messageData.RequestOptions.Add(option.Name, option.Value.ToString());
+                        messageData.RequestOptions.Add(option.Name, option.Value.ToString() ?? string.Empty);
                     }
                 }
             }

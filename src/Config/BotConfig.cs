@@ -12,81 +12,81 @@
         protected override string FileName => "botconfig.json";
 
         [JsonRequired]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         // Set to true if this is a local dev instance
         public bool IsDevMode { get; set; }
         
         // Bot api endpoint, if applicable.
-        public Uri ApiEndpoint { get; set; }
+        public Uri? ApiEndpoint { get; set; }
 
         // Server settings endpoint, if applicable.
-        public Uri SettingsEndpoint { get; set; }
+        public Uri? SettingsEndpoint { get; set; }
 
-        public Uri PhrasesEndpoint { get; set; }
-        public Uri CommandsEndpoint { get; set; }
+        public Uri? PhrasesEndpoint { get; set; }
+        public Uri? CommandsEndpoint { get; set; }
 
-        public Uri SeenEndpoint { get; set; }
+        public Uri? SeenEndpoint { get; set; }
 
-        public Dictionary<ulong, Faq> FaqEndpoints { get; set; }
-        public string FaqKey { get; set; }
-        public string[] FaqThreadNames { get; set; }
+        public Dictionary<ulong, Faq>? FaqEndpoints { get; set; }
+        public string? FaqKey { get; set; }
+        public string[]? FaqThreadNames { get; set; }
 
-        public string VisionKey { get; set; }
-        public Uri OcrEndpoint { get; set; }
-        public Uri AnalyzeEndpoint { get; set; }
-        public ulong[] OcrAutoIds { get; set; } = Array.Empty<ulong>();
-        public ulong[] OcrAutoRespondIds { get; set; } = Array.Empty<ulong>();
+        public string? VisionKey { get; set; }
+        public Uri? OcrEndpoint { get; set; }
+        public Uri? AnalyzeEndpoint { get; set; }
+        public ulong[] OcrAutoIds { get; set; } = [];
+        public ulong[] OcrAutoRespondIds { get; set; } = [];
 
-        public DiscordConfig Discord { get; set; }
-        public StoatConfig Stoat { get; set; }
-        public FluxerBotConfig Fluxer { get; set; }
-        public Irc Irc { get; set; }
+        public DiscordConfig? Discord { get; set; }
+        public StoatConfig? Stoat { get; set; }
+        public FluxerBotConfig? Fluxer { get; set; }
+        public Irc? Irc { get; set; }
 
         // endpoint to send heartbeat data to
-        public Uri HeartbeatEndpoint { get; set; }
+        public Uri? HeartbeatEndpoint { get; set; }
         public int MissedHeartbeatLimit { get; set; } = 10;
         // endpoint to send alerts (e.g. bot restarts) to
-        public Uri AlertEndpoint { get; set; }
+        public Uri? AlertEndpoint { get; set; }
 
         // Connection string for Azure Service Bus (for notifications)
-        public string ServiceBusConnectionString { get; set; }
-        public string QueueNamePrefix { get; set; }
+        public string? ServiceBusConnectionString { get; set; }
+        public string? QueueNamePrefix { get; set; }
 
         /// Hostname to listen on for incoming http requests (for monitoring)
-        public string WebListenerHostName { get; set; }
+        public string? WebListenerHostName { get; set; }
         public int WebListenerPort { get; set; } = 9100;
         // List of allowed incoming IPs for web queries
-        public List<string> WebListenerInboundAddresses { get; set; } = new List<string>();
+        public List<string> WebListenerInboundAddresses { get; set; } = [];
 
         // Instrumentation key for application insights
-        public string InstrumentationKey { get; set; }
+        public string? InstrumentationKey { get; set; }
         public MetricsConfig Metrics { get; set; } = new MetricsConfig();
 
-        public string CertStoreName { get; set; }
-        public string CertThumbprint { get; set; }
+        public string? CertStoreName { get; set; }
+        public string? CertThumbprint { get; set; }
 
         public LogEventLevel LogEventLevel { get; set; } = LogEventLevel.Warning;
 
         // Whether or not to log outgoing messages
         public bool LogOutgoing { get; set; }
 
-        public string LogsPath { get; set; }
+        public string? LogsPath { get; set; }
         public int LogsRetainedFileCount { get; set; } = 5;
 
         /// Settings for voice support
-        public string VoiceFilePath { get; set; }
-        public string VoiceCachePath { get; set; }
+        public string? VoiceFilePath { get; set; }
+        public string? VoiceCachePath { get; set; }
         public string VoiceFileExtension { get; set; } = "*.mp3";
 
         public int VoiceReconnectTime { get; set; } = 60;
-        public Dictionary<ThrottleType, Throttle> Throttles { get; set; } = new Dictionary<ThrottleType, Throttle>();
+        public Dictionary<ThrottleType, Throttle> Throttles { get; set; } = [];
 
         public AprilFoolsConfig AprilFools { get; set; } = new AprilFoolsConfig();
 
         public string[] GetVoiceFileNames(VoicePhraseType voicePhraseType)
         {
-            if (!voiceFileNames.ContainsKey(voicePhraseType))
+            if (!voiceFileNames.ContainsKey(voicePhraseType) && this.VoiceFilePath != null)
             {
                 voiceFileNames[voicePhraseType] = Directory.GetFiles(Path.Combine(this.VoiceFilePath, voicePhraseType.ToString().ToLowerInvariant()), this.VoiceFileExtension);
             }
@@ -106,14 +106,14 @@
     {
         public int Chance { get; set; } = 0;
         public int Delay { get; set; } = 60000;
-        public HashSet<ulong> IgnoreIds { get; set; } = new HashSet<ulong>();
-        public string[] Responses { get; set; }
+        public HashSet<ulong> IgnoreIds { get; set; } = [];
+        public string[] Responses { get; set; } = [];
     }
 
     public class DiscordConfig
     {
         [JsonRequired]
-        public string Token { get; set; }
+        public string? Token { get; set; }
 
         [JsonRequired]
         public ulong OwnerId { get; set; }
@@ -121,7 +121,7 @@
         [JsonRequired]
         public ulong BotId { get; set; }
 
-        public string Status { get; set; }
+        public string? Status { get; set; }
 
         public int EventQueueSize { get; set; } = 10;
         public int VoiceEventQueueSize { get; set; } = 2;
@@ -129,22 +129,22 @@
 
         // Servers that are blocked from normal usage (owner being exempt)
         // Useful for things like large test servers.
-        public HashSet<ulong> BlockedServers { get; set; } = new HashSet<ulong>();
+        public HashSet<ulong> BlockedServers { get; set; } = [];
 
         // Globally blocked users (e.g. rule breakers, bot abusers, rustlers, cut throats, murderers, bounty hunters, desperados, mugs, pugs, thugs, nitwits, halfwits, dimwits, vipers, snipers, con men, and so on)
-        public HashSet<ulong> BlockedUsers { get; set; } = new HashSet<ulong>();
+        public HashSet<ulong> BlockedUsers { get; set; } = [];
 
         // Webhooks to allow through processing
-        public HashSet<ulong> AllowedWebhooks { get; set; } = new HashSet<ulong>();
+        public HashSet<ulong> AllowedWebhooks { get; set; } = [];
 
-        public HashSet<ulong> Patrons { get; set; } = new HashSet<ulong>();
+        public HashSet<ulong> Patrons { get; set; } = [];
 
-        public HashSet<ulong> SpecialUsers { get; set; } = new HashSet<ulong>();
+        public HashSet<ulong> SpecialUsers { get; set; } = [];
 
         /// <summary>
         /// Endpoints for bot lists
         /// </summary>
-        public BotStatData[] BotStats { get; set; } = Array.Empty<BotStatData>();
+        public BotStatData[] BotStats { get; set; } = [];
 
         /// <summary>
         /// Set to true to trigger typing state when command usage is detected
@@ -155,38 +155,43 @@
         /// <summary>
         /// Modules processed before commanding. Order matters.
         /// </summary>
-        public List<string> PreProcessModuleTypes { get; set; }
-        
+        public List<string> PreProcessModuleTypes { get; set; } = [];
+
         /// <summary>
         /// Modules processed after a command is successfully handled.
         /// </summary>
-        public List<string> PostProcessModuleTypes { get; set; }
+        public List<string> PostProcessModuleTypes { get; set; } = [];
 
         /// <summary>
         /// Native commands
         /// </summary>
-        public Dictionary<string, string> CommandTypes { get; set; }
+        public Dictionary<string, string> CommandTypes { get; set; } = [];
     }
 
     public class StoatConfig
     {
         [JsonRequired]
-        public string Token { get; set; }
+        public string? Token { get; set; }
 
         [JsonRequired]
-        public string OwnerId { get; set; }
+        public string? OwnerId { get; set; }
 
         [JsonRequired]
-        public string BotId { get; set; }
+        public string? BotId { get; set; }
+
+        public bool IsValid()
+        {
+            return !string.IsNullOrWhiteSpace(this.Token) && !string.IsNullOrWhiteSpace(this.OwnerId) && !string.IsNullOrWhiteSpace(this.BotId);
+        }
     }
 
     public class FluxerBotConfig
     {
         [JsonRequired]
-        public string Token { get; set; }
+        public string? Token { get; set; }
 
         [JsonRequired]
-        public string OwnerId { get; set; }
+        public string? OwnerId { get; set; }
 
         [JsonRequired]
         public ulong BotId { get; set; }
@@ -194,14 +199,14 @@
 
     public class BotStatData
     {
-        public string Name { get; set; }
-        public string Key { get; set; }
-        public string Endpoint { get; set; }
-        public string UserAgent { get; set; }
-        public dynamic Payload { get; set; }
+        public string? Name { get; set; }
+        public string? Key { get; set; }
+        public string? Endpoint { get; set; }
+        public string? UserAgent { get; set; }
+        public dynamic Payload { get; set; } = new { };
         public bool Enabled { get; set; }
         // Mapping of known property to payload property name, e.g. guildCount => server_count or guildCount => guilds
-        public Dictionary<string, string> PayloadProps { get; set; }
+        public Dictionary<string, string> PayloadProps { get; set; } = [];
     }
 
     public class Throttle
@@ -213,30 +218,30 @@
 
     public class Faq
     {
-        public Uri Endpoint { get; set; }
-        public string Reaction { get; set; }
-        public string EndsWith { get; set; }
-        public string Command { get; set; }
-        public string Type { get; set; }
+        public Uri? Endpoint { get; set; }
+        public string? Reaction { get; set; }
+        public string? EndsWith { get; set; }
+        public string? Command { get; set; }
+        public string? Type { get; set; }
     }
 
     public class Irc
     {
         [JsonRequired]
-        public IrcServer[] Servers { get; set; }
+        public IrcServer[] Servers { get; set; } = [];
 
         public LogType LogType { get; set; } = LogType.Info;
     }
 
     public class IrcServer
     {
-        public string Id { get; set; }
+        public string? Id { get; set; }
 
         /// <summary>
         /// The host for this server (e.g. irc.freenode.net)
         /// </summary>
         [JsonRequired]
-        public string Host { get; set; }
+        public string? Host { get; set; }
 
         /// <summary>
         /// The port for the server (defaults to 6667)
@@ -251,17 +256,17 @@
         /// <summary>
         /// List of channels to join.
         /// </summary>
-        public string[] Channels { get; set; }
+        public string[] Channels { get; set; } = [];
 
         /// <summary>
         /// Nickname to use; if empty, uses the global bot Name.
         /// </summary>
-        public string Nick { get; set; } = null;
+        public string? Nick { get; set; }
 
         /// <summary>
         /// Password to connect to the server (optional)
         /// </summary>
-        public string Password { get; set; } = null;
+        public string? Password { get; set; }
 
         /// <summary>
         /// Flags whether or not this server is enabled.

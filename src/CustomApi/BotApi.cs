@@ -24,7 +24,7 @@ namespace UB3RB0T
             try
             {
                 var response = await new Uri($"{this.apiEndpoint}/{messageData.Command}").PostJsonAsync(messageData);
-                return JsonConvert.DeserializeObject<BotResponseData>(await response.GetStringAsync());
+                return JsonConvert.DeserializeObject<BotResponseData>(await response.GetStringAsync()) ?? new();
             }
             catch (Exception ex)
             {

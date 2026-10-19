@@ -7,9 +7,9 @@
 
     public class SeenCommand : IDiscordCommand
     {
-        public async Task<CommandResponse> Process(IDiscordBotContext context)
+        public async Task<CommandResponse?> Process(IDiscordBotContext context)
         {
-            if (context.Channel is SocketGuildChannel guildChannel)
+            if (context.Channel is SocketGuildChannel guildChannel && context.Message != null)
             {
                 if (!context.Settings.SeenEnabled)
                 {
@@ -22,7 +22,7 @@
                     return new CommandResponse { Text = $"Usage: {context.Settings.Prefix}seen username" };
                 }
 
-                IUser targetUser = context.SocketMessage?.MentionedUsers?.FirstOrDefault();
+                IUser? targetUser = context.SocketMessage?.MentionedUsers?.FirstOrDefault();
 
                 if (targetUser == null)
                 {
@@ -47,7 +47,7 @@
                     }
 
                     // check local store
-                    var seenData = context.Bot.GetSeen($"{guildChannel.Guild.Id}{targetUser.Id}");
+                    var seenData = context.Bot?.GetSeen($"{guildChannel.Guild.Id}{targetUser.Id}");
                     if (seenData != null)
                     {
                         var foundResponse = $"{parts[1]} was JUST here moments ago...";
@@ -61,11 +61,14 @@
 
                     context.MessageData.Content = $"{context.Settings.Prefix}seen {targetUser.Id} {targetUser.Username}";
 
-                    var response = (await context.BotApi.IssueRequestAsync(context.MessageData)).Responses.FirstOrDefault();
-
-                    if (response != null)
+                    if (context.BotApi != null)
                     {
-                        return new CommandResponse { Text = response };
+                        var response = (await context.BotApi.IssueRequestAsync(context.MessageData)).Responses.FirstOrDefault();
+
+                        if (response != null)
+                        {
+                            return new CommandResponse { Text = response };
+                        }
                     }
                 }
 

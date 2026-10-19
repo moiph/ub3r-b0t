@@ -32,11 +32,11 @@ namespace UB3RB0T
         private bool isShuttingDown;
         private static long startTime;
 
-        private IHost listenerHost;
-        private readonly string queueName;
+        private IHost? listenerHost;
+        private readonly string? queueName;
 
-        private Timer heartbeatTimer;
-        private Timer seenTimer;
+        private Timer? heartbeatTimer;
+        private Timer? seenTimer;
 
         private readonly ConcurrentDictionary<string, string> urls = new ConcurrentDictionary<string, string>();
         private readonly ConcurrentDictionary<string, RepeatData> repeatData = new ConcurrentDictionary<string, RepeatData>();
@@ -45,13 +45,13 @@ namespace UB3RB0T
         private readonly SemaphoreSlim settingsLock = new SemaphoreSlim(1, 1);
 
         protected int Shard { get; private set; } = 0;
-        protected TelemetryClient AppInsights { get; private set; }
-        protected DogStatsdService DogStats { get; private set; }
-        protected BotApi BotApi { get; }
+        protected TelemetryClient? AppInsights { get; private set; }
+        protected DogStatsdService? DogStats { get; private set; }
+        protected BotApi? BotApi { get; }
 
-        protected virtual string UserId { get; }
-        protected Throttler Throttler = new Throttler();
-        protected Random Random = new Random();
+        protected virtual string? UserId { get; }
+        protected Throttler Throttler = new();
+        protected Random Random = new();
 
         public int TotalShards { get; private set; } = 1;
         public BotConfig Config => BotConfig.Instance;
@@ -206,7 +206,7 @@ namespace UB3RB0T
         private async Task ServiceBusMessageHandler(ProcessMessageEventArgs args)
         {
             string body = args.Message.Body.ToString();
-            NotificationData notificationData = null;
+            NotificationData? notificationData = null;
 
             try
             {
@@ -300,7 +300,7 @@ namespace UB3RB0T
             }
         }
 
-        public SeenUserData GetSeen(string key)
+        public SeenUserData? GetSeen(string key)
         {
             return this.seenUsers.TryGetValue(key, out var seenData) ? seenData : null;
         }
@@ -333,20 +333,24 @@ namespace UB3RB0T
                 });
             }
 
-            var httpMatch = Consts.UrlRegex.Match(messageData.Content);
-            if (httpMatch.Success)
+            if (messageData.Content != null)
             {
-                this.urls[messageData.Channel] = httpMatch.Value;
+                var httpMatch = Consts.UrlRegex.Match(messageData.Content);
+                if (httpMatch.Success && messageData.Channel != null)
+                {
+                    this.urls[messageData.Channel] = httpMatch.Value;
+                }
             }
 
-            if (settings.RepeatEnabled && !string.IsNullOrEmpty(messageData.Content))
+            var user = messageData.UserId ?? messageData.UserName;
+            if (settings.RepeatEnabled && !string.IsNullOrEmpty(messageData.Content) && !string.IsNullOrEmpty(user))
             {
                 var repeat = repeatData.GetOrAdd(messageData.Channel + messageData.Server, new RepeatData());
                 if (string.Equals(repeat.Text, messageData.Content, StringComparison.OrdinalIgnoreCase))
                 {
-                    if (!repeat.Nicks.Contains(messageData.UserId ?? messageData.UserName))
+                    if (!repeat.Nicks.Contains(user))
                     {
-                        repeat.Nicks.Add(messageData.UserId ?? messageData.UserName);
+                        repeat.Nicks.Add(user);
                     }
 
                     if (repeat.Nicks.Count == settings.RepeatCount)
@@ -356,7 +360,7 @@ namespace UB3RB0T
 
                         if (!this.Throttler.IsThrottled(commandKey, ThrottleType.Repeat))
                         {
-                            Log.Debug($"Sending repeat response to message {messageData.MessageId} by {messageData.UserId} to {messageData.Channel} on guild {messageData.Server}");
+                            Log.Debug($"Sending repeat response to message {messageData.MessageId} by {user} to {messageData.Channel} on guild {messageData.Server}");
                             await this.RespondAsync(messageData, messageData.Content);
                         }
                         else
@@ -369,11 +373,11 @@ namespace UB3RB0T
                 }
                 else
                 {
-                    repeat.Reset(messageData.UserId ?? messageData.UserName, messageData.Content);
+                    repeat.Reset(user, messageData.Content);
                 }
             }
 
-            string command = messageData.Command;
+            string command = messageData.Command ?? string.Empty;
             if (!CommandsConfig.Instance.Commands.ContainsKey(command))
             {
                 command = string.Empty;
@@ -382,8 +386,8 @@ namespace UB3RB0T
             if (string.IsNullOrEmpty(command))
             {
                 // match fun
-                bool mentionsBot = messageData.MentionsBot(this.Config.Name, this.UserId);
-                if (CommandsConfig.Instance.TryParseForCommand(messageData.Content, mentionsBot, out _, out string query, out var priority))
+                bool mentionsBot = messageData.MentionsBot(this.Config.Name!, this.UserId);
+                if (messageData.Content != null && CommandsConfig.Instance.TryParseForCommand(messageData.Content, mentionsBot, out _, out string query, out var priority))
                 {
                     messageData.Content = $"{settings.Prefix}{query}";
                     messageData.CommandPriority = priority;
@@ -398,17 +402,17 @@ namespace UB3RB0T
             var responses = new List<string>();
             var responseData = new BotResponseData { Responses = responses };
 
-            string[] phrasesResponse = this.GetPhraseResponses(messageData, settings);
+            string[]? phrasesResponse = this.GetPhraseResponses(messageData, settings);
 
             if (this.BotApi != null)
             {
                 // if an explicit command is being used, it wins out over any implicitly parsed command
-                string query = messageData.Query;
-                string command = messageData.Command;
+                string query = messageData.Query;   
+                string command = messageData.Command ?? string.Empty;
 
-                string[] contentParts = messageData.Content.Split(new[] { ' ' });
+                string[] contentParts = messageData.Content?.Split([' ']) ?? [];
 
-                if (string.IsNullOrEmpty(command) || messageData.CommandPriority == CommandPriority.Low)
+                if ((string.IsNullOrEmpty(command) || messageData.CommandPriority == CommandPriority.Low) && messageData.Content != null)
                 {
                     var possibleReminder = settings.StrictReminders ? messageData.Content.IStartsWith("remind ") : messageData.Content.IContains("remind ");
                     if (possibleReminder)
@@ -493,32 +497,39 @@ namespace UB3RB0T
                         }
 
                         // increment the user/guild throttlers as well
-                        this.Throttler.Increment(messageData.UserId, ThrottleType.User);
-                        this.Throttler.Increment(messageData.Server, ThrottleType.Guild);
+                        if (messageData.UserId != null)
+                        {
+                            this.Throttler.Increment(messageData.UserId, ThrottleType.User);
+                        }
+
+                        if (messageData.Server != null)
+                        {
+                            this.Throttler.Increment(messageData.Server, ThrottleType.Guild);
+                        }
 
                         messageData.RateLimitChecked = true;
                     }
 
                     var props = new Dictionary<string, string> {
                         { "command",  command.ToLowerInvariant() },
-                        { "server", messageData.Server },
-                        { "channel", messageData.Channel }
+                        { "server", messageData.Server ?? string.Empty },
+                        { "channel", messageData.Channel ?? string.Empty }
                     };
                     this.TrackEvent("commandProcessed", props);
 
                     // extra processing on ".title" command
-                    if ((command == "title" || command == "t") && messageData.Content.EndsWith(command) && urls.ContainsKey(messageData.Channel))
+                    if ((command == "title" || command == "t") && messageData.Content != null && messageData.Content.EndsWith(command) && messageData.Channel != null && urls.TryGetValue(messageData.Channel, out string? value))
                     {
-                        query += $" {this.urls[messageData.Channel]}";
+                        query += $" {value}";
                     }
 
-                    using (this.DogStats?.StartTimer("commandDuration", tags: new[] { $"shard:{this.Shard}", $"command:{command.ToLowerInvariant()}", $"{this.BotType}" }))
+                    using (this.DogStats?.StartTimer("commandDuration", tags: [$"shard:{this.Shard}", $"command:{command.ToLowerInvariant()}", $"{this.BotType}"]))
                     {
                         messageData.Content = $"{settings.Prefix}{query}";
                         responseData = await this.BotApi.IssueRequestAsync(messageData);
                         if (responseData.SetTypingState)
                         {
-                            _ = messageData.DiscordMessageData.Channel.TriggerTypingAsync();
+                            _ = messageData.DiscordMessageData?.Channel.TriggerTypingAsync();
                         }
                     }
                 }
@@ -532,19 +543,19 @@ namespace UB3RB0T
             return responseData;
         }
 
-        protected string[] GetPhraseResponses(BotMessageData messageData, Settings settings)
+        protected string[]? GetPhraseResponses(BotMessageData messageData, Settings settings)
         {
-            string response = null;
-            if (messageData.MentionsBot(this.Config.Name, this.UserId))
+            string? response = null;
+            if (messageData.MentionsBot(this.Config.Name!, this.UserId))
             {
-                var responseValue = PhrasesConfig.Instance.PartialMentionPhrases.FirstOrDefault(kvp => messageData.Content.IContains(kvp.Key)).Value;
+                var responseValue = PhrasesConfig.Instance.PartialMentionPhrases.FirstOrDefault(kvp => messageData.Content != null && messageData.Content.IContains(kvp.Key)).Value;
                 if (!string.IsNullOrEmpty(responseValue))
                 {
                     response = PhrasesConfig.Instance.Responses[responseValue].Random();
                 }
             }
 
-            if (response == null && PhrasesConfig.Instance.ExactPhrases.TryGetValue(messageData.Content, out var phrase) && (settings.FunResponsesEnabled && this.Random.Next(1, 100) <= settings.FunResponseChance || IsAuthorOwner(messageData)))
+            if (response == null && messageData.Content != null && PhrasesConfig.Instance.ExactPhrases.TryGetValue(messageData.Content, out var phrase) && (settings.FunResponsesEnabled && this.Random.Next(1, 100) <= settings.FunResponseChance || IsAuthorOwner(messageData)))
             {
                 if (settings.SasshatEnabled && PhrasesConfig.Instance.Responses.TryGetValue($"{phrase}_nice", out var phraseResponses) || PhrasesConfig.Instance.Responses.TryGetValue(phrase, out phraseResponses))
                 {
@@ -552,7 +563,7 @@ namespace UB3RB0T
                 }
             }
 
-            if (response == null && settings.CustomCommands.Count > 0)
+            if (response == null && settings.CustomCommands.Count > 0 && messageData.Content != null)
             {
                 response = settings.TryCustomCommand(messageData.Content);
             }
@@ -566,22 +577,22 @@ namespace UB3RB0T
             return null;
         }
 
-        protected void TrackTimer(string eventName, double value, Dictionary<string, string> properties = null)
+        protected void TrackTimer(string eventName, double value, Dictionary<string, string>? properties = null)
         {
             this.DogStats?.Timer(eventName, value, sampleRate: this.Config.Metrics.EventQueueSampleRate, tags: this.GetDogStatsTags(properties));
         }
 
-        protected void TrackEvent(string eventName, Dictionary<string, string> properties = null)
+        protected void TrackEvent(string eventName, Dictionary<string, string>? properties = null)
         {
             this.DogStats?.Increment(eventName, tags: this.GetDogStatsTags(properties));
         }
 
-        private string[] GetDogStatsTags(Dictionary<string, string> properties)
+        private string[] GetDogStatsTags(Dictionary<string, string>? properties)
         {
             // set common properties/tags
             if (properties == null)
             {
-                properties = new Dictionary<string, string>();
+                properties = [];
             }
 
             properties["botType"] = $"{this.BotType}";
@@ -622,8 +633,8 @@ namespace UB3RB0T
                     port += (int)this.BotType;
                 }
 
-                X509Certificate2 cert = null;
-                if (!string.IsNullOrEmpty(this.Config.CertThumbprint))
+                X509Certificate2? cert = null;
+                if (!string.IsNullOrEmpty(this.Config.CertThumbprint) && !string.IsNullOrEmpty(this.Config.CertStoreName))
                 {
                     using (var store = new X509Store(this.Config.CertStoreName, StoreLocation.LocalMachine))
                     {
@@ -672,6 +683,12 @@ namespace UB3RB0T
         /// <returns></returns>
         private async Task UpdateSettingsAsync()
         {
+            if (this.Config.SettingsEndpoint == null)
+            {
+                Log.Warning("Settings endpoint is null, skipping settings update");
+                return;
+            }
+
             await settingsLock.WaitAsync();
 
             try
@@ -713,11 +730,11 @@ namespace UB3RB0T
         /// Timer callback to handle persisting seen data.
         /// </summary>
         /// <param name="state">State object (unused).</param>
-        private async void SeenTimerAsync(object state)
+        private async void SeenTimerAsync(object? state)
         {
             var seenCopy = new Dictionary<string, SeenUserData>(seenUsers);
             seenUsers.Clear();
-            if (seenCopy.Count > 0)
+            if (seenCopy.Count > 0 && this.Config.SeenEndpoint != null)
             {
                 try
                 {
@@ -734,7 +751,7 @@ namespace UB3RB0T
         /// Timer callback to push heartbeat data and refresh configuration.
         /// </summary>
         /// <param name="state">State object (unused).</param>
-        private async void HeartbeatTimerAsync(object state)
+        private async void HeartbeatTimerAsync(object? state)
         {
             Log.Verbose("Heartbeat");
 
@@ -747,7 +764,7 @@ namespace UB3RB0T
             if (this.Config.HeartbeatEndpoint != null && !this.Config.IsDevMode)
             {
 
-                HeartbeatData heartbeatData = null;
+                HeartbeatData? heartbeatData = null;
                 try
                 {
                     heartbeatData = await this.GetHeartbeatData();
@@ -860,7 +877,7 @@ namespace UB3RB0T
                 this.AppInsights = new TelemetryClient(telemetryConfig);
                 this.AppInsights.Context.GlobalProperties.Add("Shard", this.Shard.ToString());
                 this.AppInsights.Context.GlobalProperties.Add("BotType", this.BotType.ToString());
-                this.AppInsights.Context.GlobalProperties.Add("Version", Assembly.GetEntryAssembly().GetName().Version.ToString());
+                this.AppInsights.Context.GlobalProperties.Add("Version", Assembly.GetEntryAssembly()?.GetName().Version?.ToString() ?? "Unknown");
             }
 
             var dogstatsdConfig = new StatsdConfig

@@ -5,9 +5,9 @@
     /// </summary>
     public class BotApiResponse
     {
-        public string Msg { get; set; }
-        public string[] Msgs { get; set; } = System.Array.Empty<string>();
-        public string Error { get; set; }
-        public EmbedData Embed { get; set; }
+        public string? Msg { get; set; }
+        public string[] Msgs { get; set; } = [];
+        public string? Error { get; set; }
+        public EmbedData? Embed { get; set; }
     }
 }

@@ -22,9 +22,9 @@
             var messageCommand = context.Interaction as SocketMessageCommand;
             var isQuote = messageCommand != null && messageCommand.CommandName.IEquals("quote");
             // don't auto process if the message was edited
-            if (message != null && (!string.IsNullOrEmpty(context.Reaction) || isQuote || (BotConfig.Instance.OcrAutoIds.Contains(message.Channel.Id) && context.Message.EditedTimestamp == null)))
+            if (message != null && context.MessageData.Content != null && (!string.IsNullOrEmpty(context.Reaction) || isQuote || (BotConfig.Instance.OcrAutoIds.Contains(message.Channel.Id) && message.EditedTimestamp == null)))
             {
-                string newMessageContent = null;
+                string? newMessageContent = null;
 
                 if (context.Reaction == "💬" || context.Reaction == "🗨️" || isQuote)
                 {
@@ -32,7 +32,7 @@
                     newMessageContent = $"{context.Settings.Prefix}quote add \"{quote}\" - userid:{message.Author.Id} {message.Author.Username}";
                     await message.AddReactionAsync(new Emoji("💬"));
                 }
-                else if (context.Reaction == "🏅")
+                else if (context.Reaction == "🏅" && context.ReactionUser != null)
                 {
                     newMessageContent = $"{context.Settings.Prefix}rep add {message.Author.Id}";
                     context.MessageData.UserId = context.ReactionUser.Id.ToString();
@@ -42,18 +42,18 @@
                 {
                     var imageUrl = context.SocketMessage?.ParseImageUrl();
 
-                    if (imageUrl != null)
+                    if (imageUrl != null && BotConfig.Instance.OcrEndpoint != null)
                     {
                         if (context.Reaction == "👁" || BotConfig.Instance.OcrAutoIds.Contains(message.Channel.Id))
                         {
-                            IUserMessage sentMessage = null;
+                            IUserMessage? sentMessage = null;
                             if (BotConfig.Instance.OcrAutoRespondIds.Contains(message.Channel.Id))
                             {
                                 sentMessage = await message.Channel.SendMessageAsync("Processing...");
                             }
 
                             Log.Information("Running OCR");
-                            string ocrText = null;
+                            string? ocrText = null;
 
                             var result = await BotConfig.Instance.OcrEndpoint.ToString()
                                 .WithHeader("Ocp-Apim-Subscription-Key", BotConfig.Instance.VisionKey)
@@ -67,7 +67,7 @@
 
                                 // The actual process runs as a seprate operation that we need to query.
                                 // Unfortunately we just need to poll, so query a few times and give up if it takes too long.
-                                RecognitionResultData textData = null;
+                                RecognitionResultData? textData = null;
                                 for (var i = 0; i < 5; i++)
                                 {
                                     await Task.Delay(3000);
@@ -76,15 +76,15 @@
                                     var rawData = await operationUrl.WithHeader("Ocp-Apim-Subscription-Key", BotConfig.Instance.VisionKey).GetStringAsync();
                                     textData = JsonConvert.DeserializeObject<RecognitionResultData>(rawData);
 
-                                    if (textData.Status == "Succeeded")
+                                    if (textData?.Status == "Succeeded")
                                     {
                                         break;
                                     }
                                 }
 
-                                ocrText = textData.Status == "Succeeded" ? textData.GetText() : null;
+                                ocrText = textData?.Status == "Succeeded" ? textData?.GetText() : null;
 
-                                if (!string.IsNullOrEmpty(ocrText))
+                                if (!string.IsNullOrEmpty(ocrText) && textData != null)
                                 {
                                     // Run some external processing and prioritize that over replacing existing content
                                     textData.AuthorName = message.Author.Username;
@@ -98,7 +98,7 @@
                                     var response = await new Uri($"{BotConfig.Instance.ApiEndpoint}/ocr").WithHeader("content-type", "application/json").PostStringAsync(postData);
                                     var ocrProcessResponse = JsonConvert.DeserializeObject<OcrProcessResponse>(await response.GetStringAsync());
 
-                                    if (!string.IsNullOrEmpty(ocrProcessResponse.Response))
+                                    if (!string.IsNullOrEmpty(ocrProcessResponse?.Response))
                                     {
                                         if (context.Reaction == "👁")
                                         {
@@ -160,31 +160,6 @@
             }
 
             return ModuleResult.Continue;
-        }
-
-        /// <summary>
-        /// Gets OCR/Analysis data from the given image url
-        /// </summary>
-        /// <typeparam name="T">The type of data to process (OCR/Analyze)</typeparam>
-        /// <param name="imageUrl">The image url to process</param>
-        /// <returns>Vision data of type T</returns>
-        private async Task<T> GetVisionData<T>(string imageUrl)
-        {
-            var data = default(T);
-
-            Uri endpoint = BotConfig.Instance.AnalyzeEndpoint;
-
-            var result = await endpoint.ToString()
-                .WithHeader("Ocp-Apim-Subscription-Key", BotConfig.Instance.VisionKey)
-                .PostJsonAsync(new { url = imageUrl });
-
-            if (result.IsSuccessStatusCode())
-            {
-                var response = await result.GetStringAsync();
-                data = JsonConvert.DeserializeObject<T>(response);
-            }
-
-            return data;
         }
     }
 }

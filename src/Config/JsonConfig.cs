@@ -32,7 +32,7 @@
     {
         protected static readonly string instanceKey = typeof(T).ToString();
 
-        protected virtual string FileName { get; }
+        protected virtual string? FileName { get; }
 
         public static T Instance
         {
@@ -74,7 +74,7 @@
                 throw new InvalidConfigException("Config must specify either a filename or a URI");
             }
 
-            return JsonConvert.DeserializeObject<T>(contents);
+            return JsonConvert.DeserializeObject<T>(contents) ?? config;
         }
     }
 }

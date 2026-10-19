@@ -10,13 +10,13 @@
         public ChannelPermission? ChannelPermission { get; }
         public GuildPermission? GuildPermission { get; }
 
-        public BotPermissionsAttribute(ChannelPermission channelPermission, string failureString = null)
+        public BotPermissionsAttribute(ChannelPermission channelPermission, string? failureString = null)
         {
             this.ChannelPermission = channelPermission;
             this.FailureString = failureString;
         }
 
-        public BotPermissionsAttribute(GuildPermission guildPermission, string failureString = null)
+        public BotPermissionsAttribute(GuildPermission guildPermission, string? failureString = null)
         {
             this.GuildPermission = guildPermission;
             this.FailureString = failureString;

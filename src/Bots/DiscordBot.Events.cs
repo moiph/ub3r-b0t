@@ -1,6 +1,10 @@
 ﻿
 namespace UB3RB0T
 {
+    using Discord;
+    using Discord.Net;
+    using Discord.WebSocket;
+    using Serilog;
     using System;
     using System.Collections.Generic;
     using System.IO;
@@ -9,10 +13,6 @@ namespace UB3RB0T
     using System.Reflection;
     using System.Text.RegularExpressions;
     using System.Threading.Tasks;
-    using Discord;
-    using Discord.Net;
-    using Discord.WebSocket;
-    using Serilog;
     using UB3RB0T.Commands;
     using UB3RB0T.Modules;
 
@@ -23,7 +23,7 @@ namespace UB3RB0T
             typeof(GatewayReconnectException)
         };
 
-        private readonly MessageCache<ulong> botResponsesCache = new MessageCache<ulong>();
+        private readonly MessageCache<ulong, ulong> botResponsesCache = new();
         private bool isReady;
 
         /// <summary>
@@ -155,7 +155,10 @@ namespace UB3RB0T
         private Task Client_Ready()
         {
             this.isReady = true;
-            this.Client.SetGameAsync(this.Config.Discord.Status);
+            if (!string.IsNullOrWhiteSpace(this.discordConfig.Status))
+            {
+                this.Client.SetGameAsync(this.discordConfig.Status);
+            }
             Log.Information($"Client ready.");
             this.JoinAudio();
             return Task.CompletedTask;
@@ -239,7 +242,7 @@ namespace UB3RB0T
                     
                     if (canSendToDefaultChannel)
                     {
-                        await defaultChannel.SendMessageAsync("https://tenor.com/view/im-out-hands-up-exit-gif-14678218");
+                        await defaultChannel!.SendMessageAsync("https://tenor.com/view/im-out-hands-up-exit-gif-14678218");
                         Log.Information($"Sent snark to bot farm {guild.Id}");
                     }
                     else
@@ -253,7 +256,7 @@ namespace UB3RB0T
 
                 if (canSendToDefaultChannel)
                 {
-                    await defaultChannel.SendMessageAsync($"(HELLO, I AM UB3R-B0T! .halp for info. {guild.Owner?.Mention ?? "idk who but to someone..."} you're the kickass owner-- you can use .admin to configure some stuff. By using me you agree to these terms: https://ub3r-b0t.com/terms)");
+                    await defaultChannel!.SendMessageAsync($"(HELLO, I AM UB3R-B0T! .help for info. {guild.Owner?.Mention ?? "idk who but to someone..."} you're the kickass owner-- you can use .admin to configure some stuff. By using me you agree to these terms: https://ub3r-b0t.com/terms)");
                 }
 
                 if (this.BotApi != null)
@@ -399,10 +402,13 @@ namespace UB3RB0T
                     this.BatchSendMessageAsync(modLogChannel, $"{user.Mention} ({user}) left.", ModOptions.Mod_LogUserLeave);
                 }
 
-                var messageData = BotMessageData.Create(user, guild, settings);
-                messageData.Content = ".terminate guild";
-                messageData.Prefix = ".";
-                await this.BotApi.IssueRequestAsync(messageData);
+                if (this.BotApi != null)
+                {
+                    var messageData = BotMessageData.Create(user, guild, settings);
+                    messageData.Content = ".terminate guild";
+                    messageData.Prefix = ".";
+                    await this.BotApi.IssueRequestAsync(messageData);
+                }
             }
         }
 
@@ -412,54 +418,57 @@ namespace UB3RB0T
         private async Task HandleUserVoiceStateUpdatedAsync(SocketUser user, SocketVoiceState beforeState, SocketVoiceState afterState)
         {
             // voice state detection
-            var guildUser = (user as SocketGuildUser);
-            var botGuildUser = guildUser.Guild.CurrentUser;
-            if (guildUser.Id != botGuildUser.Id) // ignore joins/leaves from the bot
+            var guildUser = user as SocketGuildUser;
+            if (guildUser != null)
             {
-                if (beforeState.VoiceChannel != afterState.VoiceChannel && afterState.VoiceChannel == botGuildUser.VoiceChannel)
+                var botGuildUser = guildUser.Guild.CurrentUser;
+                if (guildUser.Id != botGuildUser.Id) // ignore joins/leaves from the bot
                 {
-                    // wait a moment to account for possible conncetion delay.
-                    await Task.Delay(1000);
-
-                    await this.audioManager.SendAudioAsync(guildUser, afterState.VoiceChannel, VoicePhraseType.UserJoin);
-                }
-                else if (beforeState.VoiceChannel != null && beforeState.VoiceChannel != afterState.VoiceChannel && beforeState.VoiceChannel == botGuildUser.VoiceChannel)
-                {
-                    if (beforeState.VoiceChannel.ConnectedUsers?.Count > 1)
+                    if (beforeState.VoiceChannel != afterState.VoiceChannel && afterState.VoiceChannel == botGuildUser.VoiceChannel)
                     {
-                        await this.audioManager.SendAudioAsync(guildUser, beforeState.VoiceChannel, VoicePhraseType.UserLeave);
+                        // wait a moment to account for possible connection delay.
+                        await Task.Delay(1000);
+
+                        await this.audioManager.SendAudioAsync(guildUser, afterState.VoiceChannel, VoicePhraseType.UserJoin);
                     }
-                }
-            }
-
-            // mod logging
-            var settings = SettingsConfig.GetSettings(guildUser.Guild.Id);
-            if (settings.Mod_LogId != 0)
-            {
-                if (this.Client.GetChannel(settings.Mod_LogId) is ITextChannel modLogChannel && modLogChannel.GetCurrentUserPermissions().SendMessages)
-                {
-                    var msg = string.Empty;
-
-                    if (settings.HasFlag(ModOptions.Mod_LogUserLeaveVoice) && beforeState.VoiceChannel != null && beforeState.VoiceChannel.Id != afterState.VoiceChannel?.Id)
+                    else if (beforeState.VoiceChannel != null && beforeState.VoiceChannel != afterState.VoiceChannel && beforeState.VoiceChannel == botGuildUser.VoiceChannel)
                     {
-                        msg = $"{guildUser.Mention} ({guildUser}) left voice channel { beforeState.VoiceChannel.Name}";
-                    }
-
-                    if (settings.HasFlag(ModOptions.Mod_LogUserJoinVoice) && afterState.VoiceChannel != null && afterState.VoiceChannel.Id != beforeState.VoiceChannel?.Id)
-                    {
-                        if (string.IsNullOrEmpty(msg))
+                        if (beforeState.VoiceChannel.ConnectedUsers?.Count > 1)
                         {
-                            msg = $"{guildUser.Mention} ({guildUser}) joined voice channel {afterState.VoiceChannel.Name}";
-                        }
-                        else
-                        {
-                            msg += $" and joined voice channel {afterState.VoiceChannel.Name}";
+                            await this.audioManager.SendAudioAsync(guildUser, beforeState.VoiceChannel, VoicePhraseType.UserLeave);
                         }
                     }
+                }
 
-                    if (!string.IsNullOrEmpty(msg))
+                // mod logging
+                var settings = SettingsConfig.GetSettings(guildUser.Guild.Id);
+                if (settings.Mod_LogId != 0)
+                {
+                    if (this.Client.GetChannel(settings.Mod_LogId) is ITextChannel modLogChannel && modLogChannel.GetCurrentUserPermissions().SendMessages)
                     {
-                        this.BatchSendMessageAsync(modLogChannel, msg, ModOptions.Mod_LogUserJoinVoice);
+                        var msg = string.Empty;
+
+                        if (settings.HasFlag(ModOptions.Mod_LogUserLeaveVoice) && beforeState.VoiceChannel != null && beforeState.VoiceChannel.Id != afterState.VoiceChannel?.Id)
+                        {
+                            msg = $"{guildUser.Mention} ({guildUser}) left voice channel {beforeState.VoiceChannel.Name}";
+                        }
+
+                        if (settings.HasFlag(ModOptions.Mod_LogUserJoinVoice) && afterState.VoiceChannel != null && afterState.VoiceChannel.Id != beforeState.VoiceChannel?.Id)
+                        {
+                            if (string.IsNullOrEmpty(msg))
+                            {
+                                msg = $"{guildUser.Mention} ({guildUser}) joined voice channel {afterState.VoiceChannel.Name}";
+                            }
+                            else
+                            {
+                                msg += $" and joined voice channel {afterState.VoiceChannel.Name}";
+                            }
+                        }
+
+                        if (!string.IsNullOrEmpty(msg))
+                        {
+                            this.BatchSendMessageAsync(modLogChannel, msg, ModOptions.Mod_LogUserJoinVoice);
+                        }
                     }
                 }
             }
@@ -468,11 +477,11 @@ namespace UB3RB0T
         /// <summary>
         /// Sends mod log messages for role and nickname changes, if configured.
         /// </summary>
-        private async Task HandleGuildMemberUpdated(Cacheable<SocketGuildUser, ulong> cachedGuildUserBefore, SocketGuildUser guildUserAfter)
+        private async Task HandleGuildMemberUpdated(Cacheable<SocketGuildUser, ulong> cachedGuildUserBefore, SocketGuildUser? guildUserAfter)
         {
             // Mod log
             var guildUserBefore = await cachedGuildUserBefore.GetOrDownloadAsync();
-            if (guildUserBefore != null)
+            if (guildUserBefore != null && guildUserAfter != null)
             {
                 var settings = SettingsConfig.GetSettings(guildUserAfter.Guild.Id);
                 if (this.Client.GetChannel(settings.Mod_LogId) is ITextChannel modLogChannel && (modLogChannel.GetCurrentUserPermissions().SendMessages))
@@ -502,7 +511,7 @@ namespace UB3RB0T
 
                     if (settings.HasFlag(ModOptions.Mod_LogUserNick) && guildUserAfter.Nickname != guildUserBefore.Nickname)
                     {
-                        string nickText = null;
+                        string nickText = string.Empty;
                         if (string.IsNullOrEmpty(guildUserAfter.Nickname))
                         {
                             nickText = $"{guildUserAfter.Mention} ({guildUserAfter}) removed their nickname (was {guildUserBefore.Nickname})";
@@ -539,7 +548,7 @@ namespace UB3RB0T
         /// <summary>
         /// Sends mod log messages for user bans, if configured.
         /// </summary>
-        private Task HandleUserBanned(SocketUser user, SocketGuild guild)
+        private Task HandleUserBanned(SocketUser? user, SocketGuild guild)
         {
             // mod log
             var settings = SettingsConfig.GetSettings(guild.Id);
@@ -557,13 +566,13 @@ namespace UB3RB0T
         /// TODO: This method is way too huge.
         /// TODO: read prior todo, IT'S GETTING WORSe, STAHP
         /// </summary>
-        private async Task HandleMessageReceivedAsync(IUserMessage message, String reactionType = null, IUser reactionUser = null)
+        private async Task HandleMessageReceivedAsync(IUserMessage? message, string? reactionType = null, IUser? reactionUser = null)
         {
             // Ignore system and our own messages.
             bool isOutbound = false;
             if (message == null || (isOutbound = message.Author.Id == this.Client.CurrentUser.Id))
             {
-                if (isOutbound && this.Config.LogOutgoing)
+                if (isOutbound && this.Config.LogOutgoing && message != null)
                 {
                     var logMessage = message.Embeds?.Count > 0 ? $"Sending [embed content] to {message.Channel.Name}" : $"Sending to {message.Channel.Name}: {message.Content}";
                     Log.Verbose($"{{Outgoing}} {logMessage}", ">>>");
@@ -582,7 +591,7 @@ namespace UB3RB0T
             // Ignore other bots unless it's an allowed webhook
             // Always ignore bot reactions
             var webhookUser = message.Author as IWebhookUser;
-            if (message.Author.IsBot && !this.Config.Discord.AllowedWebhooks.Contains(webhookUser?.WebhookId ?? 0) || reactionUser?.IsBot == true)
+            if (message.Author.IsBot && !this.discordConfig.AllowedWebhooks.Contains(webhookUser?.WebhookId ?? 0) || reactionUser?.IsBot == true)
             {
                 return;
             }
@@ -591,13 +600,13 @@ namespace UB3RB0T
             var guildId = webhookUser?.GuildId ?? guildUser?.Guild.Id;
 
             // if it's a globally blocked server, ignore it unless it's the owner
-            if (message.Author.Id != this.Config.Discord.OwnerId && guildId != null && this.Config.Discord.BlockedServers.Contains(guildId.Value) && !this.Config.OcrAutoIds.Contains(message.Channel.Id))
+            if (message.Author.Id != this.discordConfig.OwnerId && guildId != null && this.discordConfig.BlockedServers.Contains(guildId.Value) && !this.Config.OcrAutoIds.Contains(message.Channel.Id))
             {
                 return;
             }
 
             // if it's a globally blocked user, ignore them
-            if (this.Config.Discord.BlockedUsers.Contains(message.Author.Id))
+            if (this.discordConfig.BlockedUsers.Contains(message.Author.Id))
             {
                 return;
             }
@@ -615,7 +624,7 @@ namespace UB3RB0T
                 return;
             }
 
-            if (this.Throttler.IsThrottled(guildId.ToString(), ThrottleType.Guild))
+            if (guildId != null && this.Throttler.IsThrottled($"{guildId}", ThrottleType.Guild))
             {
                 Log.Debug($"messaging throttle from guild: {message.Author.Id} on chan {message.Channel.Id} server {guildId}");
                 return;
@@ -659,9 +668,9 @@ namespace UB3RB0T
             
             // If it's a command, match that before anything else.
             await this.PreProcessMessage(botContext.MessageData, botContext.Settings);
-            string command = botContext.MessageData.Command;
+            string command = botContext.MessageData.Command ?? string.Empty;
 
-            if (botContext.Message?.Attachments.FirstOrDefault() is Attachment attachment)
+            if (botContext.Message?.Attachments.FirstOrDefault() is Attachment attachment && botContext.MessageData.Channel != null)
             {
                 this.ImageUrls[botContext.MessageData.Channel] = attachment;
             }
@@ -673,12 +682,12 @@ namespace UB3RB0T
             }
 
             var commandHandled = false;
-            if (this.discordCommands.TryGetValue(command, out IDiscordCommand discordCommand))
+            if (this.discordCommands.TryGetValue(command, out IDiscordCommand? discordCommand))
             {
                 var commandProps = new Dictionary<string, string> {
                         { "command",  command.ToLowerInvariant() },
-                        { "server", botContext.MessageData.Server },
-                        { "channel", botContext.MessageData.Channel }
+                        { "server", botContext.MessageData.Server ?? string.Empty },
+                        { "channel", botContext.MessageData.Channel ?? string.Empty }
                     };
                 this.TrackEvent("commandProcessed", commandProps);
 
@@ -687,9 +696,9 @@ namespace UB3RB0T
 
                 if (permissionChecksPassed)
                 {
-                    CommandResponse response;
+                    CommandResponse? response;
 
-                    using (this.DogStats?.StartTimer("commandDuration", tags: new[] { $"shard:{this.Shard}", $"command:{command.ToLowerInvariant()}", $"{this.BotType}" }))
+                    using (this.DogStats?.StartTimer("commandDuration", tags: [$"shard:{this.Shard}", $"command:{command.ToLowerInvariant()}", $"{this.BotType}"]))
                     {
                         response = await discordCommand.Process(botContext);
                     }
@@ -700,10 +709,10 @@ namespace UB3RB0T
                         {
                             await botContext.Interaction.RespondWithFileAsync(response.Attachment.Stream, response.Attachment.Name, response.Text, null, false, false, null, null, null, null);
                         }
-                        else
+                        else if (botContext.Channel != null)
                         {
                             var sentMessage = await botContext.Channel.SendFileAsync(response.Attachment.Stream, response.Attachment.Name, response.Text);
-                            if (botContext.Message != null)
+                            if (botContext.Message != null && sentMessage != null)
                             {
                                 this.botResponsesCache.Add(botContext.Message.Id, sentMessage.Id);
                             }
@@ -737,15 +746,15 @@ namespace UB3RB0T
             if (!commandHandled)
             {
                 // Enter typing state for valid commands; skip if throttled
-                IDisposable typingState = null;
+                IDisposable? typingState = null;
                 var commandKey = command + botContext.MessageData.Server;
-                if (this.Config.Discord.TriggerTypingOnCommands &&
+                if (this.discordConfig.TriggerTypingOnCommands &&
                     CommandsConfig.Instance.Commands.ContainsKey(command) &&
                     !this.Throttler.IsThrottled(commandKey, ThrottleType.Command))
                 {
                     // possible bug with typing state
                     Log.Debug($"typing triggered by {command}");
-                    typingState = botContext.Message.Channel.EnterTypingState();
+                    typingState = botContext.Message?.Channel.EnterTypingState();
                 }
 
                 bool bypassEdit = false;
@@ -759,7 +768,7 @@ namespace UB3RB0T
                 {
                     BotResponseData responseData = await this.ProcessMessageAsync(botContext.MessageData, botContext.Settings);
 
-                    if (Uri.TryCreate(responseData.AttachmentUrl, UriKind.Absolute, out Uri attachmentUri))
+                    if (Uri.TryCreate(responseData.AttachmentUrl, UriKind.Absolute, out Uri? attachmentUri))
                     {
                         Stream fileStream = await attachmentUri.GetStreamAsync();
                         string fileName = Path.GetFileName(attachmentUri.AbsolutePath);
@@ -770,8 +779,11 @@ namespace UB3RB0T
                         }
                         else
                         {
-                            var sentMessage = await botContext.Channel.SendFileAsync(fileStream, fileName, responseData.Responses?.FirstOrDefault());
-                            this.botResponsesCache.Add(botContext.Message.Id, sentMessage.Id);
+                            if (botContext.Channel != null && botContext.Message != null)
+                            {
+                                var sentMessage = await botContext.Channel.SendFileAsync(fileStream, fileName, responseData.Responses?.FirstOrDefault());
+                                this.botResponsesCache.Add(botContext.Message.Id, sentMessage.Id);
+                            }
                         }
 
                         commandHandled = true;
@@ -827,9 +839,9 @@ namespace UB3RB0T
             {
                 if (!attr.CheckPermissions(context))
                 {
-                    if (!string.IsNullOrEmpty(attr.FailureString))
+                    if (!string.IsNullOrEmpty(attr.FailureString) && context.Settings.GetString(attr.FailureString) is string failureMessage)
                     {
-                        await this.RespondAsync(context, context.Settings.GetString(attr.FailureString), ephemeral: true);
+                        await this.RespondAsync(context, failureMessage, ephemeral: true);
                     }
 
                     attributeChecksPassed = false;
@@ -853,7 +865,7 @@ namespace UB3RB0T
                     this.Client.GetChannel(settings.Mod_LogId) is ITextChannel modLogChannel && modLogChannel.GetCurrentUserPermissions().SendMessages &&
                     messageAfter.Channel.Id != settings.Mod_LogId && !messageAfter.Author.IsBot)
                 {
-                    if (messageBefore.HasValue && messageBefore.Value.Content != messageAfter.Content && !string.IsNullOrEmpty(messageBefore.Value.Content))
+                    if (messageBefore.HasValue && messageBefore.Value.Content != messageAfter.Content && !string.IsNullOrEmpty(messageBefore.Value.Content) && textChannel != null)
                     {
                         var beforeContext = messageBefore.Value.Content.Replace("`", "\\`").Replace("> ", ">");
                         var afterContent = messageAfter.Content.Replace("`", "\\`").Replace("> ", ">");
@@ -966,8 +978,8 @@ namespace UB3RB0T
                     return;
                 }
 
-                IUser reactionUser = await reaction.GetOrDownloadUserAsync();
-                if (reactionUser.IsBot)
+                IUser? reactionUser = await reaction.GetOrDownloadUserAsync();
+                if (reactionUser == null || reactionUser.IsBot)
                 {
                     return;
                 }
@@ -981,16 +993,16 @@ namespace UB3RB0T
 
             if ((reactionEmote == "💬" || reactionEmote == "🗨️" || reactionEmote == "❓" || reactionEmote == "🤖") && (allowDownload || (reaction.Message.IsSpecified && !string.IsNullOrEmpty(reaction.Message.Value?.Content))))
             {
-                IUserMessage reactionMessage = allowDownload ? await reaction.GetOrDownloadMessage() : reaction.Message.Value;
+                IUserMessage? reactionMessage = allowDownload ? await reaction.GetOrDownloadMessage() : reaction.Message.Value;
 
                 // if the reaction already exists, don't re-process.
-                if (reactionMessage.Reactions.Any(r => (r.Key.Name == "💬" || r.Key.Name == "🗨️" || r.Key.Name == "❓" || r.Key.Name == "🤖") && r.Value.ReactionCount > 1))
+                if (reactionMessage == null || reactionMessage.Reactions.Any(r => (r.Key.Name == "💬" || r.Key.Name == "🗨️" || r.Key.Name == "❓" || r.Key.Name == "🤖") && r.Value.ReactionCount > 1))
                 {
                     return;
                 }
 
-                IUser reactionUser = await reaction.GetOrDownloadUserAsync();
-                if (reactionUser.IsBot)
+                IUser? reactionUser = await reaction.GetOrDownloadUserAsync();
+                if (reactionUser == null || reactionUser.IsBot)
                 {
                     return;
                 }
@@ -1067,7 +1079,7 @@ namespace UB3RB0T
 
         private async Task HandleUserCommand(SocketCommandBase command)
         {
-            IUserMessage message = null;
+            IUserMessage? message = null;
             if (command is SocketMessageCommand messageCommand)
             {
                 // If author is null, it means the message wasn't in the cache, so download it
@@ -1081,21 +1093,29 @@ namespace UB3RB0T
                 }
             }
 
-            var botContext = new DiscordBotContext(this.Client, command, message)
+            if (message != null)
             {
-                BotApi = this.BotApi,
-                Bot = this,
-            };
+                var botContext = new DiscordBotContext(this.Client, command, message)
+                {
+                    BotApi = this.BotApi,
+                    Bot = this,
+                };
 
-            var props = new Dictionary<string, string> {
-                { "command",  command.CommandName },
-                { "server",  botContext.GuildChannel?.Guild.Id.ToString() },
-                { "channel", botContext.Channel.Id.ToString() },
-                { "shard",  this.Shard.ToString() },
-            };
-            this.TrackEvent("slashcommandProcessed", props);
+                var props = new Dictionary<string, string>
+                {
+                    { "command",  command.CommandName },
+                    { "server",  botContext.GuildChannel?.Guild.Id.ToString() ?? string.Empty },
+                    { "channel", botContext.Channel?.Id.ToString() ?? string.Empty },
+                    { "shard",  this.Shard.ToString() },
+                };
+                this.TrackEvent("slashcommandProcessed", props);
 
-            await ProcessUserEvent(botContext);
+                await ProcessUserEvent(botContext);
+            }
+            else
+            {
+                Log.Debug("Message command received but message was null, skipping processing");
+            }
         }
 
         private async Task HandleComponent(SocketMessageComponent component)
@@ -1111,15 +1131,18 @@ namespace UB3RB0T
 
         protected override async Task RespondAsync(BotMessageData messageData, string response)
         {
-            if (!string.IsNullOrEmpty(messageData.Server))
+            if (messageData.DiscordMessageData != null)
             {
-                Log.Debug($"Sending {messageData.Command} response to message {messageData.MessageId} by {messageData.UserId} in channel {messageData.Channel} on guild {messageData.Server}");
-            }
+                if (!string.IsNullOrEmpty(messageData.Server))
+                {
+                    Log.Debug($"Sending {messageData.Command} response to message {messageData.MessageId} by {messageData.UserId} in channel {messageData.Channel} on guild {messageData.Server}");
+                }
 
-            await this.RespondAsync(messageData.DiscordMessageData, response, rateLimitChecked: messageData.RateLimitChecked);
+                await this.RespondAsync(messageData.DiscordMessageData, response, rateLimitChecked: messageData.RateLimitChecked);
+            }
         }
 
-        private async Task RespondAsync(IDiscordBotContext context, string response, Embed embedResponse = null, bool bypassEdit = false, bool rateLimitChecked = false, bool allowMentions = true, bool ephemeral = false)
+        private async Task RespondAsync(IDiscordBotContext context, string response, Embed? embedResponse = null, bool bypassEdit = false, bool rateLimitChecked = false, bool allowMentions = true, bool ephemeral = false)
         {
             if (!string.IsNullOrEmpty(context.MessageData.Server))
             {
@@ -1128,7 +1151,7 @@ namespace UB3RB0T
 
             if (context.Interaction != null)
             {
-                await context.Interaction.RespondAsync(response, embedResponse != null ? new Embed[] { embedResponse } : null, false, ephemeral, allowMentions ? null : AllowedMentions.None);
+                await context.Interaction.RespondAsync(response, embedResponse != null ? [embedResponse] : null, false, ephemeral, allowMentions ? null : AllowedMentions.None);
             }
             else if (context.Message != null)
             {
@@ -1136,10 +1159,10 @@ namespace UB3RB0T
             }
         }
 
-        private async Task RespondAsync(IUserMessage message, string response, Embed embedResponse = null, bool bypassEdit = false, bool rateLimitChecked = false, bool allowMentions = true)
+        private async Task RespondAsync(IUserMessage message, string? response, Embed? embedResponse = null, bool bypassEdit = false, bool rateLimitChecked = false, bool allowMentions = true)
         {
             var textChannel = message.Channel as ITextChannel;
-            IGuild guild = textChannel?.Guild;
+            IGuild? guild = textChannel?.Guild;
 
             if (!rateLimitChecked)
             {
@@ -1165,12 +1188,14 @@ namespace UB3RB0T
             {
                 try
                 {
-                    var oldMsg = await textChannel.GetMessageAsync(oldMessageId) as IUserMessage;
-                    await oldMsg.ModifyAsync((m) =>
+                    if (await textChannel.GetMessageAsync(oldMessageId) is IUserMessage oldMsg)
                     {
-                        m.Content = response;
-                        m.Embed = embedResponse;
-                    });
+                        await oldMsg.ModifyAsync((m) =>
+                        {
+                            m.Content = response;
+                            m.Embed = embedResponse;
+                        });
+                    }
                 }
                 catch (HttpException ex) when (ex.DiscordCode == DiscordErrorCode.UnknownMessage) 
                 {

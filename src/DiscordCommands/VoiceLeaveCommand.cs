@@ -7,9 +7,9 @@
 
     public class VoiceLeaveCommand : IDiscordCommand
     {
-        public Task<CommandResponse> Process(IDiscordBotContext context)
+        public Task<CommandResponse?> Process(IDiscordBotContext context)
         {
-            if (context.Message.Channel is SocketGuildChannel channel)
+            if (context.Message?.Channel is SocketGuildChannel channel && context.AudioManager != null)
             {
                 Task.Run(async () =>
                 {
@@ -25,7 +25,7 @@
                 }).Forget();
             }
 
-            return Task.FromResult((CommandResponse)null);
+            return Task.FromResult<CommandResponse?>(null);
         }
     }
 }

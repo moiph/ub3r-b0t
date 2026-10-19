@@ -8,7 +8,7 @@
 
     public interface ICommand
     {
-        Task<CommandResponse> Process(IBotContext context);
+        Task<CommandResponse?> Process(IBotContext context);
     }
 
     public abstract class AdminCommand : ICommand
@@ -17,7 +17,7 @@
 
         public abstract BotType botType { get; }
 
-        public async Task<CommandResponse> Process(IBotContext context)
+        public async Task<CommandResponse?> Process(IBotContext context)
         {
             var messageData = context.MessageData;
             if (SettingsConfig.Instance.CreateEndpoint != null && !string.IsNullOrEmpty(messageData.Server))

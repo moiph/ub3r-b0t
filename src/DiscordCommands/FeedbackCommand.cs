@@ -10,16 +10,26 @@
         private static Regex FeedbackMessageRx = new Regex("^.*\\[server:([0-9]+) chan:([0-9]+) user:([0-9]+) type:([A-Z]+)\\] \\(mid: [0-9]+\\)$", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Multiline);
         private static Regex FeedbackEmbedRx = new Regex("^S: ([A-Z0-9]+) \\| C: ([A-Z0-9]+) \\| U: ([A-Z0-9]+) \\| T: ([A-Z]+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Multiline);
 
-        public async Task<CommandResponse> Process(IDiscordBotContext context)
+        public async Task<CommandResponse?> Process(IDiscordBotContext context)
         {
+            if (context.BotApi == null)
+            {
+                return new CommandResponse { Text = "Feedback command is unavailable" };
+            }
+
+            if (context.Channel == null)
+            {
+                return new CommandResponse { Text = "Feedback command is unavailable" };
+            }
+
             var message = context.Message;
 
             // grab the message being referenced
-            var parts = message.Content.Split(new[] { ' ' }, 3);
+            var parts = message?.Content.Split([' '], 3) ?? [];
 
             if (parts.Length != 3)
             {
-                return new CommandResponse { Text = ".fr id message" };
+                return new CommandResponse { Text = $"{context.Settings.Prefix}fr id message" };
             }
 
             if (!ulong.TryParse(parts[1], out ulong targetMessageId))

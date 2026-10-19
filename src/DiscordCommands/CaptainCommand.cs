@@ -6,12 +6,17 @@
     [BotOwnerOnly]
     class CaptainCommand : IDiscordCommand
     {
-        public async Task<CommandResponse> Process(IDiscordBotContext context)
+        public async Task<CommandResponse?> Process(IDiscordBotContext context)
         {
-            var guildChannel = context.Message.Channel as SocketGuildChannel;
-            var textChannel = context.Message.Channel as SocketTextChannel;
-            var botGuildUser = guildChannel.GetUser(context.Client.CurrentUser.Id);
-            var existingNickname = botGuildUser.Nickname;
+            var guildChannel = context.Message?.Channel as SocketGuildChannel;
+            var textChannel = context.Message?.Channel as SocketTextChannel;
+            var botGuildUser = guildChannel?.GetUser(context.Client.CurrentUser.Id);
+            var existingNickname = botGuildUser?.Nickname;
+
+            if (botGuildUser == null || textChannel == null)
+            {
+                return null;
+            }
 
             await botGuildUser.ModifyAsync(x => x.Nickname = "Kwame");
             await textChannel.SendMessageAsync("EARTH!");

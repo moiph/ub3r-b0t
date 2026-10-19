@@ -4,6 +4,6 @@
 
     public interface IFluxerCommand
     {
-        Task<CommandResponse> Process(IFluxerBotContext context);
+        Task<CommandResponse?> Process(IFluxerBotContext context);
     }
 }

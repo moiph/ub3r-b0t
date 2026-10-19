@@ -10,13 +10,13 @@
         public ChannelPermission? ChannelPermission { get; }
         public GuildPermission? GuildPermission { get; }
 
-        public FluxerUserPermissionsAttribute(ChannelPermission channelPermission, string failureString = null)
+        public FluxerUserPermissionsAttribute(ChannelPermission channelPermission, string? failureString = null)
         {
             this.ChannelPermission = channelPermission;
             this.FailureString = failureString;
         }
 
-        public FluxerUserPermissionsAttribute(GuildPermission guildPermission, string failureString = null)
+        public FluxerUserPermissionsAttribute(GuildPermission guildPermission, string? failureString = null)
         {
             this.GuildPermission = guildPermission;
             this.FailureString = failureString;
@@ -29,14 +29,19 @@
                 return false;
             }
 
-            if (context.Author.Id.ToString() == BotConfig.Instance.Fluxer.OwnerId)
+            if (BotConfig.Instance.Fluxer?.OwnerId != null && context.Author?.Id.ToString() == BotConfig.Instance.Fluxer.OwnerId)
             {
                 return true;
             }
 
             var guild = context.Client.Gateway.GetGuild((ulong)message.Guild.Id);
 
-            if (guild.OwnerId == context.Author.Id)
+            if (guild == null)
+            {
+                return false;
+            }
+
+            if (guild.OwnerId == context.Author?.Id)
             {
                 return true;
             }

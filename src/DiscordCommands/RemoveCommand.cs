@@ -7,13 +7,13 @@
     [UserPermissions(GuildPermission.Administrator, "RequireUserGuildAdminForRemove")]
     public class RemoveCommand : IDiscordCommand
     {
-        public async Task<CommandResponse> Process(IDiscordBotContext context)
+        public async Task<CommandResponse?> Process(IDiscordBotContext context)
         {
-            if (context.GuildChannel != null)
+            if (context.GuildChannel != null && context.Message != null && context.BotApi != null)
             {
                 var settings = SettingsConfig.GetSettings(context.GuildChannel.Guild.Id.ToString());
 
-                string[] parts = context.Message.Content.Split(new[] { ' ' }, 3);
+                string[] parts = context.Message.Content.Split([' '], 3);
 
                 if (parts.Length != 3)
                 {

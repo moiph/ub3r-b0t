@@ -4,7 +4,10 @@
 
     public abstract class BaseDiscordModule : IModule
     {
-        public Task<ModuleResult> Process(IBotContext botContext) => this.ProcessDiscordModule(botContext as IDiscordBotContext);
+        public Task<ModuleResult> Process(IBotContext botContext) => 
+            botContext is IDiscordBotContext discordContext ? 
+                this.ProcessDiscordModule(discordContext) : 
+                Task.FromResult(ModuleResult.Continue);
         public abstract Task<ModuleResult> ProcessDiscordModule(IDiscordBotContext moduleContext);
     }
 }

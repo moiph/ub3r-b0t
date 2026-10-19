@@ -5,7 +5,7 @@
     /// </summary>
     public static class StringHelper
     {
-       public static string GetString(string stringName)
+       public static string? GetString(string stringName)
         {
             return Strings.ResourceManager.GetString(stringName);
         }

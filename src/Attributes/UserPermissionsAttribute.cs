@@ -10,13 +10,13 @@
         public ChannelPermission? ChannelPermission { get; }
         public GuildPermission? GuildPermission { get; }
 
-        public UserPermissionsAttribute(ChannelPermission channelPermission, string failureString = null)
+        public UserPermissionsAttribute(ChannelPermission channelPermission, string? failureString = null)
         {
             this.ChannelPermission = channelPermission;
             this.FailureString = failureString;
         }
 
-        public UserPermissionsAttribute(GuildPermission guildPermission, string failureString = null)
+        public UserPermissionsAttribute(GuildPermission guildPermission, string? failureString = null)
         {
             this.GuildPermission = guildPermission;
             this.FailureString = failureString;
@@ -26,7 +26,7 @@
         {
             var guildUser = context.Author as SocketGuildUser;
 
-            if (guildUser.Id == BotConfig.Instance.Discord.OwnerId)
+            if (guildUser?.Id == BotConfig.Instance.Discord?.OwnerId)
             {
                 return true;
             }

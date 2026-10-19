@@ -17,15 +17,20 @@
 
         public Dictionary<ulong, AudioUserState> Users { get; } = new Dictionary<ulong, AudioUserState>();
         public ulong GuildId { get; set; }
-        public IVoiceChannel VoiceChannel { get; set; }
-        public IAudioClient AudioClient { get; set; }
-        public Stream Stream { get; set; }
+        public IVoiceChannel? VoiceChannel { get; set; }
+        public IAudioClient? AudioClient { get; set; }
+        public Stream? Stream { get; set; }
         public bool SentJoinGreeting { get; set; }
         public bool AllowReconnect { get; set; }
         public DateTime DisconnectedTime { get; set; }
 
         public async Task<int> GetUserCountAsync()
         {
+            if (this.VoiceChannel == null)
+            {
+                return 0;
+            }
+
             return (await this.VoiceChannel.GetUsersAsync().FlattenAsync()).Count();
         }
 
@@ -43,7 +48,7 @@
                 // wait up to 5 seconds in case we're already flushing a stream.
                 this.streamLock.Wait(5000);
 
-                this.Stream.Dispose();
+                this.Stream?.Dispose();
                 this.Stream = null;
                 // Seems to be an issue in Discord.Net.WebSockets.DefaultWebSocketClient.DisconnectAsync on disposing SemaphoreSlim;
                 // need to investigate further.
