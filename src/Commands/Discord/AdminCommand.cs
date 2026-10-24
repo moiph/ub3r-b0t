@@ -4,7 +4,7 @@
     using Discord;
 
     [UserPermissions(GuildPermission.ManageGuild, "RequireUserManageGuild")]
-    public class DiscordAdminCommand : AdminCommand
+    public class DiscordAdminCommand : AdminCommand, IDiscordCommand
     {
         public override BotType botType => BotType.Discord;
 

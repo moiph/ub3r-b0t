@@ -11,12 +11,20 @@
     {
         private readonly HashSet<ulong> blockedDMUsers = new HashSet<ulong>();
 
+        protected bool CanDeleteMessages(IBotContext context)
+        {
+            if (context is IDiscordBotContext discordContext)
+            {
+                return (discordContext.GuildChannel as ITextChannel)?.GetCurrentUserPermissions().ManageMessages ?? false;
+            }
+
+            return false;
+        }
+
         public override async Task<ModuleResult> ProcessDiscordModule(IDiscordBotContext context)
         {
             // check for word censors; ignore if we can't delete messages
-            var canDeleteMessages = (context.GuildChannel as ITextChannel)?.GetCurrentUserPermissions().ManageMessages ?? false;
-
-            if (context.Message != null && context.Settings.TriggersCensor(context.Message.Content, out string? offendingWord) && canDeleteMessages)
+            if (context.Message != null && context.Settings.TriggersCensor(context.Message.Content, out string? offendingWord) && this.CanDeleteMessages(context))
             {
                 offendingWord = offendingWord != null ? $"`{offendingWord}`" : "*FANCY lanuage filters*";
                 bool messageDeleted = false;
