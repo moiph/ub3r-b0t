@@ -120,7 +120,7 @@
         public HashSet<string> WordCensors { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         public HashSet<string> RegexCensors { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        public Dictionary<ulong, ulong> SelfRoles { get; set; } = [];
+        public Dictionary<ulong, string> SelfRoles { get; set; } = [];
         public ulong SelfRolesChannelId { get; set; }
 
         public HashSet<string> DisabledCommands { get; set; } = [];

@@ -1043,8 +1043,10 @@ namespace UB3RB0T
                 // handle possible role adds/removes
                 IUserMessage reactionMessage = await message.GetOrDownloadAsync();
 
-                ulong selfRoleId = settings.SelfRoles.FirstOrDefault(kvp => kvp.Value == customEmote?.Id).Key;
+                var mappedEmote = customEmote?.Id.ToString() ?? reactionEmote;
+                ulong selfRoleId = settings.SelfRoles.FirstOrDefault(kvp => kvp.Value == mappedEmote).Key;
                 bool roleChanged = false;
+                // TODO ADD LOGGING HERE
                 if (selfRoleId != 0)
                 {
                     roleChanged = await RoleCommand.AddRoleViaReaction(selfRoleId, reactionUser);
@@ -1093,29 +1095,22 @@ namespace UB3RB0T
                 }
             }
 
-            if (message != null)
+            var botContext = new DiscordBotContext(this.Client, command, message)
             {
-                var botContext = new DiscordBotContext(this.Client, command, message)
-                {
-                    BotApi = this.BotApi,
-                    Bot = this,
-                };
+                BotApi = this.BotApi,
+                Bot = this,
+            };
 
-                var props = new Dictionary<string, string>
-                {
-                    { "command",  command.CommandName },
-                    { "server",  botContext.GuildChannel?.Guild.Id.ToString() ?? string.Empty },
-                    { "channel", botContext.Channel?.Id.ToString() ?? string.Empty },
-                    { "shard",  this.Shard.ToString() },
-                };
-                this.TrackEvent("slashcommandProcessed", props);
-
-                await ProcessUserEvent(botContext);
-            }
-            else
+            var props = new Dictionary<string, string>
             {
-                Log.Debug("Message command received but message was null, skipping processing");
-            }
+                { "command",  command.CommandName },
+                { "server",  botContext.GuildChannel?.Guild.Id.ToString() ?? string.Empty },
+                { "channel", botContext.Channel?.Id.ToString() ?? string.Empty },
+                { "shard",  this.Shard.ToString() },
+            };
+            this.TrackEvent("slashcommandProcessed", props);
+
+            await ProcessUserEvent(botContext);
         }
 
         private async Task HandleComponent(SocketMessageComponent component)

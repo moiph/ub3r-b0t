@@ -6,29 +6,16 @@
     using Discord;
     using Discord.Net;
 
-    [BotPermissions(GuildPermission.ManageMessages)]
-    public class WordCensorModule : BaseDiscordModule
+    [BotPermissions(ChannelPermission.ManageMessages)]
+    public class DiscordWordCensorModule : WordCensorModule
     {
-        private readonly HashSet<ulong> blockedDMUsers = new HashSet<ulong>();
+        private readonly HashSet<ulong> blockedDMUsers = [];
 
-        protected bool CanDeleteMessages(IBotContext context)
+        protected override async Task DeleteMessage(IBotContext botContext, string message)
         {
-            if (context is IDiscordBotContext discordContext)
+            if (botContext is IDiscordBotContext context && context.Message != null)
             {
-                return (discordContext.GuildChannel as ITextChannel)?.GetCurrentUserPermissions().ManageMessages ?? false;
-            }
-
-            return false;
-        }
-
-        public override async Task<ModuleResult> ProcessDiscordModule(IDiscordBotContext context)
-        {
-            // check for word censors; ignore if we can't delete messages
-            if (context.Message != null && context.Settings.TriggersCensor(context.Message.Content, out string? offendingWord) && this.CanDeleteMessages(context))
-            {
-                offendingWord = offendingWord != null ? $"`{offendingWord}`" : "*FANCY lanuage filters*";
-                bool messageDeleted = false;
-
+                var messageDeleted = false;
                 try
                 {
                     await context.Message.DeleteAsync();
@@ -42,21 +29,17 @@
                 if (!this.blockedDMUsers.Contains(context.Message.Author.Id) && messageDeleted)
                 {
                     var dmChannel = await context.Message.Author.CreateDMChannelAsync();
-                
+
                     try
                     {
-                        await dmChannel.SendMessageAsync($"hi uh sorry but your most recent message was tripped up by {offendingWord} and thusly was deleted. complain to management, i'm just the enforcer");
+                        await dmChannel.SendMessageAsync(message);
                     }
                     catch (HttpException)
                     {
                         this.blockedDMUsers.Add(context.Message.Author.Id);
                     }
                 }
-                
-                return ModuleResult.Stop;
             }
-
-            return ModuleResult.Continue;
         }
     }
 }

@@ -1,5 +1,4 @@
 ﻿using Fluxer.Net;
-using Fluxer.Net.Gateway;
 using Fluxer.Net.Rest;
 using Serilog;
 using Serilog.Core;
@@ -11,6 +10,8 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using UB3RB0T.Commands;
+using UB3RB0T.Modules;
+using UB3RB0T.Modules.FluxerModules;
 
 namespace UB3RB0T
 {
@@ -23,7 +24,7 @@ namespace UB3RB0T
         private DateTime lastHeartbeatAck = DateTime.MinValue;
 
         private Dictionary<string, IFluxerCommand> fluxerCommands;
-
+        private readonly Dictionary<IModule, TypeInfo> preProcessModules = [];
         private FluxerBotConfig fluxerConfig => this.Config.Fluxer!;
 
         public FluxerBot(int shard, int totalShards) : base(shard, totalShards)
@@ -49,7 +50,7 @@ namespace UB3RB0T
             this.client.Gateway.MessageCreated += async data => await this.HandleMessageCreated(data);
             this.client.Gateway.MessageUpdated += async data => await this.HandleMessageUpdated(data);
             this.client.Gateway.MessageDeleted += async (channel, userId, messageId, content) => await this.HandleMessageDeleted(channel, userId, messageId, content);
-            this.client.Gateway.MessageReactionAdded += async data => await this.HandleReactionAdded(data);
+            this.client.Gateway.MessageReactionAdded += async (channel, message, reaction) => await this.HandleReactionAdded(channel, message, reaction);
             this.client.Gateway.MemberJoined += async data => await this.HandleMemberJoined(data);
             this.client.Gateway.MemberLeft += async (guild, data) => await this.HandleMemberLeft(guild, data);
 
@@ -63,9 +64,16 @@ namespace UB3RB0T
                 { "admin", new FluxerAdminCommand() },
                 { "debug", new FluxerDebugCommand() },
             };
+
+            // TODO: config driven
+            this.preProcessModules = new Dictionary<IModule, TypeInfo>
+            {
+                { new FluxerWordCensorModule(), typeof(FluxerWordCensorModule).GetTypeInfo() },
+            };
         }
 
         public override BotType BotType => BotType.Fluxer;
+        public override bool SupportsSettings => true;
         protected override string UserId => this.fluxerConfig.BotId.ToString();
 
         protected override async Task<HeartbeatData> GetHeartbeatData()
@@ -128,6 +136,49 @@ namespace UB3RB0T
                     }
                 }
             }
+
+            if (settings.JoinRoleId != 0 && data.Guild.CurrentMember.GuildPermissions.ManageRoles)
+            {
+                var role = data.Guild.GetRole(settings.JoinRoleId);
+                if (role != null)
+                {
+                    try
+                    {
+                        await data.AddRoleAsync(role);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, $"[guild: {guildId}] Failed to add join role {settings.JoinRoleId} to user {userId}");
+                    }
+                }
+                else
+                {
+                    Log.Verbose($"[guild: {guildId}] User joined, role id {settings.JoinRoleId} not found");
+                }
+            }
+
+            // mod log
+            if (settings.Mod_LogId != 0 && settings.HasFlag(ModOptions.Mod_LogUserJoin))
+            {
+                string joinText = $"{data.Mention} ({data}) joined.";
+                var channel = data.Guild.GetChannel(settings.Mod_LogId);
+                if (channel != null)
+                {
+                    var canSendMessages = data.Guild.CurrentMember.GetPermissions(channel).SendMessages;
+                    if (canSendMessages)
+                    {
+                        await channel.SendMessageAsync(joinText);
+                    }
+                    else
+                    {
+                        Log.Verbose($"[guild: {guildId}] User joined, missing permissions to send mod log");
+                    }
+                }
+                else
+                {
+                    Log.Verbose($"[guild: {guildId}] User joined, mod log channel id {settings.Mod_LogId} not found");
+                }
+            }
         }
 
         private async Task HandleMemberLeft(SocketGuild guild, Cacheable<SocketGuildMember> member)
@@ -161,22 +212,53 @@ namespace UB3RB0T
                         }
                     }
                 }
+
+                var guildId = guild.Id;
+
+                // mod log
+                if (settings.Mod_LogId != 0 && settings.HasFlag(ModOptions.Mod_LogUserLeave))
+                {
+                    string leaveText = $"{member.Value?.Mention ?? member.Id.ToString()} ({member.Value?.GetCurrentName() ?? member.Id.ToString()}) left.";
+                    var channel = guild.GetChannel(settings.Mod_LogId);
+                    if (channel != null)
+                    {
+                        var canSendMessages = guild.CurrentMember.GetPermissions(channel).SendMessages;
+                        if (canSendMessages)
+                        {
+                            await channel.SendMessageAsync(leaveText);
+                        }
+                        else
+                        {
+                            Log.Verbose($"[guild: {guildId}] User left, missing permissions to send mod log");
+                        }
+                    }
+                    else
+                    {
+                        Log.Verbose($"[guild: {guildId}] User left, mod log channel id {settings.Mod_LogId} not found");
+                    }
+                }
             }
         }
 
-        private async Task HandleReactionAdded(MessageReactionGatewayData data)
+        private async Task HandleReactionAdded(Channel channel, Cacheable<Message> message, SocketReaction reaction)
         {
-            if (data.UserId == this.fluxerConfig.BotId)
+            if (reaction.UserId == this.fluxerConfig.BotId)
             {
                 return;
             }
 
-            var reactionEmote = data.Emoji.Name;
+            if (channel.GuildId == null)
+            {
+                return;
+            }
+
+            var settings = SettingsConfig.GetSettings(channel.GuildId.Value);
+
+            var reactionEmote = reaction.Emoji.Name;
 
             if (reactionEmote == "💬" || reactionEmote == "🗨️")
             {
-                var reactionMessage = await this.client.Rest.GetMessageAsync(data.ChannelId, data.MessageId);
-
+                var reactionMessage = await this.client.Rest.GetMessageAsync(channel.Id, message.Id);
                 // if the reaction already exists, don't re-process.
                 if (reactionMessage == null || reactionMessage.Author.IsBot || reactionMessage.Reactions?.Any(r => (r.Emoji.Name == "💬" || r.Emoji.Name == "🗨️") && r.Count > 1) == true)
                 {
@@ -185,13 +267,13 @@ namespace UB3RB0T
 
                 if (!string.IsNullOrEmpty(reactionMessage.Content))
                 {
-                    var reactionUser = await this.client.Rest.GetUserAsync(data.UserId);
+                    var reactionUser = await this.client.Rest.GetUserAsync(reaction.UserId);
                     await this.HandleMessageCreated(reactionMessage, reactionEmote, reactionUser);
                 }
             }
             else if (reactionEmote == "🏅")
             {
-                var reactionMessage = await this.client.Rest.GetMessageAsync(data.ChannelId, data.MessageId);
+                var reactionMessage = await this.client.Rest.GetMessageAsync(channel.Id, message.Id);
 
                 if (reactionMessage == null || reactionMessage.Author.IsBot)
                 {
@@ -200,8 +282,38 @@ namespace UB3RB0T
 
                 if (!string.IsNullOrEmpty(reactionMessage.Content))
                 {
-                    var reactionUser = await this.client.Rest.GetUserAsync(data.UserId);
+                    var reactionUser = await this.client.Rest.GetUserAsync(reaction.UserId);
                     await this.HandleMessageCreated(reactionMessage, reactionEmote, reactionUser);
+                }
+            }
+            else if (channel.Id == settings.SelfRolesChannelId)
+            {
+                var mappedEmote = reaction.Emoji.Id == 0 ? reaction.Emoji.Name : reaction.Emoji.Id.ToString();
+                ulong selfRoleId = settings.SelfRoles.FirstOrDefault(kvp => kvp.Value == mappedEmote).Key;
+                bool roleChanged = false;
+
+                if (selfRoleId != 0 && reaction.Member != null)
+                {
+
+                    if (reaction.Member.RoleIds.Contains(selfRoleId))
+                    {
+                        roleChanged = true;
+                        await reaction.Member.RemoveRoleAsync(selfRoleId);
+                    }
+                    else
+                    {
+                        roleChanged = true;
+                        await this.client.Rest.AddMemberRoleAsync(channel.GuildId.Value, reaction.Member.Id, selfRoleId);
+                    }   
+
+                    if (roleChanged)
+                    {
+                        var reactionMessage = await this.client.Rest.GetMessageAsync(channel.Id, message.Id);
+                        if (reactionMessage != null && reaction.Emoji is Emoji emoji)
+                        {
+                            await reactionMessage.RemoveUserReactionAsync(emoji, reaction.Member.User);
+                        }
+                    }
                 }
             }
         }
@@ -252,6 +364,26 @@ namespace UB3RB0T
                 }
 
                 var messageData = BotMessageData.Create(message, settings, guildId);
+                var context = new FluxerBotContext(this.client, messageData)
+                {
+                    ReactionUser = reactionUser
+                };
+
+                foreach (var (module, typeInfo) in this.preProcessModules)
+                {
+                    var permissionChecksPassed = await this.CheckPermissions(context, typeInfo);
+
+                    if (!permissionChecksPassed)
+                    {
+                        continue;
+                    }
+
+                    var result = await module.Process(context);
+                    if (result == ModuleResult.Stop)
+                    {
+                        return;
+                    }
+                }
 
                 if (reactionEmote == "💬" || reactionEmote == "🗨️")
                 {
@@ -274,7 +406,6 @@ namespace UB3RB0T
                 if (this.fluxerCommands.TryGetValue(command, out IFluxerCommand? fluxerCommand))
                 {
                     var typeInfo = fluxerCommand.GetType().GetTypeInfo();
-                    var context = new FluxerBotContext(this.client, messageData);
                     var permissionChecksPassed = await this.CheckPermissions(context, typeInfo);
 
                     if (permissionChecksPassed)
@@ -391,47 +522,50 @@ namespace UB3RB0T
                 {
                     var oldMessage = await this.client.Rest.GetMessageAsync(messageData.ChannelId, oldMessageId);
 
-                    List<EmbedRequest>? editEmbeds = null;
-                    if (embed != null)
+                    if (oldMessage != null)
                     {
-                        var embedRequest = new EmbedRequest
+                        List<EmbedRequest>? editEmbeds = null;
+                        if (embed != null)
                         {
-                            Title = embed?.Title,
-                            Description = embed?.Description,
-                            Url = embed?.Url,
-                            Color = embed?.Color,
-                            Author = embed?.Author != null ? new EmbedAuthorRequest
+                            var embedRequest = new EmbedRequest
                             {
-                                Name = embed.Author.Name,
-                                Url = embed.Author.Url,
-                                IconUrl = embed.Author.IconUrl,
-                            } : null,
-                            Image = embed?.Image != null ? new EmbedMediaRequest
-                            {
-                                Url = embed.Image.Url,
-                            } : null,
-                            Thumbnail = embed?.Thumbnail != null ? new EmbedMediaRequest
-                            {
-                                Url = embed.Thumbnail.Url,
-                            } : null,
-                            Footer = embed?.Footer != null ? new EmbedFooterRequest
-                            {
-                                Text = embed.Footer.Text,
-                                IconUrl = embed.Footer.IconUrl,
-                            } : null,
-                            Fields = embed?.Fields?.Select(f => new EmbedFieldRequest
-                            {
-                                Name = f.Name,
-                                Value = f.Value,
-                                IsInline = f.IsInline,
-                            }).ToArray(),
-                        };
+                                Title = embed?.Title,
+                                Description = embed?.Description,
+                                Url = embed?.Url,
+                                Color = embed?.Color,
+                                Author = embed?.Author != null ? new EmbedAuthorRequest
+                                {
+                                    Name = embed.Author.Name,
+                                    Url = embed.Author.Url,
+                                    IconUrl = embed.Author.IconUrl,
+                                } : null,
+                                Image = embed?.Image != null ? new EmbedMediaRequest
+                                {
+                                    Url = embed.Image.Url,
+                                } : null,
+                                Thumbnail = embed?.Thumbnail != null ? new EmbedMediaRequest
+                                {
+                                    Url = embed.Thumbnail.Url,
+                                } : null,
+                                Footer = embed?.Footer != null ? new EmbedFooterRequest
+                                {
+                                    Text = embed.Footer.Text,
+                                    IconUrl = embed.Footer.IconUrl,
+                                } : null,
+                                Fields = embed?.Fields?.Select(f => new EmbedFieldRequest
+                                {
+                                    Name = f.Name,
+                                    Value = f.Value,
+                                    IsInline = f.IsInline,
+                                }).ToArray(),
+                            };
 
-                        editEmbeds = [embedRequest];
+                            editEmbeds = [embedRequest];
+                        }
+
+                        await this.client.Rest.EditMessageAsync(oldMessage.ChannelId, oldMessageId, message.Content, editEmbeds);
+                        return;
                     }
-
-                    await this.client.Rest.EditMessageAsync(oldMessage.ChannelId, oldMessageId, message.Content, editEmbeds);
-                    return;
                 }
                 catch (Exception ex)
                 {

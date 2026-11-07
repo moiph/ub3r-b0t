@@ -15,6 +15,7 @@
     {
         FluxerClient Client { get; }
         Fluxer.Net.IUser? Author { get; }
+        public Fluxer.Net.IUser? ReactionUser { get; set; }
     }
 
     public class FluxerBotContext : IFluxerBotContext
@@ -29,6 +30,7 @@
         public BotMessageData MessageData { get; }
         public Fluxer.Net.IUser? Author => this.MessageData.FluxerMessageData?.Author;
         public BotApi? BotApi { get; set; }
+        public Fluxer.Net.IUser? ReactionUser { get; set; }
 
     }
 

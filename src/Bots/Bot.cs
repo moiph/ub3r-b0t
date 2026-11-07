@@ -154,7 +154,7 @@ namespace UB3RB0T
 
             if (!string.IsNullOrEmpty(this.Config.WebListenerHostName))
             {
-                this.StartWebListener();
+                await this.StartWebListener();
             }
 
             if (!string.IsNullOrEmpty(this.Config.ServiceBusConnectionString))
@@ -619,62 +619,59 @@ namespace UB3RB0T
             return tags.ToArray();
         }
 
-        private void StartWebListener()
+        private async Task StartWebListener()
         {
-            Task.Run(() =>
+            int port = this.Config.WebListenerPort;
+            if (this.BotType == BotType.Discord)
             {
-                int port = this.Config.WebListenerPort;
-                if (this.BotType == BotType.Discord)
-                {
-                    port += 10 + this.Shard;
-                }
-                else
-                {
-                    port += (int)this.BotType;
-                }
+                port += 10 + this.Shard;
+            }
+            else
+            {
+                port += (int)this.BotType;
+            }
 
-                X509Certificate2? cert = null;
-                if (!string.IsNullOrEmpty(this.Config.CertThumbprint) && !string.IsNullOrEmpty(this.Config.CertStoreName))
+            X509Certificate2? cert = null;
+            if (!string.IsNullOrEmpty(this.Config.CertThumbprint) && !string.IsNullOrEmpty(this.Config.CertStoreName))
+            {
+                using (var store = new X509Store(this.Config.CertStoreName, StoreLocation.LocalMachine))
                 {
-                    using (var store = new X509Store(this.Config.CertStoreName, StoreLocation.LocalMachine))
+                    store.Open(OpenFlags.ReadOnly);
+                    var certificates = store.Certificates.Find(X509FindType.FindByThumbprint, this.Config.CertThumbprint, validOnly: false);
+                    if (certificates?.Count > 0)
                     {
-                        store.Open(OpenFlags.ReadOnly);
-                        var certificates = store.Certificates.Find(X509FindType.FindByThumbprint, this.Config.CertThumbprint, validOnly: false);
-                        if (certificates?.Count > 0)
-                        {
-                            cert = certificates[0];
-                        }
+                        cert = certificates[0];
                     }
                 }
+            }
 
-                var protocol = cert == null ? "http" : "https";
-                var listenerUrl = $"{protocol}://{this.Config.WebListenerHostName}:{port}";
+            var protocol = cert == null ? "http" : "https";
+            var listenerUrl = $"{protocol}://{this.Config.WebListenerHostName}:{port}";
 
-                Log.Information($"Web listener configured on {listenerUrl}");
+            Log.Information($"Web listener configured on {listenerUrl}");
 
-                this.listenerHost = new HostBuilder()
-                    .ConfigureWebHost(webHostBuilder =>
-                    {
-                        webHostBuilder
-                            .UseKestrel(options =>
+            this.listenerHost = new HostBuilder()
+                .ConfigureWebHost(webHostBuilder =>
+                {
+                    webHostBuilder
+                        .UseKestrel(options =>
+                        {
+                            options.ListenAnyIP(port, l =>
                             {
-                                options.ListenAnyIP(port, l =>
+                                if (cert != null)
                                 {
-                                    if (cert != null)
+                                    l.UseHttps(h =>
                                     {
-                                        l.UseHttps(h =>
-                                        {
-                                            h.ServerCertificate = cert;
-                                        });
-                                    }
-                                });
-                            })
-                            .UseUrls($"http://localhost:{port}", listenerUrl)
-                            .UseStartup<Program>();
-                    })
-                    .Build();
-                this.listenerHost.Start();
-            });
+                                        h.ServerCertificate = cert;
+                                    });
+                                }
+                            });
+                        })
+                        .UseUrls($"http://localhost:{port}", listenerUrl)
+                        .UseStartup<Program>();
+                })
+                .Build();
+            await this.listenerHost.StartAsync();
         }
 
         /// <summary>

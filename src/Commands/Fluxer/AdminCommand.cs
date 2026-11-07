@@ -1,6 +1,6 @@
 ﻿namespace UB3RB0T.Commands
 {
-    using Fluxer.Net;
+    using global::Fluxer.Net;
     using System.Threading.Tasks;
 
     [FluxerUserPermissions(GuildPermission.ManageGuild, "RequireUserManageGuild")]

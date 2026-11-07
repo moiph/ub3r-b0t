@@ -9,7 +9,7 @@
         {
             var serverId = context.MessageData.Server ?? "n/a";
             var botVersion = Assembly.GetEntryAssembly()?.GetName()?.Version?.ToString() ?? "Unknown";
-            var fluxerVersion = Assembly.GetAssembly(typeof(Fluxer.Net.FluxerClient))?.GetName().Version?.ToString() ?? "Unknown";
+            var fluxerVersion = Assembly.GetAssembly(typeof(global::Fluxer.Net.FluxerClient))?.GetName().Version?.ToString() ?? "Unknown";
             var response = new CommandResponse
             {
                 Text = $"```Server ID: {serverId} | Channel ID: {context.MessageData.Channel} | Your ID: {context.MessageData.UserId} | Version: {botVersion} | Fluxer.NET Version: {fluxerVersion}```"

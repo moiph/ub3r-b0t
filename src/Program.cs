@@ -194,7 +194,7 @@
         static PhysicalFileProvider? fileProvider;
         static IChangeToken? changeToken;
 
-        static int Main(string[] args)
+        static async Task<int> Main(string[] args)
         {
             var botType = BotType.Discord;
             var shard = 0;
@@ -279,7 +279,7 @@
                         BotInstance = bot;
                         Log.Information($"Starting shard {shard}");
 
-                        exitCode = bot.StartAsync().GetAwaiter().GetResult();
+                        exitCode = await bot.StartAsync();
                     }
                 }
                 catch (Exception ex)
