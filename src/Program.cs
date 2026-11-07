@@ -62,7 +62,7 @@
                                     var channelsResponse = new GuildPermisssionsData();
 
                                     var botGuildUser = guild.CurrentUser;
-                                    var channels = guild.Channels.Where(c => c is ITextChannel || c is IVoiceChannel);
+                                    var channels = guild.Channels.Where(c => c is Discord.ITextChannel || c is Discord.IVoiceChannel);
 
                                     foreach (var chan in channels)
                                     {

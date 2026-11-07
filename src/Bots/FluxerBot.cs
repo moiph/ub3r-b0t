@@ -54,6 +54,17 @@ namespace UB3RB0T
             this.client.Gateway.MemberJoined += async data => await this.HandleMemberJoined(data);
             this.client.Gateway.MemberLeft += async (guild, data) => await this.HandleMemberLeft(guild, data);
 
+            this.client.Gateway.Ready += async data => 
+            {
+                Log.Information($"Fluxer bot shard {this.Shard} is ready.");
+                this.client.Gateway.SetStatus(Status.Online);
+
+                if (!string.IsNullOrEmpty(this.fluxerConfig.Status))
+                {
+                    this.client.Gateway.SetCustomStatus(this.fluxerConfig.Status);
+                }
+            };
+
             this.client.Gateway.HeartbeatAck += this.HeartbeatAck;
 
             this.heartbeatTimer = new Timer(HeartBeatTimerAsync, null, 60000, 60000 * 5);
@@ -288,7 +299,7 @@ namespace UB3RB0T
             }
             else if (channel.Id == settings.SelfRolesChannelId)
             {
-                var mappedEmote = reaction.Emoji.Id == 0 ? reaction.Emoji.Name : reaction.Emoji.Id.ToString();
+                var mappedEmote = reaction.Emoji.Id == null ? reaction.Emoji.Name : reaction.Emoji.Id.ToString();
                 ulong selfRoleId = settings.SelfRoles.FirstOrDefault(kvp => kvp.Value == mappedEmote).Key;
                 bool roleChanged = false;
 

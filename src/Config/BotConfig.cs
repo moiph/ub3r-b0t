@@ -195,6 +195,7 @@
 
         [JsonRequired]
         public ulong BotId { get; set; }
+        public string? Status { get; set; }
     }
 
     public class BotStatData
