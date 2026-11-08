@@ -22,15 +22,27 @@
             var messageCommand = context.Interaction as SocketMessageCommand;
             var isQuote = messageCommand != null && messageCommand.CommandName.IEquals("quote");
             // don't auto process if the message was edited
-            if (message != null && context.MessageData.Content != null && (!string.IsNullOrEmpty(context.Reaction) || isQuote || (BotConfig.Instance.OcrAutoIds.Contains(message.Channel.Id) && message.EditedTimestamp == null)))
+            if (message != null && (context.MessageData.Content != null || message.Attachments.Any()) && (!string.IsNullOrEmpty(context.Reaction) || isQuote || (BotConfig.Instance.OcrAutoIds.Contains(message.Channel.Id) && message.EditedTimestamp == null)))
             {
                 string? newMessageContent = null;
 
                 if (context.Reaction == "💬" || context.Reaction == "🗨️" || isQuote)
                 {
-                    var quote = context.MessageData.Content.ReplaceMulti(new[] { "\"", "”", "“" }, "&quot;");
-                    newMessageContent = $"{context.Settings.Prefix}quote add \"{quote}\" - userid:{message.Author.Id} {message.Author.Username}";
-                    await message.AddReactionAsync(new Emoji("💬"));
+                    string quote = string.Empty;
+                    if (!string.IsNullOrEmpty(context.MessageData.Content))
+                    {
+                        quote = context.MessageData.Content.ReplaceMulti(new[] { "\"", "”", "“" }, "&quot;");
+                    }
+                    else if (message.Attachments.FirstOrDefault()?.Url is string url && !string.IsNullOrEmpty(url))
+                    {
+                        quote = $"IMG:{url}";
+                    }
+
+                    if (!string.IsNullOrEmpty(quote))
+                    {
+                        newMessageContent = $"{context.Settings.Prefix}quote add \"{quote}\" - userid:{message.Author.Id} {message.Author.Username}";
+                        await message.AddReactionAsync(new Emoji("💬"));
+                    }
                 }
                 else if (context.Reaction == "🏅" && context.ReactionUser != null)
                 {

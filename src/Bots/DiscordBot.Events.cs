@@ -1007,7 +1007,7 @@ namespace UB3RB0T
                     return;
                 }
 
-                if (!string.IsNullOrEmpty(reactionMessage.Content))
+                if (!string.IsNullOrEmpty(reactionMessage.Content) || reactionMessage.Attachments.Any())
                 {
                     await this.HandleMessageReceivedAsync(reactionMessage, reactionEmote, reactionUser);
                 }

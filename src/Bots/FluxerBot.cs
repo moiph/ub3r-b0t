@@ -276,7 +276,7 @@ namespace UB3RB0T
                     return;
                 }
 
-                if (!string.IsNullOrEmpty(reactionMessage.Content))
+                if (!string.IsNullOrEmpty(reactionMessage.Content) || reactionMessage.Attachments?.Length > 0)
                 {
                     var reactionUser = await this.client.Rest.GetUserAsync(reaction.UserId);
                     await this.HandleMessageCreated(reactionMessage, reactionEmote, reactionUser);
@@ -398,9 +398,22 @@ namespace UB3RB0T
 
                 if (reactionEmote == "💬" || reactionEmote == "🗨️")
                 {
-                    var quote = messageData.Content?.ReplaceMulti(["\"", "”", "“"], "&quot;");
-                    messageData.Content = $"{settings.Prefix}quote add \"{quote}\" - userid:{message.Author.Id} {message.Author.Username}";
-                    await message.AddReactionAsync("💬");
+                    string quote = string.Empty;
+                    if (!string.IsNullOrEmpty(messageData.Content))
+                    {
+                        quote = messageData.Content.ReplaceMulti(["\"", "”", "“"], "&quot;");
+                    }
+                    else if (message.Attachments?.Length > 0)
+                    {
+                        var attachment = message.Attachments.First();
+                        quote = $"IMG:{attachment.Url}";
+                    }
+
+                    if (!string.IsNullOrEmpty(quote))
+                    {
+                        messageData.Content = $"{settings.Prefix}quote add \"{quote}\" - userid:{message.Author.Id} {message.Author.Username}";
+                        await message.AddReactionAsync("💬");
+                    }
                 }
                 else if (reactionEmote == "🏅")
                 {
